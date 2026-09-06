@@ -29,6 +29,161 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
+type BreedOption = {
+  value: string;
+  label: string;
+};
+
+const BREEDS_BY_SPECIES: Record<ProfileFormValues['species'], readonly BreedOption[]> = {
+  dog: [
+    'Mixed breed',
+    'Labrador Retriever',
+    'Golden Retriever',
+    'German Shepherd',
+    'French Bulldog',
+    'Bulldog',
+    'Poodle',
+    'Beagle',
+    'Rottweiler',
+    'Dachshund',
+    'Yorkshire Terrier',
+    'Boxer',
+    'Australian Shepherd',
+    'Siberian Husky',
+    'Great Dane',
+    'Cavalier King Charles Spaniel',
+    'Doberman Pinscher',
+    'Cane Corso',
+    'Miniature Schnauzer',
+    'Shih Tzu',
+    'Boston Terrier',
+    'Pomeranian',
+    'Havanese',
+    'Bernese Mountain Dog',
+    'Chihuahua',
+    'Pug',
+    'Cocker Spaniel',
+    'Border Collie',
+    'Maltese',
+    'Akita',
+    'Newfoundland',
+    'Basset Hound',
+    'Rhodesian Ridgeback',
+    'Weimaraner',
+    'Vizsla',
+    'Australian Cattle Dog',
+    'Jack Russell Terrier',
+    'West Highland White Terrier',
+    'Bichon Frise',
+    'Mastiff',
+    'Saint Bernard',
+    'English Springer Spaniel',
+    'Irish Setter',
+    'Whippet',
+    'Greyhound',
+    'Papillon',
+    'Shetland Sheepdog',
+    'Collie',
+    'Staffordshire Bull Terrier',
+    'Other / Not listed',
+  ].map((breed) => ({ value: breed, label: breed })),
+  cat: [
+    'Domestic Shorthair',
+    'Domestic Longhair',
+    'Domestic Medium Hair',
+    'Mixed breed',
+    'Abyssinian',
+    'American Shorthair',
+    'Bengal',
+    'Birman',
+    'British Shorthair',
+    'Burmese',
+    'Burmilla',
+    'Chartreux',
+    'Cornish Rex',
+    'Devon Rex',
+    'Egyptian Mau',
+    'Himalayan',
+    'Maine Coon',
+    'Manx',
+    'Norwegian Forest Cat',
+    'Ocicat',
+    'Oriental Shorthair',
+    'Persian',
+    'Ragdoll',
+    'Russian Blue',
+    'Savannah',
+    'Scottish Fold',
+    'Siamese',
+    'Siberian',
+    'Singapura',
+    'Snowshoe',
+    'Somali',
+    'Sphynx',
+    'Tonkinese',
+    'Toyger',
+    'Turkish Angora',
+    'Other / Not listed',
+  ].map((breed) => ({ value: breed, label: breed })),
+  bird: [
+    'Budgerigar / Parakeet',
+    'Cockatiel',
+    'African Grey Parrot',
+    'Amazon Parrot',
+    'Blue-and-Gold Macaw',
+    'Scarlet Macaw',
+    'Cockatoo',
+    'Conure',
+    'Eclectus Parrot',
+    'Lovebird',
+    'Finch',
+    'Canary',
+    'Dove',
+    'Pigeon',
+    'Quaker Parrot',
+    'Parrotlet',
+    'Mynah',
+    'Chicken',
+    'Duck',
+    'Goose',
+    'Other / Not listed',
+  ].map((breed) => ({ value: breed, label: breed })),
+  rabbit: [
+    'Mixed breed',
+    'American',
+    'Angora',
+    'Belgian Hare',
+    'Beveren',
+    'Britannia Petite',
+    'Californian',
+    'Champagne d’Argent',
+    'Checkered Giant',
+    'Chinchilla',
+    'Dutch',
+    'Dwarf Hotot',
+    'English Lop',
+    'English Spot',
+    'Flemish Giant',
+    'Holland Lop',
+    'Jersey Wooly',
+    'Lionhead',
+    'Mini Lop',
+    'Mini Rex',
+    'Netherland Dwarf',
+    'New Zealand',
+    'Polish',
+    'Rex',
+    'Satin',
+    'Silver Fox',
+    'Other / Not listed',
+  ].map((breed) => ({ value: breed, label: breed })),
+  other: [
+    'Mixed breed',
+    'Unknown',
+    'Other / Not listed',
+  ].map((breed) => ({ value: breed, label: breed })),
+};
+
 export default function Profile() {
   const { activePetId, setActivePetId } = usePetContext();
   const queryClient = useQueryClient();
@@ -134,6 +289,13 @@ export default function Profile() {
 
   const currentPhoto = form.watch('photoUrl');
   const name = form.watch('name');
+  const selectedSpecies = form.watch('species');
+  const savedBreed = form.watch('breed');
+  const breedOptions = BREEDS_BY_SPECIES[selectedSpecies] ?? [];
+  const visibleBreedOptions =
+    savedBreed && !breedOptions.some((breed) => breed.value === savedBreed)
+      ? [{ value: savedBreed, label: `${savedBreed} (saved)` }, ...breedOptions]
+      : breedOptions;
 
   return (
     <div className="p-6 md:p-10 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
@@ -213,7 +375,13 @@ export default function Profile() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Species</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            form.setValue('breed', '', { shouldDirty: true });
+                          }}
+                          value={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger className="bg-accent/30 h-12">
                               <SelectValue placeholder="Species" />
@@ -262,9 +430,23 @@ export default function Profile() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Breed (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. Golden Retriever" className="bg-accent/30 h-12" {...field} value={field.value || ''} />
-                      </FormControl>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || undefined}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="bg-accent/30 h-12">
+                            <SelectValue placeholder={`Select a ${selectedSpecies} breed`} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {visibleBreedOptions.map((breed) => (
+                            <SelectItem key={breed.value} value={breed.value}>
+                              {breed.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
