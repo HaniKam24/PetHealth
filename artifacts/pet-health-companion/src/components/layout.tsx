@@ -4,6 +4,7 @@ import { LayoutDashboard, FileText, Pill, Bell, Sparkles, User, Plus, HeartPulse
 import { usePetContext } from '@/context/pet-context';
 import { useListPets } from '@workspace/api-client-react';
 import { cn } from '@/lib/utils';
+import { resolvePetAvatar } from '@/lib/pet-avatar';
 
 export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
@@ -46,8 +47,8 @@ export function Layout({ children }: { children: ReactNode }) {
                          : "bg-background border-border hover:border-primary/30 text-foreground"
                      )}
                    >
-                     {pet.photoUrl ? (
-                        <img src={pet.photoUrl} alt={pet.name} className="w-10 h-10 rounded-full object-cover bg-background" />
+                      {resolvePetAvatar(pet.photoUrl) ? (
+                         <img src={resolvePetAvatar(pet.photoUrl)!} alt={pet.name} className="w-10 h-10 rounded-full object-cover bg-background" />
                      ) : (
                         <div className={cn(
                           "w-10 h-10 rounded-full flex items-center justify-center font-serif text-lg font-medium shadow-inner", 

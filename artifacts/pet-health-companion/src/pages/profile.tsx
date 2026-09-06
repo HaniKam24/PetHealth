@@ -6,7 +6,7 @@ import { useLocation } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Camera, Save, Trash2, HeartPulse } from 'lucide-react';
+import { Save, Trash2, HeartPulse, Check } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { PET_AVATAR_PRESETS, resolvePetAvatar } from '@/lib/pet-avatar';
 
 const profileSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -23,7 +24,7 @@ const profileSchema = z.object({
   birthDate: z.string().optional().nullable(),
   weight: z.coerce.number().optional().nullable(),
   weightUnit: z.enum(['lb', 'kg']),
-  photoUrl: z.string().url().optional().nullable().or(z.literal('')),
+  photoUrl: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
 });
 
@@ -288,6 +289,7 @@ export default function Profile() {
   if (isLoading && !isNew) return <div className="p-10 animate-pulse text-center">Loading profile...</div>;
 
   const currentPhoto = form.watch('photoUrl');
+  const currentPhotoSrc = resolvePetAvatar(currentPhoto);
   const name = form.watch('name');
   const selectedSpecies = form.watch('species');
   const savedBreed = form.watch('breed');
@@ -312,18 +314,14 @@ export default function Profile() {
             
             {/* Header / Avatar Area */}
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 mb-12">
-               <div className="relative group">
+               <div className="relative">
                  <div className="w-32 h-32 rounded-full border-4 border-background shadow-lg overflow-hidden bg-accent flex items-center justify-center text-primary text-4xl font-serif">
-                   {currentPhoto ? (
-                     <img src={currentPhoto} alt="Pet avatar" className="w-full h-full object-cover" />
+                    {currentPhotoSrc ? (
+                      <img src={currentPhotoSrc} alt="Pet avatar" className="w-full h-full object-cover" />
                    ) : (
                      name ? name.charAt(0) : <HeartPulse size={40} />
                    )}
                  </div>
-                 {/* In a real app, this would trigger a file upload */}
-                 <button type="button" className="absolute bottom-0 right-0 p-3 bg-primary text-primary-foreground rounded-full shadow-md hover:scale-110 transition-transform">
-                   <Camera size={18} />
-                 </button>
                </div>
                
                <div className="flex-1 w-full space-y-4">
@@ -348,14 +346,48 @@ export default function Profile() {
                     name="photoUrl"
                     render={({ field }) => (
                       <FormItem>
+                        <FormLabel>Choose a profile image</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="Paste a photo URL (optional)" 
-                            className="bg-background/50 h-10 text-sm max-w-md" 
-                            {...field}
-                            value={field.value || ''} 
-                          />
+                          <div className="flex flex-wrap items-center gap-3">
+                            {PET_AVATAR_PRESETS.map((preset) => {
+                              const isSelected = field.value === preset.id;
+                              return (
+                                <button
+                                  key={preset.id}
+                                  type="button"
+                                  aria-label={preset.label}
+                                  aria-pressed={isSelected}
+                                  onClick={() => field.onChange(preset.id)}
+                                  className={cn(
+                                    'relative h-16 w-16 overflow-hidden rounded-2xl border-2 bg-background shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                                    isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border',
+                                  )}
+                                >
+                                  <img src={preset.src} alt="" className="h-full w-full object-cover" />
+                                  {isSelected && (
+                                    <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                      <Check size={13} strokeWidth={3} />
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                            <button
+                              type="button"
+                              onClick={() => field.onChange('')}
+                              aria-pressed={!field.value}
+                              className={cn(
+                                'h-16 rounded-2xl border-2 bg-background px-4 text-sm font-medium text-muted-foreground shadow-sm transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                                !field.value ? 'border-primary text-primary ring-2 ring-primary/20' : 'border-border',
+                              )}
+                            >
+                              Use initial
+                            </button>
+                          </div>
                         </FormControl>
+                        <p className="text-xs text-muted-foreground">
+                          Custom photo uploads will be available when private owner accounts are added.
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -470,7 +502,7 @@ export default function Profile() {
                   )}
                 />
 
-                <div className="flex gap-4 items-end">
+                <div className="grid grid-cols-[minmax(0,1fr)_6rem] items-start gap-3">
                   <FormField
                     control={form.control}
                     name="weight"
@@ -489,7 +521,8 @@ export default function Profile() {
                     control={form.control}
                     name="weightUnit"
                     render={({ field }) => (
-                      <FormItem className="w-24 shrink-0">
+                      <FormItem>
+                        <FormLabel>Unit</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger className="bg-accent/30 h-12">
