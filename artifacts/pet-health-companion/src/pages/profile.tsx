@@ -6,7 +6,7 @@ import { useLocation } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Save, Trash2, HeartPulse, Check } from 'lucide-react';
+import { Save, Trash2, HeartPulse } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { PET_AVATAR_PRESETS, resolvePetAvatar } from '@/lib/pet-avatar';
+import { resolvePetAvatar } from '@/lib/pet-avatar';
 
 const profileSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -230,7 +230,7 @@ export default function Profile() {
         birthDate: pet.birthDate ? pet.birthDate.split('T')[0] : '',
         weight: pet.weight,
         weightUnit: pet.weightUnit,
-        photoUrl: pet.photoUrl || '',
+         photoUrl: pet.photoUrl?.startsWith('preset:') ? '' : pet.photoUrl || '',
         notes: pet.notes || '',
       });
       initializedRef.current = true;
@@ -289,9 +289,9 @@ export default function Profile() {
   if (isLoading && !isNew) return <div className="p-10 animate-pulse text-center">Loading profile...</div>;
 
   const currentPhoto = form.watch('photoUrl');
-  const currentPhotoSrc = resolvePetAvatar(currentPhoto);
   const name = form.watch('name');
   const selectedSpecies = form.watch('species');
+  const currentPhotoSrc = resolvePetAvatar(currentPhoto, selectedSpecies);
   const savedBreed = form.watch('breed');
   const breedOptions = BREEDS_BY_SPECIES[selectedSpecies] ?? [];
   const visibleBreedOptions =
@@ -346,47 +346,35 @@ export default function Profile() {
                     name="photoUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Choose a profile image</FormLabel>
+                        <FormLabel>Pet photo</FormLabel>
                         <FormControl>
-                          <div className="flex flex-wrap items-center gap-3">
-                            {PET_AVATAR_PRESETS.map((preset) => {
-                              const isSelected = field.value === preset.id;
-                              return (
-                                <button
-                                  key={preset.id}
-                                  type="button"
-                                  aria-label={preset.label}
-                                  aria-pressed={isSelected}
-                                  onClick={() => field.onChange(preset.id)}
-                                  className={cn(
-                                    'relative h-16 w-16 overflow-hidden rounded-2xl border-2 bg-background shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                                    isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border',
-                                  )}
-                                >
-                                  <img src={preset.src} alt="" className="h-full w-full object-cover" />
-                                  {isSelected && (
-                                    <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                                      <Check size={13} strokeWidth={3} />
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                            <button
-                              type="button"
-                              onClick={() => field.onChange('')}
-                              aria-pressed={!field.value}
-                              className={cn(
-                                'h-16 rounded-2xl border-2 bg-background px-4 text-sm font-medium text-muted-foreground shadow-sm transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                                !field.value ? 'border-primary text-primary ring-2 ring-primary/20' : 'border-border',
-                              )}
-                            >
-                              Use initial
-                            </button>
+                          <div className="flex items-center gap-4 rounded-2xl border border-border bg-background/50 p-3">
+                            <img
+                              src={currentPhotoSrc ?? ''}
+                              alt=""
+                              className="h-16 w-16 rounded-xl object-cover"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium">
+                                {field.value ? 'Custom pet photo' : `${selectedSpecies[0].toUpperCase()}${selectedSpecies.slice(1)} default`}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                The default image updates automatically when you change species.
+                              </p>
+                            </div>
+                            {field.value && (
+                              <button
+                                type="button"
+                                onClick={() => field.onChange('')}
+                                className="shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10"
+                              >
+                                Use default
+                              </button>
+                            )}
                           </div>
                         </FormControl>
                         <p className="text-xs text-muted-foreground">
-                          Custom photo uploads will be available when private owner accounts are added.
+                          Custom photo uploads will be available with private owner accounts.
                         </p>
                         <FormMessage />
                       </FormItem>
