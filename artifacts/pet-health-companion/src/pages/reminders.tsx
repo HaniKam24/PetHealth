@@ -155,7 +155,7 @@ export default function Reminders() {
                 "bg-card border-border hover:border-primary/30 shadow-sm"
               )}>
                 <button 
-                  onClick={() => !reminder.completed && completeReminder.mutate({ petId: activePetId, reminderId: reminder.id })}
+                  onClick={() => !reminder.completed && completeReminder.mutate({ reminderId: reminder.id })}
                   disabled={reminder.completed || completeReminder.isPending}
                   className="flex-shrink-0 mt-1 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full"
                 >

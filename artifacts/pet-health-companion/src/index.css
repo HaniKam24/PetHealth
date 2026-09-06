@@ -23,6 +23,8 @@
   
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
   
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
@@ -61,6 +63,8 @@
   /* Pure White Cards with a hint of warmth */
   --card: 0 0% 100%;
   --card-foreground: 20 20% 15%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 20% 15%;
 
   --destructive: 0 70% 50%;
   --destructive-foreground: 0 0% 100%;
@@ -87,6 +91,8 @@
 
   --card: 20 15% 14%;
   --card-foreground: 40 30% 95%;
+  --popover: 20 15% 14%;
+  --popover-foreground: 40 30% 95%;
 
   --destructive: 0 60% 40%;
   --destructive-foreground: 0 0% 100%;

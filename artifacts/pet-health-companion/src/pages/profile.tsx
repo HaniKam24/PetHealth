@@ -432,7 +432,7 @@ export default function Profile() {
                       <FormLabel>Breed (Optional)</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        value={field.value || undefined}
+                        value={field.value ?? ''}
                       >
                         <FormControl>
                           <SelectTrigger className="bg-accent/30 h-12">

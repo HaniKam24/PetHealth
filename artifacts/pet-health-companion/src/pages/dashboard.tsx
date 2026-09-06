@@ -11,12 +11,15 @@ export default function Dashboard() {
   const { activePetId } = usePetContext();
   const queryClient = useQueryClient();
 
-  const { data: summary, isLoading, error } = useGetDashboardSummary({
-    query: {
+  const { data: summary, isLoading, error } = useGetDashboardSummary(
+    activePetId ? { petId: activePetId } : undefined,
+    {
+      query: {
       enabled: !!activePetId,
       queryKey: activePetId ? getGetDashboardSummaryQueryKey({ petId: activePetId }) : ['no-pet']
+      }
     }
-  });
+  );
 
   const completeReminder = useCompleteReminder({
     mutation: {
@@ -94,7 +97,7 @@ export default function Dashboard() {
                   reminder.completed ? "bg-accent/30 border-transparent opacity-60 grayscale-[0.5]" : "bg-background border-border hover:border-primary/30 shadow-sm"
                 )}>
                   <button 
-                    onClick={() => !reminder.completed && completeReminder.mutate({ petId: activePetId, reminderId: reminder.id })}
+                    onClick={() => !reminder.completed && completeReminder.mutate({ reminderId: reminder.id })}
                     disabled={reminder.completed || completeReminder.isPending}
                     className="flex-shrink-0 text-primary hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full"
                   >

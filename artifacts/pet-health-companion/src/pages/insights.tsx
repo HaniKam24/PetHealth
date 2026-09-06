@@ -21,8 +21,8 @@ export default function Insights() {
   const { toast } = useToast();
 
   const { data: insights, isLoading } = useListInsights(
-    { query: { enabled: !!activePetId, queryKey: activePetId ? getListInsightsQueryKey({ petId: activePetId }) : ['no-pet', 'insights'] } },
-    { query: { petId: activePetId } } // Passing petId via GetListInsightsParams to the generated hook
+    activePetId ? { petId: activePetId } : undefined,
+    { query: { enabled: !!activePetId, queryKey: activePetId ? getListInsightsQueryKey({ petId: activePetId }) : ['no-pet', 'insights'] } }
   );
 
   const askInsight = useAskInsight({
