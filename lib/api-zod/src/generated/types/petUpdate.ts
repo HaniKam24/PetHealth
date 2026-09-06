@@ -5,7 +5,9 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PetInput } from './petInput';
 
-export interface HealthStatus {
-  status: string;
-}
+/**
+ * Updated pet fields
+ */
+export type PetUpdate = PetInput;

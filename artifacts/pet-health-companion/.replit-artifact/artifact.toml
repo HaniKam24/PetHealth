@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Pet Health Companion"
+description = "An owner-first pet health companion for organizing health records, medications, reminders, and AI-assisted care insights in one reassuring place."
+version = "1.0.0"
+id = "artifacts/pet-health-companion"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24465
+
+[services.development]
+run = "pnpm --filter @workspace/pet-health-companion run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/pet-health-companion", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/pet-health-companion/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24465"
+BASE_PATH = "/"

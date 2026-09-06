@@ -10,6 +10,12 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: pets
+    description: Pet profiles and care data
+  - name: dashboard
+    description: Owner dashboard summaries
+  - name: insights
+    description: AI-assisted care guidance
 paths:
   /healthz:
     get:
@@ -24,7 +30,277 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /pets:
+    get:
+      operationId: listPets
+      tags: [pets]
+      summary: List pets
+      responses:
+        "200":
+          description: Pets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pet"
+    post:
+      operationId: createPet
+      tags: [pets]
+      summary: Create a pet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PetInput"
+      responses:
+        "201":
+          description: Created pet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      tags: [pets]
+      summary: Get a pet
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          description: Pet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updatePet
+      tags: [pets]
+      summary: Update a pet
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PetUpdate"
+      responses:
+        "200":
+          description: Updated pet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+    delete:
+      operationId: deletePet
+      tags: [pets]
+      summary: Delete a pet
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "204":
+          description: Pet deleted
+  /pets/{petId}/records:
+    get:
+      operationId: listHealthRecords
+      tags: [pets]
+      summary: List health records for a pet
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          description: Health records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HealthRecord"
+    post:
+      operationId: createHealthRecord
+      tags: [pets]
+      summary: Add a health record
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthRecordInput"
+      responses:
+        "201":
+          description: Created health record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthRecord"
+  /pets/{petId}/medications:
+    get:
+      operationId: listMedications
+      tags: [pets]
+      summary: List medications for a pet
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          description: Medications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Medication"
+    post:
+      operationId: createMedication
+      tags: [pets]
+      summary: Add a medication
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MedicationInput"
+      responses:
+        "201":
+          description: Created medication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medication"
+  /pets/{petId}/reminders:
+    get:
+      operationId: listReminders
+      tags: [pets]
+      summary: List reminders for a pet
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          description: Reminders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reminder"
+    post:
+      operationId: createReminder
+      tags: [pets]
+      summary: Add a reminder
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReminderInput"
+      responses:
+        "201":
+          description: Created reminder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reminder"
+  /reminders/{reminderId}/complete:
+    post:
+      operationId: completeReminder
+      tags: [pets]
+      summary: Complete a reminder
+      parameters:
+        - $ref: "#/components/parameters/ReminderId"
+      responses:
+        "200":
+          description: Completed reminder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reminder"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get the owner dashboard summary
+      parameters:
+        - $ref: "#/components/parameters/PetIdQuery"
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /insights:
+    get:
+      operationId: listInsights
+      tags: [insights]
+      summary: List recent AI insights
+      parameters:
+        - $ref: "#/components/parameters/PetIdQuery"
+      responses:
+        "200":
+          description: Recent insights
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Insight"
+    post:
+      operationId: askInsight
+      tags: [insights]
+      summary: Ask AI for owner-safe care guidance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InsightQuestion"
+      responses:
+        "200":
+          description: AI guidance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Insight"
 components:
+  parameters:
+    PetId:
+      name: petId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    PetIdQuery:
+      name: petId
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+    ReminderId:
+      name: reminderId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +309,146 @@ components:
           type: string
       required:
         - status
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    Pet:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        species: { type: string, enum: [dog, cat, bird, rabbit, other] }
+        breed: { type: ["string", "null"] }
+        sex: { type: string, enum: [female, male, unknown] }
+        birthDate: { type: ["string", "null"], format: date }
+        weight: { type: ["number", "null"] }
+        weightUnit: { type: string, enum: [lb, kg] }
+        photoUrl: { type: ["string", "null"], format: uri }
+        notes: { type: ["string", "null"] }
+      required: [id, name, species, breed, sex, birthDate, weight, weightUnit, photoUrl, notes]
+    PetInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        species: { type: string, enum: [dog, cat, bird, rabbit, other] }
+        breed: { type: ["string", "null"] }
+        sex: { type: string, enum: [female, male, unknown] }
+        birthDate: { type: ["string", "null"], format: date }
+        weight: { type: ["number", "null"] }
+        weightUnit: { type: string, enum: [lb, kg] }
+        photoUrl: { type: ["string", "null"], format: uri }
+        notes: { type: ["string", "null"] }
+      required: [name, species, sex, weightUnit]
+    PetUpdate:
+      allOf:
+        - $ref: "#/components/schemas/PetInput"
+      description: Updated pet fields
+    HealthRecord:
+      type: object
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        type: { type: string, enum: [visit, vaccine, lab, procedure, note] }
+        title: { type: string }
+        date: { type: string, format: date }
+        clinic: { type: ["string", "null"] }
+        summary: { type: ["string", "null"] }
+        documentUrl: { type: ["string", "null"], format: uri }
+      required: [id, petId, type, title, date, clinic, summary, documentUrl]
+    HealthRecordInput:
+      type: object
+      properties:
+        type: { type: string, enum: [visit, vaccine, lab, procedure, note] }
+        title: { type: string, minLength: 1 }
+        date: { type: string, format: date }
+        clinic: { type: ["string", "null"] }
+        summary: { type: ["string", "null"] }
+        documentUrl: { type: ["string", "null"], format: uri }
+      required: [type, title, date]
+    Medication:
+      type: object
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        name: { type: string }
+        dose: { type: string }
+        frequency: { type: string }
+        nextDoseAt: { type: ["string", "null"], format: date-time }
+        active: { type: boolean }
+        instructions: { type: ["string", "null"] }
+      required: [id, petId, name, dose, frequency, nextDoseAt, active, instructions]
+    MedicationInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        dose: { type: string, minLength: 1 }
+        frequency: { type: string, minLength: 1 }
+        nextDoseAt: { type: ["string", "null"], format: date-time }
+        active: { type: boolean }
+        instructions: { type: ["string", "null"] }
+      required: [name, dose, frequency, active]
+    Reminder:
+      type: object
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        title: { type: string }
+        dueDate: { type: string, format: date }
+        category: { type: string, enum: [appointment, vaccine, medication, wellness, other] }
+        completed: { type: boolean }
+        note: { type: ["string", "null"] }
+      required: [id, petId, title, dueDate, category, completed, note]
+    ReminderInput:
+      type: object
+      properties:
+        title: { type: string, minLength: 1 }
+        dueDate: { type: string, format: date }
+        category: { type: string, enum: [appointment, vaccine, medication, wellness, other] }
+        note: { type: ["string", "null"] }
+      required: [title, dueDate, category]
+    Insight:
+      type: object
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        title: { type: string }
+        content: { type: string }
+        tone: { type: string, enum: [helpful, watch, urgent] }
+        source: { type: string, enum: [ai, record, reminder] }
+        createdAt: { type: string, format: date-time }
+        disclaimer: { type: string }
+      required: [id, petId, title, content, tone, source, createdAt, disclaimer]
+    InsightQuestion:
+      type: object
+      properties:
+        petId: { type: integer }
+        question: { type: string, minLength: 1 }
+      required: [petId, question]
+    DashboardSummary:
+      type: object
+      properties:
+        pet: { $ref: "#/components/schemas/Pet" }
+        upcomingReminders:
+          type: array
+          items: { $ref: "#/components/schemas/Reminder" }
+        activeMedications:
+          type: array
+          items: { $ref: "#/components/schemas/Medication" }
+        recentRecords:
+          type: array
+          items: { $ref: "#/components/schemas/HealthRecord" }
+        recentInsights:
+          type: array
+          items: { $ref: "#/components/schemas/Insight" }
+        stats:
+          type: object
+          properties:
+            recordCount: { type: integer }
+            activeMedicationCount: { type: integer }
+            upcomingReminderCount: { type: integer }
+          required: [recordCount, activeMedicationCount, upcomingReminderCount]
+      required: [pet, upcomingReminders, activeMedications, recentRecords, recentInsights, stats]
 
