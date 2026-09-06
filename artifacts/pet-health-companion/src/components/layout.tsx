@@ -47,8 +47,8 @@ export function Layout({ children }: { children: ReactNode }) {
                          : "bg-background border-border hover:border-primary/30 text-foreground"
                      )}
                    >
-                      {resolvePetAvatar(pet.photoUrl, pet.species) ? (
-                         <img src={resolvePetAvatar(pet.photoUrl, pet.species)!} alt={pet.name} className="w-10 h-10 rounded-full object-cover bg-background" />
+                      {resolvePetAvatar(null, pet.species) ? (
+                         <img src={resolvePetAvatar(null, pet.species)!} alt={`${pet.species} avatar`} className="w-10 h-10 rounded-full object-cover bg-background" />
                      ) : (
                         <div className={cn(
                           "w-10 h-10 rounded-full flex items-center justify-center font-serif text-lg font-medium shadow-inner", 

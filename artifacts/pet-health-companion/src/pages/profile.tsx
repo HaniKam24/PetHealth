@@ -273,7 +273,7 @@ export default function Profile() {
   const onSubmit = (data: ProfileFormValues) => {
     const payload = {
       ...data,
-      photoUrl: data.photoUrl || null,
+      photoUrl: null,
       birthDate: data.birthDate || null,
       breed: data.breed || null,
       notes: data.notes || null,
@@ -288,10 +288,9 @@ export default function Profile() {
 
   if (isLoading && !isNew) return <div className="p-10 animate-pulse text-center">Loading profile...</div>;
 
-  const currentPhoto = form.watch('photoUrl');
   const name = form.watch('name');
   const selectedSpecies = form.watch('species');
-  const currentPhotoSrc = resolvePetAvatar(currentPhoto, selectedSpecies);
+  const currentPhotoSrc = resolvePetAvatar(null, selectedSpecies);
   const savedBreed = form.watch('breed');
   const breedOptions = BREEDS_BY_SPECIES[selectedSpecies] ?? [];
   const visibleBreedOptions =
@@ -337,45 +336,6 @@ export default function Profile() {
                             {...field} 
                           />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="photoUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Pet photo</FormLabel>
-                        <FormControl>
-                          <div className="flex items-center gap-4 rounded-2xl border border-border bg-background/50 p-3">
-                            <img
-                              src={currentPhotoSrc ?? ''}
-                              alt=""
-                              className="h-16 w-16 rounded-xl object-cover"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium">
-                                {field.value ? 'Custom pet photo' : `${selectedSpecies[0].toUpperCase()}${selectedSpecies.slice(1)} default`}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                The default image updates automatically when you change species.
-                              </p>
-                            </div>
-                            {field.value && (
-                              <button
-                                type="button"
-                                onClick={() => field.onChange('')}
-                                className="shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10"
-                              >
-                                Use default
-                              </button>
-                            )}
-                          </div>
-                        </FormControl>
-                        <p className="text-xs text-muted-foreground">
-                          Custom photo uploads will be available with private owner accounts.
-                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
