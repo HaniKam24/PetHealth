@@ -1,6 +1,6 @@
-# [Project name]
+# Pet Health Companion
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+An owner-first hub for pet health records, care reminders, medications, and cautious AI-assisted guidance.
 
 ## Run & Operate
 
@@ -10,6 +10,7 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
+- AI env is provisioned through Replit AI Integrations for OpenAI access
 
 ## Stack
 
@@ -22,23 +23,34 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/pet-health-companion/` — owner web app
+- `artifacts/api-server/src/routes/care.ts` — pet-care and AI API behavior
+- `lib/api-spec/openapi.yaml` — API source of truth
+- `lib/db/src/schema/care.ts` — persistent pet-care data model
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Owner workflows come first, but pet-scoped records allow later clinic sharing and permission layers.
+- AI guidance is educational, record-aware, and explicitly not a veterinary diagnosis.
+- Urgent symptom language is escalated toward emergency veterinary care rather than answered casually.
+- Clinic names are currently record metadata; verified clinic accounts and write access are intentionally deferred.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Dashboard with upcoming care, active medications, recent records, and health context
+- Pet profile creation and editing
+- Health timeline with searchable records
+- Medication and reminder tracking
+- AI question flow grounded in the selected pet's profile and recent records
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Keep the first product owner-focused while making future vet and clinic additions straightforward.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Re-run API codegen after every OpenAPI change before editing server or client callers.
+- AI responses must keep the educational disclaimer and urgent-care escalation behavior.
 
 ## Pointers
 
