@@ -57,6 +57,14 @@ export interface Pet {
   photoUrl: string | null;
   /** @nullable */
   notes: string | null;
+  /** @nullable */
+  vetName: string | null;
+  /** @nullable */
+  vetClinic: string | null;
+  /** @nullable */
+  vetPhone: string | null;
+  /** @nullable */
+  vetAddress: string | null;
 }
 
 export type PetInputSpecies = typeof PetInputSpecies[keyof typeof PetInputSpecies];
@@ -103,6 +111,14 @@ export interface PetInput {
   photoUrl?: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  vetName?: string | null;
+  /** @nullable */
+  vetClinic?: string | null;
+  /** @nullable */
+  vetPhone?: string | null;
+  /** @nullable */
+  vetAddress?: string | null;
 }
 
 /**
@@ -121,6 +137,17 @@ export const HealthRecordType = {
   note: 'note',
 } as const;
 
+/**
+ * @nullable
+ */
+export type HealthRecordDocumentType = typeof HealthRecordDocumentType[keyof typeof HealthRecordDocumentType] | null;
+
+
+export const HealthRecordDocumentType = {
+  link: 'link',
+  upload: 'upload',
+} as const;
+
 export interface HealthRecord {
   id: number;
   petId: number;
@@ -133,6 +160,10 @@ export interface HealthRecord {
   summary: string | null;
   /** @nullable */
   documentUrl: string | null;
+  /** @nullable */
+  documentType: HealthRecordDocumentType;
+  /** @nullable */
+  documentName: string | null;
 }
 
 export type HealthRecordInputType = typeof HealthRecordInputType[keyof typeof HealthRecordInputType];
@@ -146,6 +177,17 @@ export const HealthRecordInputType = {
   note: 'note',
 } as const;
 
+/**
+ * @nullable
+ */
+export type HealthRecordInputDocumentType = typeof HealthRecordInputDocumentType[keyof typeof HealthRecordInputDocumentType] | null;
+
+
+export const HealthRecordInputDocumentType = {
+  link: 'link',
+  upload: 'upload',
+} as const;
+
 export interface HealthRecordInput {
   type: HealthRecordInputType;
   /** @minLength 1 */
@@ -157,7 +199,147 @@ export interface HealthRecordInput {
   summary?: string | null;
   /** @nullable */
   documentUrl?: string | null;
+  /** @nullable */
+  documentType?: HealthRecordInputDocumentType;
+  /** @nullable */
+  documentName?: string | null;
 }
+
+/**
+ * Updated health record fields
+ */
+export type HealthRecordUpdate = HealthRecordInput;
+
+export interface DocumentUploadResult {
+  url: string;
+  name: string;
+}
+
+/**
+ * Onboarding is a one-time 20-document allowance per pet (first 30 days); ongoing is a 10/month allowance per account, separate from any chat quota.
+ */
+export interface DocumentImportQuota {
+  /**
+     * null if the pet's onboarding window has expired or never applied
+     * @nullable
+     */
+  onboardingRemaining: number | null;
+  onboardingLimit: number;
+  ongoingRemaining: number;
+  ongoingLimit: number;
+}
+
+export type DocumentImportItemItemType = typeof DocumentImportItemItemType[keyof typeof DocumentImportItemItemType];
+
+
+export const DocumentImportItemItemType = {
+  health_record: 'health_record',
+  medication: 'medication',
+  reminder: 'reminder',
+} as const;
+
+/**
+ * Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object.
+ */
+export type DocumentImportItemProposedData = { [key: string]: unknown };
+
+/**
+ * @nullable
+ */
+export type DocumentImportItemDuplicateOfType = typeof DocumentImportItemDuplicateOfType[keyof typeof DocumentImportItemDuplicateOfType] | null;
+
+
+export const DocumentImportItemDuplicateOfType = {
+  health_record: 'health_record',
+  medication: 'medication',
+  reminder: 'reminder',
+} as const;
+
+export type DocumentImportItemStatus = typeof DocumentImportItemStatus[keyof typeof DocumentImportItemStatus];
+
+
+export const DocumentImportItemStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+  rejected: 'rejected',
+} as const;
+
+export interface DocumentImportItem {
+  id: number;
+  importId: number;
+  itemType: DocumentImportItemItemType;
+  /** Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object. */
+  proposedData: DocumentImportItemProposedData;
+  /** @nullable */
+  duplicateOfType: DocumentImportItemDuplicateOfType;
+  /** @nullable */
+  duplicateOfId: number | null;
+  status: DocumentImportItemStatus;
+  /** @nullable */
+  createdRecordId: number | null;
+}
+
+export type DocumentImportLane = typeof DocumentImportLane[keyof typeof DocumentImportLane];
+
+
+export const DocumentImportLane = {
+  onboarding: 'onboarding',
+  ongoing: 'ongoing',
+} as const;
+
+export type DocumentImportStatus = typeof DocumentImportStatus[keyof typeof DocumentImportStatus];
+
+
+export const DocumentImportStatus = {
+  pending_review: 'pending_review',
+  reviewed: 'reviewed',
+} as const;
+
+export interface DocumentImport {
+  id: number;
+  petId: number;
+  sourceDocumentUrl: string;
+  documentName: string;
+  lane: DocumentImportLane;
+  status: DocumentImportStatus;
+  analyzedAt: string;
+  items: DocumentImportItem[];
+}
+
+/**
+ * Quota reflects current account/pet state — not a property of this specific import — so it's a sibling, not embedded per-import.
+ */
+export interface DocumentImportResponse {
+  import: DocumentImport;
+  quota: DocumentImportQuota;
+}
+
+export interface DocumentImportListResponse {
+  imports: DocumentImport[];
+  quota: DocumentImportQuota;
+}
+
+export type AcceptDocumentImportItemBodyProposedData = { [key: string]: unknown };
+
+/**
+ * Omit to accept the proposed data as-is; include to accept an edited version instead.
+ */
+export interface AcceptDocumentImportItemBody {
+  proposedData?: AcceptDocumentImportItemBodyProposedData;
+}
+
+/**
+ * @nullable
+ */
+export type MedicationDoseIntervalUnit = typeof MedicationDoseIntervalUnit[keyof typeof MedicationDoseIntervalUnit] | null;
+
+
+export const MedicationDoseIntervalUnit = {
+  hours: 'hours',
+  days: 'days',
+  weeks: 'weeks',
+  months: 'months',
+} as const;
 
 export interface Medication {
   id: number;
@@ -165,12 +347,32 @@ export interface Medication {
   name: string;
   dose: string;
   frequency: string;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  doseIntervalValue: number | null;
+  /** @nullable */
+  doseIntervalUnit: MedicationDoseIntervalUnit;
   /** @nullable */
   nextDoseAt: string | null;
   active: boolean;
   /** @nullable */
   instructions: string | null;
 }
+
+/**
+ * @nullable
+ */
+export type MedicationInputDoseIntervalUnit = typeof MedicationInputDoseIntervalUnit[keyof typeof MedicationInputDoseIntervalUnit] | null;
+
+
+export const MedicationInputDoseIntervalUnit = {
+  hours: 'hours',
+  days: 'days',
+  weeks: 'weeks',
+  months: 'months',
+} as const;
 
 export interface MedicationInput {
   /** @minLength 1 */
@@ -179,12 +381,24 @@ export interface MedicationInput {
   dose: string;
   /** @minLength 1 */
   frequency: string;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  doseIntervalValue?: number | null;
+  /** @nullable */
+  doseIntervalUnit?: MedicationInputDoseIntervalUnit;
   /** @nullable */
   nextDoseAt?: string | null;
   active: boolean;
   /** @nullable */
   instructions?: string | null;
 }
+
+/**
+ * Updated medication fields
+ */
+export type MedicationUpdate = MedicationInput;
 
 export type ReminderCategory = typeof ReminderCategory[keyof typeof ReminderCategory];
 
@@ -197,6 +411,14 @@ export const ReminderCategory = {
   other: 'other',
 } as const;
 
+export type ReminderSource = typeof ReminderSource[keyof typeof ReminderSource];
+
+
+export const ReminderSource = {
+  owner: 'owner',
+  system: 'system',
+} as const;
+
 export interface Reminder {
   id: number;
   petId: number;
@@ -206,6 +428,9 @@ export interface Reminder {
   completed: boolean;
   /** @nullable */
   note: string | null;
+  source: ReminderSource;
+  /** @nullable */
+  ruleId: string | null;
 }
 
 export type ReminderInputCategory = typeof ReminderInputCategory[keyof typeof ReminderInputCategory];
@@ -283,7 +508,20 @@ export interface DashboardSummary {
  */
 export type NotFoundResponse = Error;
 
+/**
+ * Account has reached its pet limit
+ */
+export type PetLimitReachedResponse = Error;
+
 export type PetIdQueryParameter = number;
+
+export type UploadHealthRecordDocumentBody = {
+  file: Blob;
+};
+
+export type CreateDocumentImportBody = {
+  file: Blob;
+};
 
 export type GetDashboardSummaryParams = {
 /**

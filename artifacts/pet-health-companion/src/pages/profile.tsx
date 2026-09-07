@@ -2,7 +2,7 @@ import { usePetContext } from '@/context/pet-context';
 import { useGetPet, getGetPetQueryKey, useUpdatePet, useCreatePet, getListPetsQueryKey } from '@workspace/api-client-react';
 import { PageHeader } from '@/components/page-header';
 import { useQueryClient } from '@tanstack/react-query';
-import { useLocation } from 'wouter';
+import { useLocation, useSearch } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -26,6 +26,10 @@ const profileSchema = z.object({
   weightUnit: z.enum(['lb', 'kg']),
   photoUrl: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  vetName: z.string().optional().nullable(),
+  vetClinic: z.string().optional().nullable(),
+  vetPhone: z.string().optional().nullable(),
+  vetAddress: z.string().optional().nullable(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -188,10 +192,13 @@ const BREEDS_BY_SPECIES: Record<ProfileFormValues['species'], readonly BreedOpti
 export default function Profile() {
   const { activePetId, setActivePetId } = usePetContext();
   const queryClient = useQueryClient();
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
+  const search = useSearch();
   const { toast } = useToast();
-  
-  const isNew = location.includes('new=true');
+
+  // wouter's useLocation() returns only the pathname, never the query
+  // string — the "new=true" flag has to come from useSearch() instead.
+  const isNew = new URLSearchParams(search).get('new') === 'true';
 
   const { data: pet, isLoading } = useGetPet(
     activePetId!,
@@ -215,6 +222,10 @@ export default function Profile() {
       weightUnit: 'lb',
       photoUrl: '',
       notes: '',
+      vetName: '',
+      vetClinic: '',
+      vetPhone: '',
+      vetAddress: '',
     },
   });
 
@@ -232,6 +243,10 @@ export default function Profile() {
         weightUnit: pet.weightUnit,
          photoUrl: pet.photoUrl?.startsWith('preset:') ? '' : pet.photoUrl || '',
         notes: pet.notes || '',
+        vetName: pet.vetName || '',
+        vetClinic: pet.vetClinic || '',
+        vetPhone: pet.vetPhone || '',
+        vetAddress: pet.vetAddress || '',
       });
       initializedRef.current = true;
     }
@@ -241,8 +256,9 @@ export default function Profile() {
   useEffect(() => {
     if (isNew) {
       form.reset({
-        name: '', species: 'dog', breed: '', sex: 'unknown', birthDate: '', 
-        weight: null, weightUnit: 'lb', photoUrl: '', notes: ''
+        name: '', species: 'dog', breed: '', sex: 'unknown', birthDate: '',
+        weight: null, weightUnit: 'lb', photoUrl: '', notes: '',
+        vetName: '', vetClinic: '', vetPhone: '', vetAddress: '',
       });
       initializedRef.current = false;
     }
@@ -255,7 +271,10 @@ export default function Profile() {
         queryClient.invalidateQueries({ queryKey: getGetPetQueryKey(data.id) });
         queryClient.invalidateQueries({ queryKey: getListPetsQueryKey() });
         toast({ title: "Profile updated successfully" });
-      }
+      },
+      onError: (error) => {
+        toast({ title: "Couldn't save changes", description: error.message, variant: "destructive" });
+      },
     }
   });
 
@@ -266,7 +285,10 @@ export default function Profile() {
         setActivePetId(data.id);
         setLocation('/profile');
         toast({ title: "Welcome to the family!", description: `${data.name} has been added.` });
-      }
+      },
+      onError: (error) => {
+        toast({ title: "Couldn't add pet", description: error.message, variant: "destructive" });
+      },
     }
   });
 
@@ -277,6 +299,10 @@ export default function Profile() {
       birthDate: data.birthDate || null,
       breed: data.breed || null,
       notes: data.notes || null,
+      vetName: data.vetName || null,
+      vetClinic: data.vetClinic || null,
+      vetPhone: data.vetPhone || null,
+      vetAddress: data.vetAddress || null,
     };
     
     if (isNew) {
@@ -487,6 +513,64 @@ export default function Profile() {
                     )}
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="mt-10 pt-8 border-t border-border/50">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground border-b border-border pb-2 mb-8">Vet Contact (Optional)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
+                <FormField
+                  control={form.control}
+                  name="vetName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vet Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Dr. Jamie Rivera" className="bg-accent/30 h-12" {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="vetClinic"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Clinic</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Harbor Veterinary Clinic" className="bg-accent/30 h-12" {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="vetPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone</FormLabel>
+                      <FormControl>
+                        <Input type="tel" placeholder="(555) 123-4567" className="bg-accent/30 h-12" {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="vetAddress"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address</FormLabel>
+                      <FormControl>
+                        <Input placeholder="123 Harbor St, Portland, ME" className="bg-accent/30 h-12" {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </div>
 

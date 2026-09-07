@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { HealthRecordInputDocumentType } from './healthRecordInputDocumentType';
 import type { HealthRecordInputType } from './healthRecordInputType';
 
 export interface HealthRecordInput {
@@ -18,4 +19,8 @@ export interface HealthRecordInput {
   summary?: string | null;
   /** @nullable */
   documentUrl?: string | null;
+  /** @nullable */
+  documentType?: HealthRecordInputDocumentType;
+  /** @nullable */
+  documentName?: string | null;
 }

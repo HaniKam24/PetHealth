@@ -16,6 +16,8 @@ tags:
     description: Owner dashboard summaries
   - name: insights
     description: AI-assisted care guidance
+  - name: smart-upload
+    description: Smart Document Upload — AI-extracted, owner-reviewed record proposals
 paths:
   /healthz:
     get:
@@ -61,6 +63,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Pet"
+        "400":
+          $ref: "#/components/responses/PetLimitReached"
   /pets/{petId}:
     get:
       operationId: getPet
@@ -140,6 +144,187 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthRecord"
+  /pets/{petId}/records/{recordId}:
+    patch:
+      operationId: updateHealthRecord
+      tags: [pets]
+      summary: Update a health record
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/HealthRecordId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthRecordUpdate"
+      responses:
+        "200":
+          description: Updated health record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthRecord"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteHealthRecord
+      tags: [pets]
+      summary: Delete a health record
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/HealthRecordId"
+      responses:
+        "204":
+          description: Health record deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /pets/{petId}/documents:
+    post:
+      operationId: uploadHealthRecordDocument
+      tags: [pets]
+      summary: Upload a health record document (PDF or image, 10MB max)
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        "201":
+          description: Uploaded document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentUploadResult"
+        "400":
+          description: File missing, too large, or an unsupported type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /pets/{petId}/document-imports:
+    get:
+      operationId: listDocumentImports
+      tags: [smart-upload]
+      summary: List Smart Document Upload imports for a pet
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          description: Document imports and the account/pet's current upload quota
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentImportListResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createDocumentImport
+      tags: [smart-upload]
+      summary: Upload a vet report for AI extraction (PDF or image, 10MB max, 20 pages max)
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        "201":
+          description: Analyzed document with proposed items awaiting review, and the account/pet's quota after this upload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentImportResponse"
+        "400":
+          description: File missing/too large/unsupported/too many pages/scanned, or the account's import quota is used up
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /pets/{petId}/document-imports/{importId}:
+    get:
+      operationId: getDocumentImport
+      tags: [smart-upload]
+      summary: Get one document import and its proposed items
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/DocumentImportId"
+      responses:
+        "200":
+          description: Document import and the account/pet's current upload quota
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentImportResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /pets/{petId}/document-imports/{importId}/items/{itemId}/accept:
+    post:
+      operationId: acceptDocumentImportItem
+      tags: [smart-upload]
+      summary: Accept a proposed item — writes it to the pet's real records
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/DocumentImportId"
+        - $ref: "#/components/parameters/DocumentImportItemId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptDocumentImportItemBody"
+      responses:
+        "200":
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentImportItem"
+        "400":
+          description: The edited data didn't match the expected shape for this item type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /pets/{petId}/document-imports/{importId}/items/{itemId}/reject:
+    post:
+      operationId: rejectDocumentImportItem
+      tags: [smart-upload]
+      summary: Reject a proposed item — nothing is written
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/DocumentImportId"
+        - $ref: "#/components/parameters/DocumentImportItemId"
+      responses:
+        "200":
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentImportItem"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /pets/{petId}/medications:
     get:
       operationId: listMedications
@@ -175,6 +360,52 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Medication"
+  /pets/{petId}/medications/{medicationId}:
+    patch:
+      operationId: updateMedication
+      tags: [pets]
+      summary: Update a medication
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/MedicationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MedicationUpdate"
+      responses:
+        "200":
+          description: Updated medication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medication"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /pets/{petId}/medications/{medicationId}/log-dose:
+    post:
+      operationId: logMedicationDose
+      tags: [pets]
+      summary: Mark a dose given and auto-calculate the next dose from the medication's interval
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/MedicationId"
+      responses:
+        "200":
+          description: Medication with updated next-dose time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medication"
+        "400":
+          description: Medication has no structured interval to calculate from
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /pets/{petId}/reminders:
     get:
       operationId: listReminders
@@ -294,9 +525,43 @@ components:
       schema:
         type: integer
         minimum: 1
+    HealthRecordId:
+      name: recordId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    MedicationId:
+      name: medicationId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    DocumentImportId:
+      name: importId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    DocumentImportItemId:
+      name: itemId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
   responses:
     NotFound:
       description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    PetLimitReached:
+      description: Account has reached its pet limit
       content:
         application/json:
           schema:
@@ -328,7 +593,11 @@ components:
         weightUnit: { type: string, enum: [lb, kg] }
         photoUrl: { type: ["string", "null"], format: uri }
         notes: { type: ["string", "null"] }
-      required: [id, name, species, breed, sex, birthDate, weight, weightUnit, photoUrl, notes]
+        vetName: { type: ["string", "null"] }
+        vetClinic: { type: ["string", "null"] }
+        vetPhone: { type: ["string", "null"] }
+        vetAddress: { type: ["string", "null"] }
+      required: [id, name, species, breed, sex, birthDate, weight, weightUnit, photoUrl, notes, vetName, vetClinic, vetPhone, vetAddress]
     PetInput:
       type: object
       properties:
@@ -341,6 +610,10 @@ components:
         weightUnit: { type: string, enum: [lb, kg] }
         photoUrl: { type: ["string", "null"], format: uri }
         notes: { type: ["string", "null"] }
+        vetName: { type: ["string", "null"] }
+        vetClinic: { type: ["string", "null"] }
+        vetPhone: { type: ["string", "null"] }
+        vetAddress: { type: ["string", "null"] }
       required: [name, species, sex, weightUnit]
     PetUpdate:
       allOf:
@@ -357,7 +630,9 @@ components:
         clinic: { type: ["string", "null"] }
         summary: { type: ["string", "null"] }
         documentUrl: { type: ["string", "null"], format: uri }
-      required: [id, petId, type, title, date, clinic, summary, documentUrl]
+        documentType: { type: ["string", "null"], enum: [link, upload, null] }
+        documentName: { type: ["string", "null"] }
+      required: [id, petId, type, title, date, clinic, summary, documentUrl, documentType, documentName]
     HealthRecordInput:
       type: object
       properties:
@@ -367,7 +642,83 @@ components:
         clinic: { type: ["string", "null"] }
         summary: { type: ["string", "null"] }
         documentUrl: { type: ["string", "null"], format: uri }
+        documentType: { type: ["string", "null"], enum: [link, upload, null] }
+        documentName: { type: ["string", "null"] }
       required: [type, title, date]
+    HealthRecordUpdate:
+      allOf:
+        - $ref: "#/components/schemas/HealthRecordInput"
+      description: Updated health record fields
+    DocumentUploadResult:
+      type: object
+      properties:
+        url: { type: string, format: uri }
+        name: { type: string }
+      required: [url, name]
+    DocumentImportQuota:
+      type: object
+      description: Onboarding is a one-time 20-document allowance per pet (first 30 days); ongoing is a 10/month allowance per account, separate from any chat quota.
+      properties:
+        onboardingRemaining: { type: ["integer", "null"], description: "null if the pet's onboarding window has expired or never applied" }
+        onboardingLimit: { type: integer }
+        ongoingRemaining: { type: integer }
+        ongoingLimit: { type: integer }
+      required: [onboardingRemaining, onboardingLimit, ongoingRemaining, ongoingLimit]
+    DocumentImportItem:
+      type: object
+      properties:
+        id: { type: integer }
+        importId: { type: integer }
+        itemType: { type: string, enum: [health_record, medication, reminder] }
+        proposedData:
+          type: object
+          description: Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object.
+        duplicateOfType: { type: ["string", "null"], enum: [health_record, medication, reminder, null] }
+        duplicateOfId: { type: ["integer", "null"] }
+        status: { type: string, enum: [pending, accepted, rejected] }
+        createdRecordId: { type: ["integer", "null"] }
+      required: [id, importId, itemType, proposedData, duplicateOfType, duplicateOfId, status, createdRecordId]
+    DocumentImport:
+      type: object
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        sourceDocumentUrl: { type: string, format: uri }
+        documentName: { type: string }
+        lane: { type: string, enum: [onboarding, ongoing] }
+        status: { type: string, enum: [pending_review, reviewed] }
+        analyzedAt: { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentImportItem"
+      required: [id, petId, sourceDocumentUrl, documentName, lane, status, analyzedAt, items]
+    DocumentImportResponse:
+      type: object
+      description: Quota reflects current account/pet state — not a property of this specific import — so it's a sibling, not embedded per-import.
+      properties:
+        import:
+          $ref: "#/components/schemas/DocumentImport"
+        quota:
+          $ref: "#/components/schemas/DocumentImportQuota"
+      required: [import, quota]
+    DocumentImportListResponse:
+      type: object
+      properties:
+        imports:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentImport"
+        quota:
+          $ref: "#/components/schemas/DocumentImportQuota"
+      required: [imports, quota]
+    AcceptDocumentImportItemBody:
+      type: object
+      description: Omit to accept the proposed data as-is; include to accept an edited version instead.
+      properties:
+        proposedData:
+          type: object
+      required: []
     Medication:
       type: object
       properties:
@@ -376,20 +727,28 @@ components:
         name: { type: string }
         dose: { type: string }
         frequency: { type: string }
+        doseIntervalValue: { type: ["integer", "null"], minimum: 1 }
+        doseIntervalUnit: { type: ["string", "null"], enum: [hours, days, weeks, months, null] }
         nextDoseAt: { type: ["string", "null"], format: date-time }
         active: { type: boolean }
         instructions: { type: ["string", "null"] }
-      required: [id, petId, name, dose, frequency, nextDoseAt, active, instructions]
+      required: [id, petId, name, dose, frequency, doseIntervalValue, doseIntervalUnit, nextDoseAt, active, instructions]
     MedicationInput:
       type: object
       properties:
         name: { type: string, minLength: 1 }
         dose: { type: string, minLength: 1 }
         frequency: { type: string, minLength: 1 }
+        doseIntervalValue: { type: ["integer", "null"], minimum: 1 }
+        doseIntervalUnit: { type: ["string", "null"], enum: [hours, days, weeks, months, null] }
         nextDoseAt: { type: ["string", "null"], format: date-time }
         active: { type: boolean }
         instructions: { type: ["string", "null"] }
       required: [name, dose, frequency, active]
+    MedicationUpdate:
+      allOf:
+        - $ref: "#/components/schemas/MedicationInput"
+      description: Updated medication fields
     Reminder:
       type: object
       properties:
@@ -400,7 +759,9 @@ components:
         category: { type: string, enum: [appointment, vaccine, medication, wellness, other] }
         completed: { type: boolean }
         note: { type: ["string", "null"] }
-      required: [id, petId, title, dueDate, category, completed, note]
+        source: { type: string, enum: [owner, system] }
+        ruleId: { type: ["string", "null"] }
+      required: [id, petId, title, dueDate, category, completed, note, source, ruleId]
     ReminderInput:
       type: object
       properties:

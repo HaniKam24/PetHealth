@@ -25,4 +25,12 @@ export interface PetInput {
   photoUrl?: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  vetName?: string | null;
+  /** @nullable */
+  vetClinic?: string | null;
+  /** @nullable */
+  vetPhone?: string | null;
+  /** @nullable */
+  vetAddress?: string | null;
 }

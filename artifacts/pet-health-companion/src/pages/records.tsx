@@ -1,16 +1,34 @@
 import { usePetContext } from '@/context/pet-context';
-import { useListHealthRecords, getListHealthRecordsQueryKey, useCreateHealthRecord } from '@workspace/api-client-react';
+import {
+  useListHealthRecords,
+  getListHealthRecordsQueryKey,
+  useCreateHealthRecord,
+  useUpdateHealthRecord,
+  useDeleteHealthRecord,
+  useUploadHealthRecordDocument,
+  type HealthRecord,
+} from '@workspace/api-client-react';
 import { PageHeader } from '@/components/page-header';
+import { cn } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { format } from 'date-fns';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, FileText, Calendar as CalendarIcon, Syringe, Stethoscope, TestTube, Activity } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Plus, Search, FileText, Syringe, Stethoscope, TestTube, Activity, X, Pencil, Trash2, Paperclip, Link2, Upload, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -27,6 +45,14 @@ const recordSchema = z.object({
 
 type RecordFormValues = z.infer<typeof recordSchema>;
 
+const EMPTY_RECORD: RecordFormValues = {
+  title: '',
+  type: 'visit',
+  date: new Date().toISOString().split('T')[0],
+  clinic: '',
+  summary: '',
+};
+
 const iconMap = {
   visit: Stethoscope,
   vaccine: Syringe,
@@ -35,12 +61,31 @@ const iconMap = {
   note: FileText,
 };
 
+const TYPE_LABELS: Record<RecordFormValues['type'], string> = {
+  visit: 'Vet Visit',
+  vaccine: 'Vaccine',
+  lab: 'Lab Results',
+  procedure: 'Procedure',
+  note: 'Observation Note',
+};
+
+const RECORD_TYPES = Object.keys(TYPE_LABELS) as RecordFormValues['type'][];
+
 export default function Records() {
   const { activePetId } = usePetContext();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<RecordFormValues['type'] | 'all'>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [isNewOpen, setIsNewOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<HealthRecord | null>(null);
+  const [deletingRecord, setDeletingRecord] = useState<HealthRecord | null>(null);
+  const [attachMode, setAttachMode] = useState<'link' | 'upload'>('link');
+  const [documentUrl, setDocumentUrl] = useState('');
+  const [documentName, setDocumentName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const { data: records, isLoading } = useListHealthRecords(
@@ -53,14 +98,26 @@ export default function Records() {
     }
   );
 
+  const invalidateRecords = () => {
+    if (activePetId) {
+      queryClient.invalidateQueries({ queryKey: getListHealthRecordsQueryKey(activePetId) });
+    }
+  };
+
+  const closeDialog = () => {
+    setIsNewOpen(false);
+    setEditingRecord(null);
+    setAttachMode('link');
+    setDocumentUrl('');
+    setDocumentName('');
+    form.reset(EMPTY_RECORD);
+  };
+
   const createRecord = useCreateHealthRecord({
     mutation: {
       onSuccess: () => {
-        if (activePetId) {
-          queryClient.invalidateQueries({ queryKey: getListHealthRecordsQueryKey(activePetId) });
-        }
-        setIsNewOpen(false);
-        form.reset();
+        invalidateRecords();
+        closeDialog();
         toast({ title: "Record added", description: "Health record has been saved successfully." });
       },
       onError: () => {
@@ -69,34 +126,126 @@ export default function Records() {
     }
   });
 
+  const updateRecord = useUpdateHealthRecord({
+    mutation: {
+      onSuccess: () => {
+        invalidateRecords();
+        closeDialog();
+        toast({ title: "Record updated", description: "Your changes have been saved." });
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Failed to update record.", variant: "destructive" });
+      }
+    }
+  });
+
+  const deleteRecord = useDeleteHealthRecord({
+    mutation: {
+      onSuccess: () => {
+        invalidateRecords();
+        setDeletingRecord(null);
+        toast({ title: "Record deleted" });
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Failed to delete record.", variant: "destructive" });
+      }
+    }
+  });
+
+  const uploadDocument = useUploadHealthRecordDocument({
+    mutation: {
+      onSuccess: (result) => {
+        setDocumentUrl(result.url);
+        setDocumentName(result.name);
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Failed to upload the file.", variant: "destructive" });
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    }
+  });
+
   const form = useForm<RecordFormValues>({
     resolver: zodResolver(recordSchema),
-    defaultValues: {
-      title: '',
-      type: 'visit',
-      date: new Date().toISOString().split('T')[0],
-      clinic: '',
-      summary: '',
-    },
+    defaultValues: EMPTY_RECORD,
   });
+
+  useEffect(() => {
+    if (editingRecord) {
+      form.reset({
+        title: editingRecord.title,
+        type: editingRecord.type,
+        date: editingRecord.date.split('T')[0],
+        clinic: editingRecord.clinic || '',
+        summary: editingRecord.summary || '',
+      });
+      setAttachMode(editingRecord.documentType === 'upload' ? 'upload' : 'link');
+      setDocumentUrl(editingRecord.documentUrl || '');
+      setDocumentName(editingRecord.documentName || '');
+    }
+  }, [editingRecord, form]);
 
   if (!activePetId) {
     return <div className="p-10 text-center text-muted-foreground mt-20">Please select or add a pet first.</div>;
   }
 
-  const filteredRecords = records?.filter(r => 
-    r.title.toLowerCase().includes(search.toLowerCase()) || 
-    r.summary?.toLowerCase().includes(search.toLowerCase()) ||
-    r.clinic?.toLowerCase().includes(search.toLowerCase())
-  ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || [];
+  const hasActiveFilters = Boolean(search || typeFilter !== 'all' || dateFrom || dateTo);
+  const clearFilters = () => {
+    setSearch('');
+    setTypeFilter('all');
+    setDateFrom('');
+    setDateTo('');
+  };
+
+  const filteredRecords = records?.filter(r => {
+    const query = search.toLowerCase();
+    const matchesSearch =
+      !query ||
+      r.title.toLowerCase().includes(query) ||
+      r.summary?.toLowerCase().includes(query) ||
+      r.clinic?.toLowerCase().includes(query);
+    const matchesType = typeFilter === 'all' || r.type === typeFilter;
+    // r.date is an ISO "YYYY-MM-DD" string — lexicographic comparison works directly.
+    const matchesDateFrom = !dateFrom || r.date >= dateFrom;
+    const matchesDateTo = !dateTo || r.date <= dateTo;
+    return matchesSearch && matchesType && matchesDateFrom && matchesDateTo;
+  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || [];
+
+  const isDialogOpen = isNewOpen || !!editingRecord;
+  const isSaving = createRecord.isPending || updateRecord.isPending;
+
+  const onSubmit = (data: RecordFormValues) => {
+    const payload = {
+      ...data,
+      documentUrl: documentUrl || null,
+      documentType: documentUrl ? attachMode : null,
+      documentName: attachMode === 'upload' && documentUrl ? documentName || null : null,
+    };
+    if (editingRecord) {
+      updateRecord.mutate({ petId: activePetId, recordId: editingRecord.id, data: payload });
+    } else {
+      createRecord.mutate({ petId: activePetId, data: payload });
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "File is too large", description: "Maximum size is 10MB.", variant: "destructive" });
+      e.target.value = '';
+      return;
+    }
+    uploadDocument.mutate({ petId: activePetId, data: { file } });
+  };
 
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
-      <PageHeader 
-        title="Health Records" 
+      <PageHeader
+        title="Health Records"
         description="A complete history of care, visits, and notes."
         action={
-          <button 
+          <button
             onClick={() => setIsNewOpen(true)}
             className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-xl font-medium shadow-sm hover:shadow-md hover:bg-primary/90 transition-all active:scale-95"
           >
@@ -105,17 +254,59 @@ export default function Records() {
         }
       />
 
-      <div className="mb-8 relative">
+      <div className="mb-4 relative">
         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground">
           <Search size={20} />
         </div>
-        <input 
+        <input
           type="search"
           placeholder="Search records by title, clinic, or notes..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-12 pr-4 py-4 bg-card border border-border rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent shadow-sm text-foreground transition-all"
         />
+      </div>
+
+      <div className="mb-8 flex flex-wrap items-center gap-3">
+        <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as RecordFormValues['type'] | 'all')}>
+          <SelectTrigger className="h-11 w-full sm:w-48 bg-card border-border">
+            <SelectValue placeholder="All types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            {RECORD_TYPES.map((type) => (
+              <SelectItem key={type} value={type}>{TYPE_LABELS[type]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-muted-foreground shrink-0">From</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="h-11 px-3 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-muted-foreground shrink-0">To</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="h-11 px-3 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors ml-auto"
+          >
+            <X size={16} /> Clear filters
+          </button>
+        )}
       </div>
 
       {isLoading ? (
@@ -131,10 +322,17 @@ export default function Records() {
           </div>
           <h3 className="text-xl font-serif mb-2">No records found</h3>
           <p className="text-muted-foreground">
-            {search ? "No records match your search." : "Start building a health history for your pet."}
+            {hasActiveFilters ? "No records match your search or filters." : "Start building a health history for your pet."}
           </p>
-          {!search && (
-            <button 
+          {hasActiveFilters ? (
+            <button
+              onClick={clearFilters}
+              className="mt-6 text-primary font-medium hover:underline"
+            >
+              Clear filters
+            </button>
+          ) : (
+            <button
               onClick={() => setIsNewOpen(true)}
               className="mt-6 text-primary font-medium hover:underline"
             >
@@ -149,12 +347,12 @@ export default function Records() {
             return (
               <div key={record.id} className="relative flex items-start gap-6 group">
                 <div className="absolute left-[2.25rem] md:left-[2.75rem] top-8 -ml-2 w-4 h-4 rounded-full bg-background border-2 border-primary z-10 group-hover:scale-125 transition-transform duration-300 shadow-sm" />
-                
+
                 <div className="w-16 md:w-20 pt-7 text-right shrink-0 relative z-10">
                   <span className="text-sm font-medium text-muted-foreground block">{format(new Date(record.date), 'MMM d')}</span>
                   <span className="text-xs text-muted-foreground opacity-70 block">{format(new Date(record.date), 'yyyy')}</span>
                 </div>
-                
+
                 <div className="flex-1 bg-card border border-border rounded-3xl p-6 md:p-8 shadow-sm hover:shadow-md transition-all group-hover:border-primary/30">
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
                     <div className="flex gap-4">
@@ -164,7 +362,7 @@ export default function Records() {
                       <div>
                         <h3 className="text-xl font-medium text-foreground mb-1 group-hover:text-primary transition-colors">{record.title}</h3>
                         <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-                          <span className="capitalize font-medium text-foreground/80 bg-accent px-2 py-0.5 rounded-md">{record.type}</span>
+                          <span className="font-medium text-foreground/80 bg-accent px-2 py-0.5 rounded-md">{TYPE_LABELS[record.type]}</span>
                           {record.clinic && (
                             <span className="flex items-center gap-1">
                               <span className="w-1 h-1 rounded-full bg-border inline-block"></span>
@@ -174,12 +372,41 @@ export default function Records() {
                         </div>
                       </div>
                     </div>
+
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <button
+                        onClick={() => setEditingRecord(record)}
+                        aria-label="Edit record"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        onClick={() => setDeletingRecord(record)}
+                        aria-label="Delete record"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-                  
+
                   {record.summary && (
                     <p className="text-muted-foreground mt-4 leading-relaxed bg-background p-4 rounded-2xl border border-border/50">
                       {record.summary}
                     </p>
+                  )}
+
+                  {record.documentUrl && (
+                    <a
+                      href={record.documentUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                    >
+                      <Paperclip size={14} />
+                      {record.documentType === 'upload' ? (record.documentName || 'View document') : 'View linked document'}
+                    </a>
                   )}
                 </div>
               </div>
@@ -188,15 +415,17 @@ export default function Records() {
         </div>
       )}
 
-      <Dialog open={isNewOpen} onOpenChange={setIsNewOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-serif text-2xl">Add Health Record</DialogTitle>
-            <DialogDescription>Log a new visit, vaccine, or observation.</DialogDescription>
+            <DialogTitle className="font-serif text-2xl">{editingRecord ? 'Edit Health Record' : 'Add Health Record'}</DialogTitle>
+            <DialogDescription>
+              {editingRecord ? 'Update the details of this record.' : 'Log a new visit, vaccine, or observation.'}
+            </DialogDescription>
           </DialogHeader>
-          
+
           <Form {...form}>
-            <form onSubmit={form.handleSubmit((data) => createRecord.mutate({ petId: activePetId, data }))} className="space-y-6 mt-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-4">
               <FormField
                 control={form.control}
                 name="title"
@@ -210,7 +439,7 @@ export default function Records() {
                   </FormItem>
                 )}
               />
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -218,25 +447,23 @@ export default function Records() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Record Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="h-12 bg-accent/50">
                             <SelectValue placeholder="Select a type" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="visit">Vet Visit</SelectItem>
-                          <SelectItem value="vaccine">Vaccine</SelectItem>
-                          <SelectItem value="lab">Lab Results</SelectItem>
-                          <SelectItem value="procedure">Procedure</SelectItem>
-                          <SelectItem value="note">Observation Note</SelectItem>
+                          {RECORD_TYPES.map((type) => (
+                            <SelectItem key={type} value={type}>{TYPE_LABELS[type]}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="date"
@@ -273,37 +500,134 @@ export default function Records() {
                   <FormItem>
                     <FormLabel>Notes / Summary (Optional)</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Any details about the visit, recommendations, or how they're feeling..." 
-                        className="min-h-[120px] resize-none bg-accent/50" 
-                        {...field} 
+                      <Textarea
+                        placeholder="Any details about the visit, recommendations, or how they're feeling..."
+                        className="min-h-[120px] resize-none bg-accent/50"
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
+              <div className="space-y-3">
+                <label className="text-sm font-medium leading-none">Attach a Document (Optional)</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAttachMode('link')}
+                    className={cn(
+                      'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors',
+                      attachMode === 'link' ? 'bg-primary/10 border-primary text-primary' : 'border-border text-muted-foreground hover:bg-accent'
+                    )}
+                  >
+                    <Link2 size={14} /> Paste a link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAttachMode('upload')}
+                    className={cn(
+                      'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors',
+                      attachMode === 'upload' ? 'bg-primary/10 border-primary text-primary' : 'border-border text-muted-foreground hover:bg-accent'
+                    )}
+                  >
+                    <Upload size={14} /> Upload a file
+                  </button>
+                </div>
+
+                {attachMode === 'link' ? (
+                  <Input
+                    type="url"
+                    placeholder="https://..."
+                    value={documentUrl}
+                    onChange={(e) => setDocumentUrl(e.target.value)}
+                    className="h-12 bg-accent/50"
+                  />
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="application/pdf,image/jpeg,image/png,image/webp,image/heic"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      id="record-document-upload"
+                    />
+                    <label
+                      htmlFor="record-document-upload"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-border text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                    >
+                      {uploadDocument.isPending ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                      {uploadDocument.isPending ? 'Uploading...' : 'Choose file'}
+                    </label>
+                    {documentName && !uploadDocument.isPending && (
+                      <span className="flex items-center gap-1.5 text-sm text-foreground">
+                        <Paperclip size={14} className="text-muted-foreground" />
+                        {documentName}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDocumentUrl('');
+                            setDocumentName('');
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <X size={14} />
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">PDF or image, up to 10MB.</p>
+              </div>
+
               <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                <button 
-                  type="button" 
-                  onClick={() => setIsNewOpen(false)}
+                <button
+                  type="button"
+                  onClick={closeDialog}
                   className="px-6 py-3 font-medium text-foreground hover:bg-accent rounded-xl transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
-                  disabled={createRecord.isPending}
+                <button
+                  type="submit"
+                  disabled={isSaving}
                   className="px-8 py-3 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50"
                 >
-                  {createRecord.isPending ? 'Saving...' : 'Save Record'}
+                  {isSaving ? 'Saving...' : editingRecord ? 'Save Changes' : 'Save Record'}
                 </button>
               </div>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deletingRecord} onOpenChange={(open) => !open && setDeletingRecord(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingRecord && `"${deletingRecord.title}" will be permanently removed. This can't be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteRecord.isPending}
+              onClick={() => {
+                if (deletingRecord) {
+                  deleteRecord.mutate({ petId: activePetId, recordId: deletingRecord.id });
+                }
+              }}
+            >
+              {deleteRecord.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

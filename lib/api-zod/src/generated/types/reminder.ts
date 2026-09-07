@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ReminderCategory } from './reminderCategory';
+import type { ReminderSource } from './reminderSource';
 
 export interface Reminder {
   id: number;
@@ -16,4 +17,7 @@ export interface Reminder {
   completed: boolean;
   /** @nullable */
   note: string | null;
+  source: ReminderSource;
+  /** @nullable */
+  ruleId: string | null;
 }

@@ -19,6 +19,16 @@ export const pets = pgTable("pets", {
   weightUnit: text("weight_unit").notNull().default("lb"),
   photoUrl: text("photo_url"),
   notes: text("notes"),
+  vetName: text("vet_name"),
+  vetClinic: text("vet_clinic"),
+  vetPhone: text("vet_phone"),
+  vetAddress: text("vet_address"),
+  // One-time Smart Document Upload "onboarding" import allowance (20 docs,
+  // first 30 days) — see lib/document-import-quota.ts. Null on pets created
+  // before this existed, which simply means that lane isn't available for
+  // them; only the ongoing monthly lane applies.
+  importDocsUsed: integer("import_docs_used").notNull().default(0),
+  importWindowEndsAt: timestamp("import_window_ends_at", { withTimezone: true }),
 });
 
 export const healthRecords = pgTable("health_records", {
@@ -30,6 +40,8 @@ export const healthRecords = pgTable("health_records", {
   clinic: text("clinic"),
   summary: text("summary"),
   documentUrl: text("document_url"),
+  documentType: text("document_type", { enum: ["link", "upload"] }),
+  documentName: text("document_name"),
 });
 
 export const medications = pgTable("medications", {
@@ -38,6 +50,11 @@ export const medications = pgTable("medications", {
   name: text("name").notNull(),
   dose: text("dose").notNull(),
   frequency: text("frequency").notNull(),
+  // Structured schedule driving auto-calculated next-dose times. Optional —
+  // a medication can stay purely descriptive (frequency text only) if its
+  // schedule doesn't fit a fixed interval.
+  doseIntervalValue: integer("dose_interval_value"),
+  doseIntervalUnit: text("dose_interval_unit", { enum: ["hours", "days", "weeks", "months"] }),
   nextDoseAt: timestamp("next_dose_at", { withTimezone: true }),
   active: boolean("active").notNull().default(true),
   instructions: text("instructions"),
@@ -51,6 +68,11 @@ export const reminders = pgTable("reminders", {
   category: text("category").notNull(),
   completed: boolean("completed").notNull().default(false),
   note: text("note"),
+  source: text("source", { enum: ["owner", "system"] }).notNull().default("owner"),
+  // Stable per-rule key (e.g. "vaccine:rabies") used to upsert the same
+  // system-generated reminder across Care Recommendations Engine runs
+  // instead of creating duplicates. Null for owner-created reminders.
+  ruleId: text("rule_id"),
 });
 
 export const insights = pgTable("insights", {

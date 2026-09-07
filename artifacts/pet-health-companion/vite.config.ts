@@ -72,6 +72,15 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    // Local dev only: proxies API calls to the api-server so the browser
+    // sees one origin (this is what makes better-auth's session cookie and
+    // the app's relative `/api/...` fetches work without extra CORS setup).
+    proxy: {
+      '/api': {
+        target: process.env.API_PROXY_TARGET ?? 'http://localhost:5050',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port,

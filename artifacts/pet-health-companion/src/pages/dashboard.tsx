@@ -1,11 +1,17 @@
 import { usePetContext } from '@/context/pet-context';
-import { useGetDashboardSummary, getGetDashboardSummaryQueryKey, useCompleteReminder } from '@workspace/api-client-react';
+import { useGetDashboardSummary, getGetDashboardSummaryQueryKey, useCompleteReminder, useLogMedicationDose } from '@workspace/api-client-react';
 import { PageHeader } from '@/components/page-header';
 import { Link } from 'wouter';
-import { Calendar, Pill, FileText, Sparkles, CheckCircle2, Circle, HeartPulse, ArrowRight } from 'lucide-react';
+import { Calendar, Pill, FileText, Sparkles, Circle, HeartPulse, ArrowRight, Syringe, Loader2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+
+const DUE_SOON_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+type UpcomingItem =
+  | { kind: 'reminder'; id: number; title: string; when: Date; category: string; suggested: boolean }
+  | { kind: 'medication'; id: number; title: string; when: Date; dose: string; suggested: false };
 
 export default function Dashboard() {
   const { activePetId } = usePetContext();
@@ -21,14 +27,18 @@ export default function Dashboard() {
     }
   );
 
-  const completeReminder = useCompleteReminder({
-    mutation: {
-      onSuccess: () => {
-        if (activePetId) {
-          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey({ petId: activePetId }) });
-        }
-      }
+  const invalidateSummary = () => {
+    if (activePetId) {
+      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey({ petId: activePetId }) });
     }
+  };
+
+  const completeReminder = useCompleteReminder({
+    mutation: { onSuccess: invalidateSummary }
+  });
+
+  const logDose = useLogMedicationDose({
+    mutation: { onSuccess: invalidateSummary }
   });
 
   if (!activePetId) {
@@ -66,6 +76,20 @@ export default function Dashboard() {
     return <div className="p-8 text-destructive bg-destructive/10 rounded-xl m-8 border border-destructive/20 text-center py-12">Failed to load dashboard. Please try again.</div>;
   }
 
+  const now = Date.now();
+  const isDueSoon = (when: Date) => when.getTime() - now <= DUE_SOON_WINDOW_MS;
+
+  const upcomingItems: UpcomingItem[] = [
+    ...summary.upcomingReminders.map((r): UpcomingItem => ({
+      kind: 'reminder', id: r.id, title: r.title, when: new Date(r.dueDate), category: r.category, suggested: r.source === 'system',
+    })),
+    ...summary.activeMedications
+      .filter((m) => m.nextDoseAt)
+      .map((m): UpcomingItem => ({
+        kind: 'medication', id: m.id, title: m.name, when: new Date(m.nextDoseAt!), dose: m.dose, suggested: false,
+      })),
+  ].sort((a, b) => a.when.getTime() - b.when.getTime());
+
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
       <PageHeader 
@@ -84,34 +108,58 @@ export default function Dashboard() {
             <Link href="/reminders" className="text-sm font-medium text-primary hover:bg-primary/10 px-4 py-2 rounded-full transition-colors">View All</Link>
           </div>
           
-          {summary.upcomingReminders.length === 0 ? (
+          {upcomingItems.length === 0 ? (
             <div className="text-center py-12 border-2 border-dashed border-border rounded-2xl bg-background/50">
               <p className="text-muted-foreground">No upcoming reminders.</p>
               <Link href="/reminders?new=true" className="text-primary font-medium hover:underline mt-2 inline-block">Add a reminder</Link>
             </div>
           ) : (
             <div className="space-y-4">
-              {summary.upcomingReminders.map(reminder => (
-                <div key={reminder.id} className={cn(
-                  "flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300", 
-                  reminder.completed ? "bg-accent/30 border-transparent opacity-60 grayscale-[0.5]" : "bg-background border-border hover:border-primary/30 shadow-sm"
-                )}>
-                  <button 
-                    onClick={() => !reminder.completed && completeReminder.mutate({ reminderId: reminder.id })}
-                    disabled={reminder.completed || completeReminder.isPending}
-                    className="flex-shrink-0 text-primary hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full"
-                  >
-                    {reminder.completed ? <CheckCircle2 size={28} className="text-primary" /> : <Circle size={28} className="text-muted-foreground hover:text-primary transition-colors" />}
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <p className={cn("font-medium text-lg", reminder.completed && "line-through text-muted-foreground")}>{reminder.title}</p>
-                    <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-                      <span className="capitalize px-2.5 py-0.5 rounded-md bg-accent text-accent-foreground font-medium text-xs tracking-wide">{reminder.category}</span>
-                      <span>{format(new Date(reminder.dueDate), 'MMM d, yyyy')}</span>
-                    </p>
+              {upcomingItems.map(item => {
+                const dueSoon = isDueSoon(item.when);
+                return (
+                  <div key={`${item.kind}-${item.id}`} className={cn(
+                    "flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300",
+                    dueSoon ? "bg-amber-50 border-amber-200" : "bg-background border-border hover:border-primary/30 shadow-sm"
+                  )}>
+                    {item.kind === 'reminder' ? (
+                      <button
+                        onClick={() => completeReminder.mutate({ reminderId: item.id })}
+                        disabled={completeReminder.isPending}
+                        className="flex-shrink-0 text-primary hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full"
+                      >
+                        <Circle size={28} className="text-muted-foreground hover:text-primary transition-colors" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => activePetId && logDose.mutate({ petId: activePetId, medicationId: item.id })}
+                        disabled={logDose.isPending}
+                        title="Mark dose given"
+                        className="flex-shrink-0 text-primary hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full disabled:opacity-50"
+                      >
+                        {logDose.isPending ? <Loader2 size={28} className="animate-spin" /> : <Syringe size={28} />}
+                      </button>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-lg">{item.title}</p>
+                      <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
+                        {item.suggested && (
+                          <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-700 font-medium text-xs tracking-wide">
+                            <Sparkles size={12} /> Suggested
+                          </span>
+                        )}
+                        <span className="capitalize px-2.5 py-0.5 rounded-md bg-accent text-accent-foreground font-medium text-xs tracking-wide">
+                          {item.kind === 'reminder' ? item.category : item.dose}
+                        </span>
+                        <span>{format(item.when, item.kind === 'medication' ? 'MMM d, h:mm a' : 'MMM d, yyyy')}</span>
+                        {dueSoon && (
+                          <span className="px-2.5 py-0.5 rounded-md bg-amber-500 text-white font-medium text-xs tracking-wide">Due soon</span>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

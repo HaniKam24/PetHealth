@@ -1,10 +1,16 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import { authHandler } from "@workspace/auth";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
+
+const webOrigins = (process.env["WEB_ORIGIN"] ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(
   pinoHttp({
@@ -25,7 +31,18 @@ app.use(
     },
   }),
 );
-app.use(cors());
+app.use(
+  cors({
+    origin: webOrigins.length > 0 ? webOrigins : true,
+    credentials: true,
+  }),
+);
+
+// Mounted before express.json(): better-auth's handler reads and parses the
+// raw request body itself, so a body-parser upstream would consume the
+// stream first and break it.
+app.all("/api/auth/*splat", authHandler);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

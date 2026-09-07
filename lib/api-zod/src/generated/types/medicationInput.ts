@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { MedicationInputDoseIntervalUnit } from './medicationInputDoseIntervalUnit';
 
 export interface MedicationInput {
   /** @minLength 1 */
@@ -13,6 +14,13 @@ export interface MedicationInput {
   dose: string;
   /** @minLength 1 */
   frequency: string;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  doseIntervalValue?: number | null;
+  /** @nullable */
+  doseIntervalUnit?: MedicationInputDoseIntervalUnit;
   /** @nullable */
   nextDoseAt?: Date | null;
   active: boolean;

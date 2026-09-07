@@ -1,15 +1,17 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, FileText, Pill, Bell, Sparkles, User, Plus, HeartPulse } from 'lucide-react';
+import { LayoutDashboard, FileText, Pill, Bell, Sparkles, User, Plus, HeartPulse, LogOut } from 'lucide-react';
 import { usePetContext } from '@/context/pet-context';
 import { useListPets } from '@workspace/api-client-react';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
+import { signOut, useSession } from '@/lib/auth-client';
 
 export function Layout({ children }: { children: ReactNode }) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { activePetId, setActivePetId } = usePetContext();
   const { data: pets } = useListPets();
+  const { data: session } = useSession();
 
   const navItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -32,9 +34,11 @@ export function Layout({ children }: { children: ReactNode }) {
              <span className="font-serif text-2xl font-medium text-foreground tracking-tight">Health Hub</span>
           </Link>
 
-          {pets && pets.length > 0 && (
+          {pets && (
              <div className="mb-8">
-               <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 block px-1">Current Pet</label>
+               {pets.length > 0 && (
+                 <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 block px-1">Current Pet</label>
+               )}
                <div className="flex flex-col gap-2">
                  {pets.map(pet => (
                    <button
@@ -63,12 +67,15 @@ export function Layout({ children }: { children: ReactNode }) {
                      </div>
                    </button>
                  ))}
-                 <Link href="/profile?new=true" className="flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-accent text-muted-foreground hover:text-foreground transition-colors text-left border border-dashed border-border mt-1">
-                   <div className="w-10 h-10 rounded-full flex items-center justify-center bg-background border border-border shadow-sm">
-                     <Plus size={16} />
-                   </div>
-                   <span className="font-medium text-sm">Add another pet</span>
-                 </Link>
+                 {/* Accounts are capped at MAX_PETS_PER_ACCOUNT pets (enforced by the API — see routes/care.ts) */}
+                 {pets.length < 3 && (
+                   <Link href="/profile?new=true" className="flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-accent text-muted-foreground hover:text-foreground transition-colors text-left border border-dashed border-border mt-1">
+                     <div className="w-10 h-10 rounded-full flex items-center justify-center bg-background border border-border shadow-sm">
+                       <Plus size={16} />
+                     </div>
+                     <span className="font-medium text-sm">Add another pet</span>
+                   </Link>
+                 )}
                </div>
              </div>
           )}
@@ -94,6 +101,18 @@ export function Layout({ children }: { children: ReactNode }) {
                );
              })}
           </nav>
+        </div>
+
+        <div className="mt-auto p-6 pt-4 border-t border-border">
+          <button
+            onClick={() => {
+              void signOut().then(() => setLocation('/login'));
+            }}
+            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          >
+            <LogOut size={18} className="opacity-70" />
+            <span className="truncate">{session?.user.email ?? 'Sign out'}</span>
+          </button>
         </div>
       </aside>
 

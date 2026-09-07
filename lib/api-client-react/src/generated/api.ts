@@ -20,22 +20,33 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AcceptDocumentImportItemBody,
+  CreateDocumentImportBody,
   DashboardSummary,
+  DocumentImportItem,
+  DocumentImportListResponse,
+  DocumentImportResponse,
+  DocumentUploadResult,
+  Error,
   GetDashboardSummaryParams,
   HealthRecord,
   HealthRecordInput,
+  HealthRecordUpdate,
   HealthStatus,
   Insight,
   InsightQuestion,
   ListInsightsParams,
   Medication,
   MedicationInput,
+  MedicationUpdate,
   NotFoundResponse,
   Pet,
   PetInput,
+  PetLimitReachedResponse,
   PetUpdate,
   Reminder,
-  ReminderInput
+  ReminderInput,
+  UploadHealthRecordDocumentBody
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -246,7 +257,7 @@ export const createPet = async (petInput: PetInput, options?: Parameters<typeof 
 
 
 
-export const getCreatePetMutationOptions = <TError = ErrorType<unknown>,
+export const getCreatePetMutationOptions = <TError = ErrorType<PetLimitReachedResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPet>>, TError,{data: BodyType<PetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createPet>>, TError,{data: BodyType<PetInput>}, TContext> => {
 
@@ -275,12 +286,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreatePetMutationResult = NonNullable<Awaited<ReturnType<typeof createPet>>>
     export type CreatePetMutationBody = BodyType<PetInput>
-    export type CreatePetMutationError = ErrorType<unknown>
+    export type CreatePetMutationError = ErrorType<PetLimitReachedResponse>
 
     /**
  * @summary Create a pet
  */
-export const useCreatePet = <TError = ErrorType<unknown>,
+export const useCreatePet = <TError = ErrorType<PetLimitReachedResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPet>>, TError,{data: BodyType<PetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createPet>>,
@@ -660,6 +671,611 @@ export const useCreateHealthRecord = <TError = ErrorType<unknown>,
       return useMutation(getCreateHealthRecordMutationOptions(options));
     }
 
+export const getUpdateHealthRecordUrl = (petId: number,
+    recordId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/records/${recordId}`
+}
+
+/**
+ * @summary Update a health record
+ */
+export const updateHealthRecord = async (petId: number,
+    recordId: number,
+    healthRecordUpdate: HealthRecordUpdate, options?: Parameters<typeof customFetch>[1]): Promise<HealthRecord> => {
+
+  return customFetch<HealthRecord>(getUpdateHealthRecordUrl(petId,recordId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(healthRecordUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateHealthRecordMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHealthRecord>>, TError,{petId: number;recordId: number;data: BodyType<HealthRecordUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateHealthRecord>>, TError,{petId: number;recordId: number;data: BodyType<HealthRecordUpdate>}, TContext> => {
+
+const mutationKey = ['updateHealthRecord'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateHealthRecord>>, {petId: number;recordId: number;data: BodyType<HealthRecordUpdate>}> = (props) => {
+          const {petId,recordId,data} = props ?? {};
+
+          return  updateHealthRecord(petId,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateHealthRecordMutationResult = NonNullable<Awaited<ReturnType<typeof updateHealthRecord>>>
+    export type UpdateHealthRecordMutationBody = BodyType<HealthRecordUpdate>
+    export type UpdateHealthRecordMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Update a health record
+ */
+export const useUpdateHealthRecord = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHealthRecord>>, TError,{petId: number;recordId: number;data: BodyType<HealthRecordUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateHealthRecord>>,
+        TError,
+        {petId: number;recordId: number;data: BodyType<HealthRecordUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateHealthRecordMutationOptions(options));
+    }
+
+export const getDeleteHealthRecordUrl = (petId: number,
+    recordId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/records/${recordId}`
+}
+
+/**
+ * @summary Delete a health record
+ */
+export const deleteHealthRecord = async (petId: number,
+    recordId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteHealthRecordUrl(petId,recordId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteHealthRecordMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteHealthRecord>>, TError,{petId: number;recordId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteHealthRecord>>, TError,{petId: number;recordId: number}, TContext> => {
+
+const mutationKey = ['deleteHealthRecord'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteHealthRecord>>, {petId: number;recordId: number}> = (props) => {
+          const {petId,recordId} = props ?? {};
+
+          return  deleteHealthRecord(petId,recordId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteHealthRecordMutationResult = NonNullable<Awaited<ReturnType<typeof deleteHealthRecord>>>
+
+    export type DeleteHealthRecordMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Delete a health record
+ */
+export const useDeleteHealthRecord = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteHealthRecord>>, TError,{petId: number;recordId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteHealthRecord>>,
+        TError,
+        {petId: number;recordId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteHealthRecordMutationOptions(options));
+    }
+
+export const getUploadHealthRecordDocumentUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/documents`
+}
+
+/**
+ * @summary Upload a health record document (PDF or image, 10MB max)
+ */
+export const uploadHealthRecordDocument = async (petId: number,
+    uploadHealthRecordDocumentBody: UploadHealthRecordDocumentBody, options?: Parameters<typeof customFetch>[1]): Promise<DocumentUploadResult> => {
+    const formData = new FormData();
+formData.append(`file`, uploadHealthRecordDocumentBody.file);
+
+  return customFetch<DocumentUploadResult>(getUploadHealthRecordDocumentUrl(petId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadHealthRecordDocumentMutationOptions = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadHealthRecordDocument>>, TError,{petId: number;data: BodyType<UploadHealthRecordDocumentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadHealthRecordDocument>>, TError,{petId: number;data: BodyType<UploadHealthRecordDocumentBody>}, TContext> => {
+
+const mutationKey = ['uploadHealthRecordDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadHealthRecordDocument>>, {petId: number;data: BodyType<UploadHealthRecordDocumentBody>}> = (props) => {
+          const {petId,data} = props ?? {};
+
+          return  uploadHealthRecordDocument(petId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadHealthRecordDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof uploadHealthRecordDocument>>>
+    export type UploadHealthRecordDocumentMutationBody = BodyType<UploadHealthRecordDocumentBody>
+    export type UploadHealthRecordDocumentMutationError = ErrorType<Error | NotFoundResponse>
+
+    /**
+ * @summary Upload a health record document (PDF or image, 10MB max)
+ */
+export const useUploadHealthRecordDocument = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadHealthRecordDocument>>, TError,{petId: number;data: BodyType<UploadHealthRecordDocumentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadHealthRecordDocument>>,
+        TError,
+        {petId: number;data: BodyType<UploadHealthRecordDocumentBody>},
+        TContext
+      > => {
+      return useMutation(getUploadHealthRecordDocumentMutationOptions(options));
+    }
+
+export const getListDocumentImportsUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/document-imports`
+}
+
+/**
+ * @summary List Smart Document Upload imports for a pet
+ */
+export const listDocumentImports = async (petId: number, options?: Parameters<typeof customFetch>[1]): Promise<DocumentImportListResponse> => {
+
+  return customFetch<DocumentImportListResponse>(getListDocumentImportsUrl(petId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDocumentImportsQueryKey = (petId: number,) => {
+    return [
+    `/api/pets/${petId}/document-imports`
+    ] as const;
+    }
+
+
+export const getListDocumentImportsQueryOptions = <TData = Awaited<ReturnType<typeof listDocumentImports>>, TError = ErrorType<NotFoundResponse>>(petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDocumentImports>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDocumentImportsQueryKey(petId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDocumentImports>>> = ({ signal }) => listDocumentImports(petId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: petId !== null && petId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDocumentImports>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDocumentImportsQueryResult = NonNullable<Awaited<ReturnType<typeof listDocumentImports>>>
+export type ListDocumentImportsQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary List Smart Document Upload imports for a pet
+ */
+
+export function useListDocumentImports<TData = Awaited<ReturnType<typeof listDocumentImports>>, TError = ErrorType<NotFoundResponse>>(
+ petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDocumentImports>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDocumentImportsQueryOptions(petId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateDocumentImportUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/document-imports`
+}
+
+/**
+ * @summary Upload a vet report for AI extraction (PDF or image, 10MB max, 20 pages max)
+ */
+export const createDocumentImport = async (petId: number,
+    createDocumentImportBody: CreateDocumentImportBody, options?: Parameters<typeof customFetch>[1]): Promise<DocumentImportResponse> => {
+    const formData = new FormData();
+formData.append(`file`, createDocumentImportBody.file);
+
+  return customFetch<DocumentImportResponse>(getCreateDocumentImportUrl(petId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getCreateDocumentImportMutationOptions = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDocumentImport>>, TError,{petId: number;data: BodyType<CreateDocumentImportBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDocumentImport>>, TError,{petId: number;data: BodyType<CreateDocumentImportBody>}, TContext> => {
+
+const mutationKey = ['createDocumentImport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDocumentImport>>, {petId: number;data: BodyType<CreateDocumentImportBody>}> = (props) => {
+          const {petId,data} = props ?? {};
+
+          return  createDocumentImport(petId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateDocumentImportMutationResult = NonNullable<Awaited<ReturnType<typeof createDocumentImport>>>
+    export type CreateDocumentImportMutationBody = BodyType<CreateDocumentImportBody>
+    export type CreateDocumentImportMutationError = ErrorType<Error | NotFoundResponse>
+
+    /**
+ * @summary Upload a vet report for AI extraction (PDF or image, 10MB max, 20 pages max)
+ */
+export const useCreateDocumentImport = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDocumentImport>>, TError,{petId: number;data: BodyType<CreateDocumentImportBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createDocumentImport>>,
+        TError,
+        {petId: number;data: BodyType<CreateDocumentImportBody>},
+        TContext
+      > => {
+      return useMutation(getCreateDocumentImportMutationOptions(options));
+    }
+
+export const getGetDocumentImportUrl = (petId: number,
+    importId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/document-imports/${importId}`
+}
+
+/**
+ * @summary Get one document import and its proposed items
+ */
+export const getDocumentImport = async (petId: number,
+    importId: number, options?: Parameters<typeof customFetch>[1]): Promise<DocumentImportResponse> => {
+
+  return customFetch<DocumentImportResponse>(getGetDocumentImportUrl(petId,importId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDocumentImportQueryKey = (petId: number,
+    importId: number,) => {
+    return [
+    `/api/pets/${petId}/document-imports/${importId}`
+    ] as const;
+    }
+
+
+export const getGetDocumentImportQueryOptions = <TData = Awaited<ReturnType<typeof getDocumentImport>>, TError = ErrorType<NotFoundResponse>>(petId: number,
+    importId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDocumentImport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDocumentImportQueryKey(petId,importId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDocumentImport>>> = ({ signal }) => getDocumentImport(petId,importId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: petId !== null && petId !== undefined && importId !== null && importId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDocumentImport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDocumentImportQueryResult = NonNullable<Awaited<ReturnType<typeof getDocumentImport>>>
+export type GetDocumentImportQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Get one document import and its proposed items
+ */
+
+export function useGetDocumentImport<TData = Awaited<ReturnType<typeof getDocumentImport>>, TError = ErrorType<NotFoundResponse>>(
+ petId: number,
+    importId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDocumentImport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDocumentImportQueryOptions(petId,importId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAcceptDocumentImportItemUrl = (petId: number,
+    importId: number,
+    itemId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/document-imports/${importId}/items/${itemId}/accept`
+}
+
+/**
+ * @summary Accept a proposed item — writes it to the pet's real records
+ */
+export const acceptDocumentImportItem = async (petId: number,
+    importId: number,
+    itemId: number,
+    acceptDocumentImportItemBody?: AcceptDocumentImportItemBody, options?: Parameters<typeof customFetch>[1]): Promise<DocumentImportItem> => {
+
+  return customFetch<DocumentImportItem>(getAcceptDocumentImportItemUrl(petId,importId,itemId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(acceptDocumentImportItemBody)
+  }
+);}
+
+
+
+
+
+export const getAcceptDocumentImportItemMutationOptions = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptDocumentImportItem>>, TError,{petId: number;importId: number;itemId: number;data?: BodyType<AcceptDocumentImportItemBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptDocumentImportItem>>, TError,{petId: number;importId: number;itemId: number;data?: BodyType<AcceptDocumentImportItemBody>}, TContext> => {
+
+const mutationKey = ['acceptDocumentImportItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptDocumentImportItem>>, {petId: number;importId: number;itemId: number;data?: BodyType<AcceptDocumentImportItemBody>}> = (props) => {
+          const {petId,importId,itemId,data} = props ?? {};
+
+          return  acceptDocumentImportItem(petId,importId,itemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptDocumentImportItemMutationResult = NonNullable<Awaited<ReturnType<typeof acceptDocumentImportItem>>>
+    export type AcceptDocumentImportItemMutationBody = BodyType<AcceptDocumentImportItemBody> | undefined
+    export type AcceptDocumentImportItemMutationError = ErrorType<Error | NotFoundResponse>
+
+    /**
+ * @summary Accept a proposed item — writes it to the pet's real records
+ */
+export const useAcceptDocumentImportItem = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptDocumentImportItem>>, TError,{petId: number;importId: number;itemId: number;data?: BodyType<AcceptDocumentImportItemBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acceptDocumentImportItem>>,
+        TError,
+        {petId: number;importId: number;itemId: number;data?: BodyType<AcceptDocumentImportItemBody>},
+        TContext
+      > => {
+      return useMutation(getAcceptDocumentImportItemMutationOptions(options));
+    }
+
+export const getRejectDocumentImportItemUrl = (petId: number,
+    importId: number,
+    itemId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/document-imports/${importId}/items/${itemId}/reject`
+}
+
+/**
+ * @summary Reject a proposed item — nothing is written
+ */
+export const rejectDocumentImportItem = async (petId: number,
+    importId: number,
+    itemId: number, options?: Parameters<typeof customFetch>[1]): Promise<DocumentImportItem> => {
+
+  return customFetch<DocumentImportItem>(getRejectDocumentImportItemUrl(petId,importId,itemId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRejectDocumentImportItemMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectDocumentImportItem>>, TError,{petId: number;importId: number;itemId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectDocumentImportItem>>, TError,{petId: number;importId: number;itemId: number}, TContext> => {
+
+const mutationKey = ['rejectDocumentImportItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectDocumentImportItem>>, {petId: number;importId: number;itemId: number}> = (props) => {
+          const {petId,importId,itemId} = props ?? {};
+
+          return  rejectDocumentImportItem(petId,importId,itemId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectDocumentImportItemMutationResult = NonNullable<Awaited<ReturnType<typeof rejectDocumentImportItem>>>
+
+    export type RejectDocumentImportItemMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Reject a proposed item — nothing is written
+ */
+export const useRejectDocumentImportItem = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectDocumentImportItem>>, TError,{petId: number;importId: number;itemId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rejectDocumentImportItem>>,
+        TError,
+        {petId: number;importId: number;itemId: number},
+        TContext
+      > => {
+      return useMutation(getRejectDocumentImportItemMutationOptions(options));
+    }
+
 export const getListMedicationsUrl = (petId: number,) => {
 
 
@@ -807,6 +1423,153 @@ export const useCreateMedication = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateMedicationMutationOptions(options));
+    }
+
+export const getUpdateMedicationUrl = (petId: number,
+    medicationId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/medications/${medicationId}`
+}
+
+/**
+ * @summary Update a medication
+ */
+export const updateMedication = async (petId: number,
+    medicationId: number,
+    medicationUpdate: MedicationUpdate, options?: Parameters<typeof customFetch>[1]): Promise<Medication> => {
+
+  return customFetch<Medication>(getUpdateMedicationUrl(petId,medicationId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(medicationUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateMedicationMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMedication>>, TError,{petId: number;medicationId: number;data: BodyType<MedicationUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMedication>>, TError,{petId: number;medicationId: number;data: BodyType<MedicationUpdate>}, TContext> => {
+
+const mutationKey = ['updateMedication'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMedication>>, {petId: number;medicationId: number;data: BodyType<MedicationUpdate>}> = (props) => {
+          const {petId,medicationId,data} = props ?? {};
+
+          return  updateMedication(petId,medicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMedicationMutationResult = NonNullable<Awaited<ReturnType<typeof updateMedication>>>
+    export type UpdateMedicationMutationBody = BodyType<MedicationUpdate>
+    export type UpdateMedicationMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Update a medication
+ */
+export const useUpdateMedication = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMedication>>, TError,{petId: number;medicationId: number;data: BodyType<MedicationUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMedication>>,
+        TError,
+        {petId: number;medicationId: number;data: BodyType<MedicationUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateMedicationMutationOptions(options));
+    }
+
+export const getLogMedicationDoseUrl = (petId: number,
+    medicationId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/medications/${medicationId}/log-dose`
+}
+
+/**
+ * @summary Mark a dose given and auto-calculate the next dose from the medication's interval
+ */
+export const logMedicationDose = async (petId: number,
+    medicationId: number, options?: Parameters<typeof customFetch>[1]): Promise<Medication> => {
+
+  return customFetch<Medication>(getLogMedicationDoseUrl(petId,medicationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getLogMedicationDoseMutationOptions = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logMedicationDose>>, TError,{petId: number;medicationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof logMedicationDose>>, TError,{petId: number;medicationId: number}, TContext> => {
+
+const mutationKey = ['logMedicationDose'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof logMedicationDose>>, {petId: number;medicationId: number}> = (props) => {
+          const {petId,medicationId} = props ?? {};
+
+          return  logMedicationDose(petId,medicationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LogMedicationDoseMutationResult = NonNullable<Awaited<ReturnType<typeof logMedicationDose>>>
+
+    export type LogMedicationDoseMutationError = ErrorType<Error | NotFoundResponse>
+
+    /**
+ * @summary Mark a dose given and auto-calculate the next dose from the medication's interval
+ */
+export const useLogMedicationDose = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logMedicationDose>>, TError,{petId: number;medicationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof logMedicationDose>>,
+        TError,
+        {petId: number;medicationId: number},
+        TContext
+      > => {
+      return useMutation(getLogMedicationDoseMutationOptions(options));
     }
 
 export const getListRemindersUrl = (petId: number,) => {

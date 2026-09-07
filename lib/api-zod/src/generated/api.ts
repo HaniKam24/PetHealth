@@ -30,7 +30,11 @@ export const ListPetsResponseItem = zod.object({
   "weight": zod.number().nullable(),
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullable(),
-  "notes": zod.string().nullable()
+  "notes": zod.string().nullable(),
+  "vetName": zod.string().nullable(),
+  "vetClinic": zod.string().nullable(),
+  "vetPhone": zod.string().nullable(),
+  "vetAddress": zod.string().nullable()
 })
 export const ListPetsResponse = zod.array(ListPetsResponseItem)
 
@@ -50,7 +54,11 @@ export const CreatePetBody = zod.object({
   "weight": zod.number().nullish(),
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullish(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "vetName": zod.string().nullish(),
+  "vetClinic": zod.string().nullish(),
+  "vetPhone": zod.string().nullish(),
+  "vetAddress": zod.string().nullish()
 })
 
 export const CreatePetResponse = zod.object({
@@ -63,7 +71,11 @@ export const CreatePetResponse = zod.object({
   "weight": zod.number().nullable(),
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullable(),
-  "notes": zod.string().nullable()
+  "notes": zod.string().nullable(),
+  "vetName": zod.string().nullable(),
+  "vetClinic": zod.string().nullable(),
+  "vetPhone": zod.string().nullable(),
+  "vetAddress": zod.string().nullable()
 })
 
 
@@ -87,7 +99,11 @@ export const GetPetResponse = zod.object({
   "weight": zod.number().nullable(),
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullable(),
-  "notes": zod.string().nullable()
+  "notes": zod.string().nullable(),
+  "vetName": zod.string().nullable(),
+  "vetClinic": zod.string().nullable(),
+  "vetPhone": zod.string().nullable(),
+  "vetAddress": zod.string().nullable()
 })
 
 
@@ -113,7 +129,11 @@ export const UpdatePetBody = zod.object({
   "weight": zod.number().nullish(),
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullish(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "vetName": zod.string().nullish(),
+  "vetClinic": zod.string().nullish(),
+  "vetPhone": zod.string().nullish(),
+  "vetAddress": zod.string().nullish()
 }).describe('Updated pet fields')
 
 export const UpdatePetResponse = zod.object({
@@ -126,7 +146,11 @@ export const UpdatePetResponse = zod.object({
   "weight": zod.number().nullable(),
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullable(),
-  "notes": zod.string().nullable()
+  "notes": zod.string().nullable(),
+  "vetName": zod.string().nullable(),
+  "vetClinic": zod.string().nullable(),
+  "vetPhone": zod.string().nullable(),
+  "vetAddress": zod.string().nullable()
 })
 
 
@@ -161,7 +185,9 @@ export const ListHealthRecordsResponseItem = zod.object({
   "date": zod.coerce.date(),
   "clinic": zod.string().nullable(),
   "summary": zod.string().nullable(),
-  "documentUrl": zod.string().url().nullable()
+  "documentUrl": zod.string().url().nullable(),
+  "documentType": zod.union([zod.literal('link'),zod.literal('upload'),zod.literal(null)]).nullable(),
+  "documentName": zod.string().nullable()
 })
 export const ListHealthRecordsResponse = zod.array(ListHealthRecordsResponseItem)
 
@@ -185,7 +211,9 @@ export const CreateHealthRecordBody = zod.object({
   "date": zod.coerce.date(),
   "clinic": zod.string().nullish(),
   "summary": zod.string().nullish(),
-  "documentUrl": zod.string().url().nullish()
+  "documentUrl": zod.string().url().nullish(),
+  "documentType": zod.union([zod.literal('link'),zod.literal('upload'),zod.literal(null)]).nullish(),
+  "documentName": zod.string().nullish()
 })
 
 export const CreateHealthRecordResponse = zod.object({
@@ -196,7 +224,275 @@ export const CreateHealthRecordResponse = zod.object({
   "date": zod.coerce.date(),
   "clinic": zod.string().nullable(),
   "summary": zod.string().nullable(),
-  "documentUrl": zod.string().url().nullable()
+  "documentUrl": zod.string().url().nullable(),
+  "documentType": zod.union([zod.literal('link'),zod.literal('upload'),zod.literal(null)]).nullable(),
+  "documentName": zod.string().nullable()
+})
+
+
+/**
+ * @summary Update a health record
+ */
+
+
+
+
+export const UpdateHealthRecordParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "recordId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const UpdateHealthRecordBody = zod.object({
+  "type": zod.enum(['visit', 'vaccine', 'lab', 'procedure', 'note']),
+  "title": zod.string().min(1),
+  "date": zod.coerce.date(),
+  "clinic": zod.string().nullish(),
+  "summary": zod.string().nullish(),
+  "documentUrl": zod.string().url().nullish(),
+  "documentType": zod.union([zod.literal('link'),zod.literal('upload'),zod.literal(null)]).nullish(),
+  "documentName": zod.string().nullish()
+}).describe('Updated health record fields')
+
+export const UpdateHealthRecordResponse = zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "type": zod.enum(['visit', 'vaccine', 'lab', 'procedure', 'note']),
+  "title": zod.string(),
+  "date": zod.coerce.date(),
+  "clinic": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "documentUrl": zod.string().url().nullable(),
+  "documentType": zod.union([zod.literal('link'),zod.literal('upload'),zod.literal(null)]).nullable(),
+  "documentName": zod.string().nullable()
+})
+
+
+/**
+ * @summary Delete a health record
+ */
+
+
+
+
+export const DeleteHealthRecordParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "recordId": zod.coerce.number().int().min(1)
+})
+
+export const DeleteHealthRecordResponse = zod.void()
+
+
+/**
+ * @summary Upload a health record document (PDF or image, 10MB max)
+ */
+
+
+
+export const UploadHealthRecordDocumentParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+export const UploadHealthRecordDocumentBody = zod.object({
+  "file": zod.instanceof(File)
+})
+
+export const UploadHealthRecordDocumentResponse = zod.object({
+  "url": zod.string().url(),
+  "name": zod.string()
+})
+
+
+/**
+ * @summary List Smart Document Upload imports for a pet
+ */
+
+
+
+export const ListDocumentImportsParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+export const ListDocumentImportsResponse = zod.object({
+  "imports": zod.array(zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "sourceDocumentUrl": zod.string().url(),
+  "documentName": zod.string(),
+  "lane": zod.enum(['onboarding', 'ongoing']),
+  "status": zod.enum(['pending_review', 'reviewed']),
+  "analyzedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "importId": zod.number().int(),
+  "itemType": zod.enum(['health_record', 'medication', 'reminder']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object.'),
+  "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
+  "duplicateOfId": zod.number().int().nullable(),
+  "status": zod.enum(['pending', 'accepted', 'rejected']),
+  "createdRecordId": zod.number().int().nullable()
+}))
+})),
+  "quota": zod.object({
+  "onboardingRemaining": zod.number().int().nullable().describe('null if the pet\'s onboarding window has expired or never applied'),
+  "onboardingLimit": zod.number().int(),
+  "ongoingRemaining": zod.number().int(),
+  "ongoingLimit": zod.number().int()
+}).describe('Onboarding is a one-time 20-document allowance per pet (first 30 days); ongoing is a 10\/month allowance per account, separate from any chat quota.')
+})
+
+
+/**
+ * @summary Upload a vet report for AI extraction (PDF or image, 10MB max, 20 pages max)
+ */
+
+
+
+export const CreateDocumentImportParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+export const CreateDocumentImportBody = zod.object({
+  "file": zod.instanceof(File)
+})
+
+export const CreateDocumentImportResponse = zod.object({
+  "import": zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "sourceDocumentUrl": zod.string().url(),
+  "documentName": zod.string(),
+  "lane": zod.enum(['onboarding', 'ongoing']),
+  "status": zod.enum(['pending_review', 'reviewed']),
+  "analyzedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "importId": zod.number().int(),
+  "itemType": zod.enum(['health_record', 'medication', 'reminder']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object.'),
+  "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
+  "duplicateOfId": zod.number().int().nullable(),
+  "status": zod.enum(['pending', 'accepted', 'rejected']),
+  "createdRecordId": zod.number().int().nullable()
+}))
+}),
+  "quota": zod.object({
+  "onboardingRemaining": zod.number().int().nullable().describe('null if the pet\'s onboarding window has expired or never applied'),
+  "onboardingLimit": zod.number().int(),
+  "ongoingRemaining": zod.number().int(),
+  "ongoingLimit": zod.number().int()
+}).describe('Onboarding is a one-time 20-document allowance per pet (first 30 days); ongoing is a 10\/month allowance per account, separate from any chat quota.')
+}).describe('Quota reflects current account\/pet state — not a property of this specific import — so it\'s a sibling, not embedded per-import.')
+
+
+/**
+ * @summary Get one document import and its proposed items
+ */
+
+
+
+
+export const GetDocumentImportParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "importId": zod.coerce.number().int().min(1)
+})
+
+export const GetDocumentImportResponse = zod.object({
+  "import": zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "sourceDocumentUrl": zod.string().url(),
+  "documentName": zod.string(),
+  "lane": zod.enum(['onboarding', 'ongoing']),
+  "status": zod.enum(['pending_review', 'reviewed']),
+  "analyzedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "importId": zod.number().int(),
+  "itemType": zod.enum(['health_record', 'medication', 'reminder']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object.'),
+  "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
+  "duplicateOfId": zod.number().int().nullable(),
+  "status": zod.enum(['pending', 'accepted', 'rejected']),
+  "createdRecordId": zod.number().int().nullable()
+}))
+}),
+  "quota": zod.object({
+  "onboardingRemaining": zod.number().int().nullable().describe('null if the pet\'s onboarding window has expired or never applied'),
+  "onboardingLimit": zod.number().int(),
+  "ongoingRemaining": zod.number().int(),
+  "ongoingLimit": zod.number().int()
+}).describe('Onboarding is a one-time 20-document allowance per pet (first 30 days); ongoing is a 10\/month allowance per account, separate from any chat quota.')
+}).describe('Quota reflects current account\/pet state — not a property of this specific import — so it\'s a sibling, not embedded per-import.')
+
+
+/**
+ * @summary Accept a proposed item — writes it to the pet's real records
+ */
+
+
+
+
+
+export const AcceptDocumentImportItemParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "importId": zod.coerce.number().int().min(1),
+  "itemId": zod.coerce.number().int().min(1)
+})
+
+export const AcceptDocumentImportItemBody = zod.object({
+  "proposedData": zod.object({
+
+}).passthrough().optional()
+}).describe('Omit to accept the proposed data as-is; include to accept an edited version instead.')
+
+export const AcceptDocumentImportItemResponse = zod.object({
+  "id": zod.number().int(),
+  "importId": zod.number().int(),
+  "itemType": zod.enum(['health_record', 'medication', 'reminder']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object.'),
+  "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
+  "duplicateOfId": zod.number().int().nullable(),
+  "status": zod.enum(['pending', 'accepted', 'rejected']),
+  "createdRecordId": zod.number().int().nullable()
+})
+
+
+/**
+ * @summary Reject a proposed item — nothing is written
+ */
+
+
+
+
+
+export const RejectDocumentImportItemParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "importId": zod.coerce.number().int().min(1),
+  "itemId": zod.coerce.number().int().min(1)
+})
+
+export const RejectDocumentImportItemResponse = zod.object({
+  "id": zod.number().int(),
+  "importId": zod.number().int(),
+  "itemType": zod.enum(['health_record', 'medication', 'reminder']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object.'),
+  "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
+  "duplicateOfId": zod.number().int().nullable(),
+  "status": zod.enum(['pending', 'accepted', 'rejected']),
+  "createdRecordId": zod.number().int().nullable()
 })
 
 
@@ -210,12 +506,17 @@ export const ListMedicationsParams = zod.object({
   "petId": zod.coerce.number().int().min(1)
 })
 
+
+
+
 export const ListMedicationsResponseItem = zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
   "name": zod.string(),
   "dose": zod.string(),
   "frequency": zod.string(),
+  "doseIntervalValue": zod.number().int().min(1).nullable(),
+  "doseIntervalUnit": zod.union([zod.literal('hours'),zod.literal('days'),zod.literal('weeks'),zod.literal('months'),zod.literal(null)]).nullable(),
   "nextDoseAt": zod.coerce.date().nullable(),
   "active": zod.boolean(),
   "instructions": zod.string().nullable()
@@ -238,14 +539,20 @@ export const CreateMedicationParams = zod.object({
 
 
 
+
 export const CreateMedicationBody = zod.object({
   "name": zod.string().min(1),
   "dose": zod.string().min(1),
   "frequency": zod.string().min(1),
+  "doseIntervalValue": zod.number().int().min(1).nullish(),
+  "doseIntervalUnit": zod.union([zod.literal('hours'),zod.literal('days'),zod.literal('weeks'),zod.literal('months'),zod.literal(null)]).nullish(),
   "nextDoseAt": zod.coerce.date().nullish(),
   "active": zod.boolean(),
   "instructions": zod.string().nullish()
 })
+
+
+
 
 export const CreateMedicationResponse = zod.object({
   "id": zod.number().int(),
@@ -253,6 +560,83 @@ export const CreateMedicationResponse = zod.object({
   "name": zod.string(),
   "dose": zod.string(),
   "frequency": zod.string(),
+  "doseIntervalValue": zod.number().int().min(1).nullable(),
+  "doseIntervalUnit": zod.union([zod.literal('hours'),zod.literal('days'),zod.literal('weeks'),zod.literal('months'),zod.literal(null)]).nullable(),
+  "nextDoseAt": zod.coerce.date().nullable(),
+  "active": zod.boolean(),
+  "instructions": zod.string().nullable()
+})
+
+
+/**
+ * @summary Update a medication
+ */
+
+
+
+
+export const UpdateMedicationParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "medicationId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+
+
+
+export const UpdateMedicationBody = zod.object({
+  "name": zod.string().min(1),
+  "dose": zod.string().min(1),
+  "frequency": zod.string().min(1),
+  "doseIntervalValue": zod.number().int().min(1).nullish(),
+  "doseIntervalUnit": zod.union([zod.literal('hours'),zod.literal('days'),zod.literal('weeks'),zod.literal('months'),zod.literal(null)]).nullish(),
+  "nextDoseAt": zod.coerce.date().nullish(),
+  "active": zod.boolean(),
+  "instructions": zod.string().nullish()
+}).describe('Updated medication fields')
+
+
+
+
+export const UpdateMedicationResponse = zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "name": zod.string(),
+  "dose": zod.string(),
+  "frequency": zod.string(),
+  "doseIntervalValue": zod.number().int().min(1).nullable(),
+  "doseIntervalUnit": zod.union([zod.literal('hours'),zod.literal('days'),zod.literal('weeks'),zod.literal('months'),zod.literal(null)]).nullable(),
+  "nextDoseAt": zod.coerce.date().nullable(),
+  "active": zod.boolean(),
+  "instructions": zod.string().nullable()
+})
+
+
+/**
+ * @summary Mark a dose given and auto-calculate the next dose from the medication's interval
+ */
+
+
+
+
+export const LogMedicationDoseParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "medicationId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const LogMedicationDoseResponse = zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "name": zod.string(),
+  "dose": zod.string(),
+  "frequency": zod.string(),
+  "doseIntervalValue": zod.number().int().min(1).nullable(),
+  "doseIntervalUnit": zod.union([zod.literal('hours'),zod.literal('days'),zod.literal('weeks'),zod.literal('months'),zod.literal(null)]).nullable(),
   "nextDoseAt": zod.coerce.date().nullable(),
   "active": zod.boolean(),
   "instructions": zod.string().nullable()
@@ -276,7 +660,9 @@ export const ListRemindersResponseItem = zod.object({
   "dueDate": zod.coerce.date(),
   "category": zod.enum(['appointment', 'vaccine', 'medication', 'wellness', 'other']),
   "completed": zod.boolean(),
-  "note": zod.string().nullable()
+  "note": zod.string().nullable(),
+  "source": zod.enum(['owner', 'system']),
+  "ruleId": zod.string().nullable()
 })
 export const ListRemindersResponse = zod.array(ListRemindersResponseItem)
 
@@ -308,7 +694,9 @@ export const CreateReminderResponse = zod.object({
   "dueDate": zod.coerce.date(),
   "category": zod.enum(['appointment', 'vaccine', 'medication', 'wellness', 'other']),
   "completed": zod.boolean(),
-  "note": zod.string().nullable()
+  "note": zod.string().nullable(),
+  "source": zod.enum(['owner', 'system']),
+  "ruleId": zod.string().nullable()
 })
 
 
@@ -329,7 +717,9 @@ export const CompleteReminderResponse = zod.object({
   "dueDate": zod.coerce.date(),
   "category": zod.enum(['appointment', 'vaccine', 'medication', 'wellness', 'other']),
   "completed": zod.boolean(),
-  "note": zod.string().nullable()
+  "note": zod.string().nullable(),
+  "source": zod.enum(['owner', 'system']),
+  "ruleId": zod.string().nullable()
 })
 
 
@@ -343,6 +733,9 @@ export const GetDashboardSummaryQueryParams = zod.object({
   "petId": zod.coerce.number().int().min(1).optional()
 })
 
+
+
+
 export const GetDashboardSummaryResponse = zod.object({
   "pet": zod.object({
   "id": zod.number().int(),
@@ -354,7 +747,11 @@ export const GetDashboardSummaryResponse = zod.object({
   "weight": zod.number().nullable(),
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullable(),
-  "notes": zod.string().nullable()
+  "notes": zod.string().nullable(),
+  "vetName": zod.string().nullable(),
+  "vetClinic": zod.string().nullable(),
+  "vetPhone": zod.string().nullable(),
+  "vetAddress": zod.string().nullable()
 }),
   "upcomingReminders": zod.array(zod.object({
   "id": zod.number().int(),
@@ -363,7 +760,9 @@ export const GetDashboardSummaryResponse = zod.object({
   "dueDate": zod.coerce.date(),
   "category": zod.enum(['appointment', 'vaccine', 'medication', 'wellness', 'other']),
   "completed": zod.boolean(),
-  "note": zod.string().nullable()
+  "note": zod.string().nullable(),
+  "source": zod.enum(['owner', 'system']),
+  "ruleId": zod.string().nullable()
 })),
   "activeMedications": zod.array(zod.object({
   "id": zod.number().int(),
@@ -371,6 +770,8 @@ export const GetDashboardSummaryResponse = zod.object({
   "name": zod.string(),
   "dose": zod.string(),
   "frequency": zod.string(),
+  "doseIntervalValue": zod.number().int().min(1).nullable(),
+  "doseIntervalUnit": zod.union([zod.literal('hours'),zod.literal('days'),zod.literal('weeks'),zod.literal('months'),zod.literal(null)]).nullable(),
   "nextDoseAt": zod.coerce.date().nullable(),
   "active": zod.boolean(),
   "instructions": zod.string().nullable()
@@ -383,7 +784,9 @@ export const GetDashboardSummaryResponse = zod.object({
   "date": zod.coerce.date(),
   "clinic": zod.string().nullable(),
   "summary": zod.string().nullable(),
-  "documentUrl": zod.string().url().nullable()
+  "documentUrl": zod.string().url().nullable(),
+  "documentType": zod.union([zod.literal('link'),zod.literal('upload'),zod.literal(null)]).nullable(),
+  "documentName": zod.string().nullable()
 })),
   "recentInsights": zod.array(zod.object({
   "id": zod.number().int(),

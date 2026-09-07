@@ -2,6 +2,12 @@
 
 An owner-first hub for pet health records, care reminders, medications, and cautious AI-assisted guidance.
 
+## Local secrets
+
+- Copy `.env.example` to `.env` at the repo root and fill in real values — `.env` is gitignored, never commit it.
+- `lib/db/drizzle.config.ts` loads it explicitly (via `dotenv`) so `pnpm --filter @workspace/db run push` picks it up regardless of cwd.
+- `artifacts/api-server`'s `start`/`dev` scripts load it via Node's native `--env-file-if-exists` — no-op if the file doesn't exist, so this doesn't affect the deployed Replit environment, which sets these through Replit Secrets instead.
+
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
@@ -10,12 +16,18 @@ An owner-first hub for pet health records, care reminders, medications, and caut
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `BETTER_AUTH_SECRET` — session/token signing secret (any long random string)
+- Required env: `BETTER_AUTH_URL` — the api-server's own public base URL (used by better-auth for cookies/CSRF)
+- Optional env: `WEB_ORIGIN` — comma-separated frontend origin(s), for CORS + better-auth trusted origins when the web app isn't served same-origin
+- Required env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` — for health-record document uploads (Supabase Storage, server-side only)
 - AI env is provisioned through Replit AI Integrations for OpenAI access
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
+- Auth: better-auth (email/password), Drizzle adapter — `lib/auth`
+- File storage: Supabase Storage (private bucket, signed URLs) — `artifacts/api-server/src/lib/storage.ts`
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
@@ -24,9 +36,15 @@ An owner-first hub for pet health records, care reminders, medications, and caut
 ## Where things live
 
 - `artifacts/pet-health-companion/` — owner web app
+- `artifacts/pet-health-companion/src/pages/login.tsx`, `signup.tsx` — auth pages; `src/lib/auth-client.ts` — better-auth React client
 - `artifacts/api-server/src/routes/care.ts` — pet-care and AI API behavior
+- `lib/auth/src/auth.ts` — better-auth server config (email/password, Drizzle adapter, plural table names, serial ids)
 - `lib/api-spec/openapi.yaml` — API source of truth
 - `lib/db/src/schema/care.ts` — persistent pet-care data model
+- `lib/db/src/schema/auth.ts` — `users`/`sessions`/`accounts`/`verifications` tables required by better-auth
+- `lib/db/src/schema/pet-owners.ts` — owner↔pet join table (multi-owner ready; not yet enforced in routes — see Bolt 2)
+- `lib/db/src/schema/document-imports.ts` — Smart Document Upload's review-queue tables (`documentImports`, `documentImportItems`)
+- `lib/db/src/schema/ai-usage.ts` — per-account monthly AI usage tracking (`aiUsageMonthly`)
 
 ## Architecture decisions
 
@@ -42,6 +60,7 @@ An owner-first hub for pet health records, care reminders, medications, and caut
 - Health timeline with searchable records
 - Medication and reminder tracking
 - AI question flow grounded in the selected pet's profile and recent records
+- Smart Document Upload: upload a vet report, AI proposes records/medications/reminders, owner reviews and confirms before anything is saved (backend only so far — see Gotchas)
 
 ## User preferences
 
@@ -51,6 +70,24 @@ An owner-first hub for pet health records, care reminders, medications, and caut
 
 - Re-run API codegen after every OpenAPI change before editing server or client callers.
 - AI responses must keep the educational disclaimer and urgent-care escalation behavior.
+- The better-auth Express handler (`app.all("/api/auth/*splat", authHandler)`) must be mounted **before** `express.json()` in `app.ts` — better-auth parses the raw request body itself, and a body-parser upstream would consume the stream first.
+- `lib/db/src/schema/auth.ts` mirrors better-auth's own generated schema for the config in `lib/auth/src/auth.ts` (plural table names, serial ids via `advanced.database.generateId: "serial"`). If that config changes (new fields, a plugin), regenerate with `npx @better-auth/cli generate` and reconcile — don't hand-edit column shapes from guesswork.
+- Every route in `routes/care.ts` sits behind `requireAuth` and is scoped by owner via `pet_owners` (`getOwnedPetIds`/`isPetOwnedByUser` in `care.ts`) — a pet not owned by the caller 404s rather than leaking existence.
+- Pets are capped at `MAX_PETS_PER_ACCOUNT` (3) in `routes/care.ts`; `POST /pets` 400s past that with a message, and the "Add another pet" link hides client-side at the cap.
+- `asDateString`/`asWeightString` in `care.ts` pass `undefined` through as-is (don't coalesce to `null`) — an omitted field on a PATCH must leave that column untouched, not clear it. Only an explicit `null` clears a field.
+- Health records now support edit/delete (`PATCH`/`DELETE /pets/:petId/records/:recordId`), both ownership-checked. The records page has type + date-range filtering alongside the existing search — all client-side over the already-fetched list (record counts per pet are small; no need for server-side query params at this scale).
+- Health record attachments: `POST /pets/:petId/documents` (multipart, PDF/image, 10MB max) uploads to a private Supabase Storage bucket (`health-record-documents`, created automatically on first upload) and returns a long-lived (10-year) signed URL, stored in `health_records.document_url` alongside `document_type` (`link`|`upload`) and `document_name`. The bucket is intentionally private — there's no public-URL path.
+- Medications: `doseIntervalValue`/`doseIntervalUnit` (hours|days|weeks|months) are optional, structured, and independent of the free-text `frequency` label — a medication can stay purely descriptive if its schedule doesn't fit a fixed interval. `POST /pets/:petId/medications/:medicationId/log-dose` recalculates `nextDoseAt` from the *previous* `nextDoseAt` (not "now"), so an early or late mark-as-given doesn't drift the schedule; 400s with a clear message if no interval is set. `PATCH /pets/:petId/medications/:medicationId` also exists now (previously medications had no edit route at all) — used both for schedule edits and for "stop" (`active: false`), since there's no separate deactivate endpoint. The dashboard merges active medications' next-dose times with reminders into one "Upcoming Care" list, sorted, with a "Due soon" badge inside 48 hours.
+- Care Recommendations Engine (`lib/care-recommendations.ts`) is rule-based, not AI — vaccine-renewal (rabies/DHPP-DAPP/FVRCP/Bordetella, species-matched) and age-based senior-screening (7yr dogs, 10yr cats) rules. It re-runs synchronously right after the mutations that could change its inputs (pet create/update, health record create/update) — there's no job scheduler in this app, so "re-run on the relevant mutation" is the trigger model. Reminders it creates carry `source: "system"` and a stable `ruleId` (e.g. `vaccine:rabies`, `senior-screening`) so re-runs upsert instead of duplicating, and only reset `completed` when the computed due date actually changes (a newer vaccine record came in) — an unrelated re-run never un-completes a reminder the owner already handled.
+- There is no auto-seeded demo pet. A brand-new account has zero pets — the empty states in `Dashboard`/`Layout` ("Add Your Pet") are the real first-run experience, not a fallback. (An earlier per-user "Milo" auto-seed was removed — real users shouldn't get fabricated pet/health data on signup. Uploading past records is an owner choice, not automatic.)
+- Smart Document Upload (`routes/document-imports.ts`, `lib/document-extraction.ts`, `lib/document-import-quota.ts`, `lib/duplicate-detection.ts`, `lib/care-mutations.ts`): owner uploads a vet report (PDF/image), OpenAI extracts candidate health records/medications/reminders as a `document_import` with `pending` `document_import_items` — nothing is written to the real tables until the owner explicitly accepts each item (`POST .../items/:itemId/accept`, editable via an optional `proposedData` override in the body) or rejects it. Rejected items create nothing; the import flips to `status: "reviewed"` once every item is accepted or rejected (`markReviewedIfComplete`).
+  - Two-lane quota, tracked on `pets.importDocsUsed`/`importWindowEndsAt` (per-pet, set on pet creation) and `ai_usage_monthly` (per-account, per-calendar-month): the first 30 days after a pet is added get 20 free "onboarding" imports; after that (or once onboarding is exhausted), it's 10/month "ongoing" imports shared across the account. `pickImportLane` throws `QuotaExceededError` → 400 before any AI call is made; usage is only recorded (`recordDocumentImportUsage`) *after* a successful extraction, so a failed/errored upload doesn't cost the owner an attempt.
+  - PDF text is extracted via `pdf-parse` (20-page cap → `TooManyPagesError`; under ~40 chars of extracted text is treated as a scanned/image-only PDF → `ScannedDocumentError`, both surfaced as 400s). Images go to the model as a base64 data URL. `pdf-parse`/`pdfjs-dist` need an explicit `PDFParse.setWorker(...)` pointed at `pdfjs-dist`'s real on-disk `legacy/build/pdf.worker.mjs` (resolved relative to `pdf-parse`'s own location, not this package's — `pdfjs-dist` is only a transitive dependency, and pnpm's strict node_modules blocks resolving it directly) — without this, esbuild's single-file bundle breaks pdfjs's default relative-path worker resolution and every PDF upload 500s with "Setting up fake worker failed."
+  - Duplicate detection (`findDuplicate`) is a same-pet, same-type, ±3-day-date + substring heuristic — it flags (`duplicateOfType`/`duplicateOfId` on the item) but never blocks or auto-drops; the owner still decides.
+  - Accepted items go through the same insert helpers (`insertHealthRecordForPet`, etc. in `lib/care-mutations.ts`) as the manual create flows, so an accepted vaccine health record still triggers the Care Recommendations Engine.
+  - The AI extraction prompt and `CreateMedicationBody`/`CreateHealthRecordBody`/`CreateReminderBody` schemas must stay in sync (e.g. medication `dose`/`frequency` field names, `active` injected as `true` before parsing) — extraction silently drops any item that fails `.safeParse()`, so a prompt/schema mismatch fails silently rather than with an error.
+  - Verified live against Supabase end-to-end except the actual OpenAI extraction call itself (no real API key in dev): quota exhaustion (20+10 uses, 31st rejected), duplicate detection, PDF parsing/scanned-doc rejection, wrong-mimetype rejection, and the full accept/reject flow (real table writes, double-review 400, cross-user 404, status auto-flip) were all confirmed directly; a real-text PDF upload was confirmed to pass quota + PDF parsing and reach the OpenAI call itself (failing only on the placeholder key), proving the pipeline is correctly wired end to end.
+  - Frontend review UI (upload entry point, proposed-item review screen with accept/edit/reject + duplicate flags, quota display) is not yet built.
 
 ## Pointers
 

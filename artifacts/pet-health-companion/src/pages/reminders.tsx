@@ -6,7 +6,7 @@ import { useState, useMemo } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Bell, CheckCircle2, Circle, Calendar, Clock, AlertTriangle } from 'lucide-react';
+import { Plus, Bell, CheckCircle2, Circle, Calendar, Clock, AlertTriangle, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -176,6 +176,11 @@ export default function Reminders() {
                         {reminder.title}
                       </h3>
                       <div className="flex flex-wrap items-center gap-3 mt-2">
+                        {reminder.source === 'system' && (
+                          <span className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium uppercase tracking-wider bg-amber-100 text-amber-700">
+                            <Sparkles size={12} /> Suggested
+                          </span>
+                        )}
                         <span className={cn(
                           "px-2.5 py-1 rounded-md text-xs font-medium uppercase tracking-wider",
                           pastDue ? "bg-destructive/10 text-destructive" :
@@ -184,7 +189,7 @@ export default function Reminders() {
                         )}>
                           {reminder.category}
                         </span>
-                        
+
                         <span className={cn(
                           "flex items-center gap-1.5 text-sm font-medium",
                           pastDue ? "text-destructive" : today ? "text-primary" : "text-muted-foreground"
