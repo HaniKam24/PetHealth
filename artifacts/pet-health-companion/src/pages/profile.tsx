@@ -1,5 +1,5 @@
 import { usePetContext } from '@/context/pet-context';
-import { useGetPet, getGetPetQueryKey, useUpdatePet, useCreatePet, getListPetsQueryKey } from '@workspace/api-client-react';
+import { useGetPet, getGetPetQueryKey, useUpdatePet, useCreatePet, useDeletePet, getListPetsQueryKey, type Pet } from '@workspace/api-client-react';
 import { PageHeader } from '@/components/page-header';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useSearch } from 'wouter';
@@ -11,8 +11,18 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
 
@@ -288,6 +298,34 @@ export default function Profile() {
       },
       onError: (error) => {
         toast({ title: "Couldn't add pet", description: error.message, variant: "destructive" });
+      },
+    }
+  });
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const deletePet = useDeletePet({
+    mutation: {
+      onSuccess: async (_data, variables) => {
+        const deletedPetName = pet?.name;
+        // This page only ever deletes the pet currently being viewed
+        // (activePetId), so it's always responsible for picking the next
+        // one. `await` here — not fire-and-forget — so the list is
+        // genuinely refetched before we read it; PetProvider's own effect
+        // deliberately doesn't do this correction itself (see its comment)
+        // since it can't tell a stale list from a fresh one.
+        await queryClient.invalidateQueries({ queryKey: getListPetsQueryKey() });
+        const remaining = (queryClient.getQueryData<Pet[]>(getListPetsQueryKey()) ?? []).filter(
+          (p) => p.id !== variables.petId,
+        );
+        setActivePetId(remaining.length > 0 ? remaining[0].id : null);
+        setIsDeleteDialogOpen(false);
+        setLocation('/');
+        toast({ title: "Profile deleted", description: deletedPetName ? `${deletedPetName} has been removed.` : undefined });
+      },
+      onError: (error) => {
+        setIsDeleteDialogOpen(false);
+        toast({ title: "Couldn't delete profile", description: error.message, variant: "destructive" });
       },
     }
   });
@@ -597,7 +635,11 @@ export default function Profile() {
 
             <div className="mt-12 flex items-center justify-between">
               {!isNew && (
-                <button type="button" className="text-destructive hover:bg-destructive/10 px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  className="text-destructive hover:bg-destructive/10 px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2"
+                >
                   <Trash2 size={18} /> Delete Profile
                 </button>
               )}
@@ -616,6 +658,31 @@ export default function Profile() {
           </form>
         </Form>
       </div>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {pet?.name || 'this'} profile?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes {pet?.name || 'this pet'} and all of their health records, medications, reminders, and uploaded documents. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletePet.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deletePet.isPending}
+              onClick={() => {
+                if (activePetId) {
+                  deletePet.mutate({ petId: activePetId });
+                }
+              }}
+            >
+              {deletePet.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
