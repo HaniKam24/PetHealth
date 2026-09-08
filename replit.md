@@ -20,7 +20,7 @@ An owner-first hub for pet health records, care reminders, medications, and caut
 - Required env: `BETTER_AUTH_URL` — the api-server's own public base URL (used by better-auth for cookies/CSRF)
 - Optional env: `WEB_ORIGIN` — comma-separated frontend origin(s), for CORS + better-auth trusted origins when the web app isn't served same-origin
 - Required env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` — for health-record document uploads (Supabase Storage, server-side only)
-- AI env is provisioned through Replit AI Integrations for OpenAI access
+- Required env: `ANTHROPIC_API_KEY` — powers symptom chat and Smart Document Upload extraction (Claude Haiku 4.5, `lib/integrations-anthropic-ai-server`)
 
 ## Stack
 
