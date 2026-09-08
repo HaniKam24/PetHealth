@@ -26,6 +26,7 @@ import type {
   DocumentImportItem,
   DocumentImportListResponse,
   DocumentImportResponse,
+  DocumentImportUploadError,
   DocumentUploadResult,
   DocumentUrlResponse,
   Error,
@@ -1081,7 +1082,7 @@ formData.append(`file`, createDocumentImportBody.file);
 
 
 
-export const getCreateDocumentImportMutationOptions = <TError = ErrorType<Error | NotFoundResponse>,
+export const getCreateDocumentImportMutationOptions = <TError = ErrorType<DocumentImportUploadError | NotFoundResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDocumentImport>>, TError,{petId: number;data: BodyType<CreateDocumentImportBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createDocumentImport>>, TError,{petId: number;data: BodyType<CreateDocumentImportBody>}, TContext> => {
 
@@ -1110,12 +1111,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateDocumentImportMutationResult = NonNullable<Awaited<ReturnType<typeof createDocumentImport>>>
     export type CreateDocumentImportMutationBody = BodyType<CreateDocumentImportBody>
-    export type CreateDocumentImportMutationError = ErrorType<Error | NotFoundResponse>
+    export type CreateDocumentImportMutationError = ErrorType<DocumentImportUploadError | NotFoundResponse>
 
     /**
  * @summary Upload a vet report for AI extraction (PDF or image, 10MB max, 20 pages max)
  */
-export const useCreateDocumentImport = <TError = ErrorType<Error | NotFoundResponse>,
+export const useCreateDocumentImport = <TError = ErrorType<DocumentImportUploadError | NotFoundResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDocumentImport>>, TError,{petId: number;data: BodyType<CreateDocumentImportBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createDocumentImport>>,

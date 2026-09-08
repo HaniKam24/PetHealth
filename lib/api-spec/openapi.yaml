@@ -274,11 +274,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/DocumentImportResponse"
         "400":
-          description: File missing/too large/unsupported/too many pages/scanned, or the account's import quota is used up
+          description: File missing/too large/unsupported/too many pages/scanned/wrong pet, or the account's import quota is used up
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/DocumentImportUploadError"
         "404":
           $ref: "#/components/responses/NotFound"
   /pets/{petId}/document-imports/{importId}:
@@ -617,6 +617,21 @@ components:
       properties:
         error:
           type: string
+      required: [error]
+    DocumentImportUploadError:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [pet_name_mismatch]
+          description: >-
+            Present only when the upload was rejected because the document's stated patient
+            name doesn't match the pet it was uploaded for. Lets the client single out this
+            case (e.g. to show it as a prominent dialog) from the other reasons an upload can
+            be rejected — too many pages, a scanned/image-only PDF, or a used-up import quota
+            — which carry no code and are reported as an ordinary error message.
       required: [error]
     Pet:
       type: object

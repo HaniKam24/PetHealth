@@ -7,12 +7,22 @@ import {
   useAcceptDocumentImportItem,
   useRejectDocumentImportItem,
   getDocumentImportDocumentUrl,
+  ApiError,
   type DocumentImport,
   type DocumentImportItem,
 } from '@workspace/api-client-react';
 import { PageHeader } from '@/components/page-header';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Upload,
   Loader2,
@@ -353,6 +363,11 @@ export default function SmartUpload() {
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [busyItemId, setBusyItemId] = useState<number | null>(null);
   const [openingDocId, setOpeningDocId] = useState<number | null>(null);
+  // Set only for the pet-name-mismatch upload failure, which gets a centered
+  // dialog instead of a toast — it's the one failure that means "you likely
+  // grabbed the wrong file for this pet," worth more than a corner notification
+  // that's easy to miss. Every other upload failure keeps using toast().
+  const [nameMismatchMessage, setNameMismatchMessage] = useState<string | null>(null);
 
   const invalidate = () => {
     if (activePetId) {
@@ -374,6 +389,10 @@ export default function SmartUpload() {
         toast({ title: 'Document analyzed', description: 'Review the proposed items below.' });
       },
       onError: (error) => {
+        if (error instanceof ApiError && error.data && 'code' in error.data && error.data.code === 'pet_name_mismatch') {
+          setNameMismatchMessage(error.data.error);
+          return;
+        }
         toast({ title: "Couldn't analyze document", description: error.message, variant: 'destructive' });
       },
     },
@@ -456,6 +475,7 @@ export default function SmartUpload() {
   const quota = data?.quota;
 
   return (
+    <>
     <div className="p-6 md:p-10 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
       <PageHeader
         title="Smart Document Upload"
@@ -671,5 +691,21 @@ export default function SmartUpload() {
         </div>
       )}
     </div>
+
+    <AlertDialog open={!!nameMismatchMessage} onOpenChange={(open) => !open && setNameMismatchMessage(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle size={20} className="text-amber-500 shrink-0" />
+            Wrong pet's report?
+          </AlertDialogTitle>
+          <AlertDialogDescription>{nameMismatchMessage}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={() => setNameMismatchMessage(null)}>Got it</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

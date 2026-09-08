@@ -22,6 +22,8 @@ export * from './documentImportListResponse';
 export * from './documentImportQuota';
 export * from './documentImportResponse';
 export * from './documentImportStatus';
+export * from './documentImportUploadError';
+export * from './documentImportUploadErrorCode';
 export * from './documentUploadResult';
 export * from './documentUrlResponse';
 export * from './error';

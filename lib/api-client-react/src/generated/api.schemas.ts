@@ -13,6 +13,22 @@ export interface Error {
   error: string;
 }
 
+/**
+ * Present only when the upload was rejected because the document's stated patient name doesn't match the pet it was uploaded for. Lets the client single out this case (e.g. to show it as a prominent dialog) from the other reasons an upload can be rejected — too many pages, a scanned/image-only PDF, or a used-up import quota — which carry no code and are reported as an ordinary error message.
+ */
+export type DocumentImportUploadErrorCode = typeof DocumentImportUploadErrorCode[keyof typeof DocumentImportUploadErrorCode];
+
+
+export const DocumentImportUploadErrorCode = {
+  pet_name_mismatch: 'pet_name_mismatch',
+} as const;
+
+export interface DocumentImportUploadError {
+  error: string;
+  /** Present only when the upload was rejected because the document's stated patient name doesn't match the pet it was uploaded for. Lets the client single out this case (e.g. to show it as a prominent dialog) from the other reasons an upload can be rejected — too many pages, a scanned/image-only PDF, or a used-up import quota — which carry no code and are reported as an ordinary error message. */
+  code?: DocumentImportUploadErrorCode;
+}
+
 export type PetSpecies = typeof PetSpecies[keyof typeof PetSpecies];
 
 

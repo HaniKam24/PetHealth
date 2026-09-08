@@ -17,6 +17,7 @@ import { ALLOWED_DOCUMENT_MIME_TYPES, handleSingleFileUpload } from "../lib/uplo
 import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument } from "../lib/storage";
 import { logger } from "../lib/logger";
 import {
+  PetNameMismatchError,
   ScannedDocumentError,
   TooManyPagesError,
   extractDocument,
@@ -73,8 +74,10 @@ function serializeImport(
   };
 }
 
-// Best-effort storage cleanup: the caller's primary effect (a 400 response,
-// or a DB row already committed) has already happened regardless.
+// Best-effort storage cleanup: both call sites below are about to return a
+// 400 (or rethrow) regardless of whether this succeeds, since extraction
+// failed before any document_imports row was created — nothing to roll back,
+// just an orphaned file to avoid leaving behind.
 async function deleteDocumentBestEffort(path: string) {
   try {
     await deleteDocument(path);
@@ -166,6 +169,16 @@ router.post(
       try {
         extraction = await extractDocument(req.file, pet);
       } catch (error) {
+        if (error instanceof PetNameMismatchError) {
+          // Tagged with a code (unlike the other 400 cases below) so the
+          // client can single this one out and show it as a prominent
+          // dialog instead of an easy-to-miss toast — this is the one
+          // upload failure that means "you probably grabbed the wrong
+          // file," not just "this file didn't work."
+          await deleteDocumentBestEffort(uploaded.path);
+          res.status(400).json({ error: error.message, code: "pet_name_mismatch" });
+          return;
+        }
         if (error instanceof TooManyPagesError || error instanceof ScannedDocumentError) {
           await deleteDocumentBestEffort(uploaded.path);
           res.status(400).json({ error: error.message });
