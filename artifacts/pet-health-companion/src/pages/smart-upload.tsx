@@ -29,6 +29,7 @@ import {
   FileText,
   Pill,
   Bell,
+  Stethoscope,
   Check,
   X,
   Pencil,
@@ -64,6 +65,14 @@ const ITEM_TYPE_META: Record<string, { label: string; icon: typeof FileText }> =
   health_record: { label: 'Health Record', icon: FileText },
   medication: { label: 'Medication', icon: Pill },
   reminder: { label: 'Reminder', icon: Bell },
+  vet_info: { label: 'Vet Contact Update', icon: Stethoscope },
+};
+
+const VET_FIELD_LABELS: Record<string, string> = {
+  vetName: 'Vet',
+  vetClinic: 'Clinic',
+  vetPhone: 'Phone',
+  vetAddress: 'Address',
 };
 
 function str(v: unknown): string {
@@ -90,14 +99,33 @@ function ItemSummary({ item }: { item: DocumentImportItem }) {
     );
   }
   if (item.itemType === 'medication') {
+    // frequency is already the human-readable form of the schedule (e.g.
+    // "Every 12 hours") whenever doseIntervalValue/doseIntervalUnit are set —
+    // same convention the real Medications page uses, where those two fields
+    // are never rendered as their own text, only used to decide whether dose
+    // logging is offered. Appending them here too just repeated the same
+    // wording a second time (e.g. "150mg · every 12 hours · every 12 hours").
     return (
       <div>
         <div className="font-medium">{str(d.name)}</div>
-        <div className="text-sm text-muted-foreground">
-          {str(d.dose)} · {str(d.frequency)}
-          {d.doseIntervalValue ? ` · every ${num(d.doseIntervalValue)} ${str(d.doseIntervalUnit)}` : ''}
-        </div>
+        <div className="text-sm text-muted-foreground">{str(d.dose)} · {str(d.frequency)}</div>
         {d.instructions ? <p className="text-sm text-muted-foreground mt-1">{str(d.instructions)}</p> : null}
+      </div>
+    );
+  }
+  if (item.itemType === 'vet_info') {
+    // Only ever contains the fields that changed — see buildVetInfoUpdate
+    // server-side. Shown as a plain "field: new value" list rather than the
+    // title/subtitle shape the other types use, since there's no single
+    // natural title (could be just a phone number update).
+    const entries = Object.entries(VET_FIELD_LABELS).filter(([key]) => d[key]);
+    return (
+      <div className="space-y-0.5">
+        {entries.map(([key, label]) => (
+          <div key={key} className="text-sm">
+            <span className="text-muted-foreground">{label}:</span> <span className="font-medium">{str(d[key])}</span>
+          </div>
+        ))}
       </div>
     );
   }
@@ -165,6 +193,14 @@ function ItemEditForm({
         instructions: str(d.instructions),
       };
     }
+    if (item.itemType === 'vet_info') {
+      return {
+        vetName: str(d.vetName),
+        vetClinic: str(d.vetClinic),
+        vetPhone: str(d.vetPhone),
+        vetAddress: str(d.vetAddress),
+      };
+    }
     return {
       title: str(d.title),
       dueDate: str(d.dueDate).slice(0, 10),
@@ -195,6 +231,17 @@ function ItemEditForm({
         instructions: fields.instructions || null,
         active: true,
       });
+    } else if (item.itemType === 'vet_info') {
+      // Only non-empty fields are sent — the accept endpoint's schema treats
+      // an omitted key as "leave this field alone" (not "clear it"), so a
+      // blank input here must be left out of the object entirely, not sent
+      // as null/empty-string.
+      const update: Record<string, string> = {};
+      if (fields.vetName.trim()) update.vetName = fields.vetName.trim();
+      if (fields.vetClinic.trim()) update.vetClinic = fields.vetClinic.trim();
+      if (fields.vetPhone.trim()) update.vetPhone = fields.vetPhone.trim();
+      if (fields.vetAddress.trim()) update.vetAddress = fields.vetAddress.trim();
+      onSave(update);
     } else {
       onSave({ title: fields.title, dueDate: fields.dueDate, category: fields.category, note: fields.note || null });
     }
@@ -262,6 +309,21 @@ function ItemEditForm({
           onChange={set('instructions')}
           className="min-h-[70px] resize-none"
         />
+        <FormActions onCancel={onCancel} onSave={submit} saving={saving} />
+      </div>
+    );
+  }
+
+  if (item.itemType === 'vet_info') {
+    return (
+      <div className="space-y-2">
+        <Input placeholder="Vet name (optional)" value={fields.vetName} onChange={set('vetName')} className="h-9" />
+        <Input placeholder="Clinic (optional)" value={fields.vetClinic} onChange={set('vetClinic')} className="h-9" />
+        <div className="grid grid-cols-2 gap-2">
+          <Input placeholder="Phone (optional)" value={fields.vetPhone} onChange={set('vetPhone')} className="h-9" />
+          <Input placeholder="Address (optional)" value={fields.vetAddress} onChange={set('vetAddress')} className="h-9" />
+        </div>
+        <p className="text-xs text-muted-foreground">Blank fields are left as-is on the pet's profile — they won't be cleared.</p>
         <FormActions onCancel={onCancel} onSave={submit} saving={saving} />
       </div>
     );

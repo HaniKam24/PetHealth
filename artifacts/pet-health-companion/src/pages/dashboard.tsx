@@ -5,7 +5,7 @@ import { Link } from 'wouter';
 import { Calendar, Pill, FileText, Sparkles, Circle, HeartPulse, ArrowRight, Syringe, Loader2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 const DUE_SOON_WINDOW_MS = 48 * 60 * 60 * 1000;
 
@@ -260,7 +260,7 @@ export default function Dashboard() {
                    <div className="pr-4">
                      <p className="font-medium text-foreground mb-1">{record.title}</p>
                      <p className="text-sm text-muted-foreground flex items-center gap-2">
-                       <span>{format(new Date(record.date), 'MMM d, yyyy')}</span>
+                       <span>{format(parseISO(record.date), 'MMM d, yyyy')}</span>
                        <span className="w-1 h-1 bg-border rounded-full"></span>
                        <span className="capitalize">{record.type}</span>
                      </p>

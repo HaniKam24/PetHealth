@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -225,7 +225,10 @@ export default function Records() {
     const matchesDateFrom = !dateFrom || r.date >= dateFrom;
     const matchesDateTo = !dateTo || r.date <= dateTo;
     return matchesSearch && matchesType && matchesDateFrom && matchesDateTo;
-  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || [];
+  // r.date is an ISO "YYYY-MM-DD" string — lexicographic comparison sorts it correctly
+  // without going through Date at all, which would parse it as UTC midnight and risk an
+  // off-by-one day shift when compared against other timezone-aware values.
+  }).sort((a, b) => b.date.localeCompare(a.date)) || [];
 
   const isDialogOpen = isNewOpen || !!editingRecord;
   const isSaving = createRecord.isPending || updateRecord.isPending;
@@ -397,8 +400,8 @@ export default function Records() {
                 <div className="absolute left-[2.25rem] md:left-[2.75rem] top-8 -ml-2 w-4 h-4 rounded-full bg-background border-2 border-primary z-10 group-hover:scale-125 transition-transform duration-300 shadow-sm" />
 
                 <div className="w-16 md:w-20 pt-7 text-right shrink-0 relative z-10">
-                  <span className="text-sm font-medium text-muted-foreground block">{format(new Date(record.date), 'MMM d')}</span>
-                  <span className="text-xs text-muted-foreground opacity-70 block">{format(new Date(record.date), 'yyyy')}</span>
+                  <span className="text-sm font-medium text-muted-foreground block">{format(parseISO(record.date), 'MMM d')}</span>
+                  <span className="text-xs text-muted-foreground opacity-70 block">{format(parseISO(record.date), 'yyyy')}</span>
                 </div>
 
                 <div className="flex-1 bg-card border border-border rounded-3xl p-6 md:p-8 shadow-sm hover:shadow-md transition-all group-hover:border-primary/30">

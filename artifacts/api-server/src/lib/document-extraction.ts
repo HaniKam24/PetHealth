@@ -74,15 +74,16 @@ async function readContent(
   return { kind: "image", mimetype: file.mimetype, base64: file.buffer.toString("base64") };
 }
 
-const SYSTEM_PROMPT = `You are a document-extraction assistant for a pet health records app. You will be given the text or an image of a veterinary report. Extract ONLY information explicitly present in the document — never invent, guess, or infer facts that aren't stated. If the document is unrelated to pet health, or unreadable, return all three arrays empty.
+const SYSTEM_PROMPT = `You are a document-extraction assistant for a pet health records app. You will be given the text or an image of a veterinary report. Extract ONLY information explicitly present in the document — never invent, guess, or infer facts that aren't stated. If the document is unrelated to pet health, or unreadable, return all three arrays empty and vetInfo null.
 
-Return a single JSON object with exactly these four fields:
+Return a single JSON object with exactly these fields:
 
 {
   "patientName": string|null,
   "healthRecords": [ { "type": "visit"|"vaccine"|"lab"|"procedure"|"note", "title": string, "date": "YYYY-MM-DD", "clinic": string|null, "summary": string|null } ],
   "medications": [ { "name": string, "dose": string, "frequency": string, "doseIntervalValue": number|null, "doseIntervalUnit": "hours"|"days"|"weeks"|"months"|null, "instructions": string|null } ],
-  "reminders": [ { "title": string, "dueDate": "YYYY-MM-DD", "category": "appointment"|"vaccine"|"medication"|"wellness"|"other", "note": string|null } ]
+  "reminders": [ { "title": string, "dueDate": "YYYY-MM-DD", "category": "appointment"|"vaccine"|"medication"|"wellness"|"other", "note": string|null } ],
+  "vetInfo": { "name": string|null, "clinic": string|null, "phone": string|null, "address": string|null } | null
 }
 
 Rules:
@@ -90,6 +91,7 @@ Rules:
 - healthRecords: one entry per distinct visit/vaccine/lab/procedure/note documented. "type" must be exactly one of the listed values — pick the closest match (an exam/checkup is "visit", a vaccination is "vaccine").
 - medications: one entry per medication/prescription mentioned, "dose" as written (e.g. "5mg", "1 tablet"). Only set doseIntervalValue/doseIntervalUnit if the document states a clear fixed interval (e.g. "twice daily" -> 12/"hours", "every 30 days" -> 30/"days"); otherwise leave both null and describe the schedule in "frequency" as free text.
 - reminders: only include a follow-up if the document explicitly states one is needed (e.g. "recheck in 2 weeks", "next booster due March 2027"). Compute "dueDate" as an absolute date from the document's own dated context; omit the reminder if no date can be determined.
+- vetInfo: the attending veterinarian and/or clinic's contact info as stated in the document (letterhead, signature block, a "Veterinarian:" field, etc.) — name, clinic, phone, address, each null if that specific piece isn't stated. Return vetInfo itself as null if the document gives no vet/clinic contact info at all.
 - Dates must be in YYYY-MM-DD format.
 - Output only the JSON object — no commentary, no markdown fences.`;
 
@@ -97,6 +99,48 @@ export interface ExtractionResult {
   healthRecords: z.infer<typeof CreateHealthRecordBody>[];
   medications: z.infer<typeof CreateMedicationBody>[];
   reminders: z.infer<typeof CreateReminderBody>[];
+  // Only the pet-profile fields that are both (a) actually stated in the
+  // document and (b) different from what's already on the pet's profile.
+  // Omitted keys mean "leave this field alone" when later applied as a
+  // partial pet update — never null, which would mean "clear this field".
+  // Null (not an empty object) when there's nothing worth proposing at all.
+  vetInfoUpdate: { vetName?: string; vetClinic?: string; vetPhone?: string; vetAddress?: string } | null;
+}
+
+interface CurrentPetVetInfo {
+  vetName: string | null;
+  vetClinic: string | null;
+  vetPhone: string | null;
+  vetAddress: string | null;
+}
+
+type CurrentPet = CurrentPetVetInfo & { name: string };
+
+function normalizeForCompare(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function buildVetInfoUpdate(
+  raw: unknown,
+  currentPet: CurrentPetVetInfo,
+): ExtractionResult["vetInfoUpdate"] {
+  if (typeof raw !== "object" || raw === null) return null;
+  const obj = raw as Record<string, unknown>;
+  const fieldMap: [sourceKey: string, petKey: keyof CurrentPetVetInfo][] = [
+    ["name", "vetName"],
+    ["clinic", "vetClinic"],
+    ["phone", "vetPhone"],
+    ["address", "vetAddress"],
+  ];
+  const update: NonNullable<ExtractionResult["vetInfoUpdate"]> = {};
+  for (const [sourceKey, petKey] of fieldMap) {
+    const value = obj[sourceKey];
+    if (typeof value !== "string" || !value.trim()) continue;
+    if (normalizeForCompare(value) !== normalizeForCompare(currentPet[petKey])) {
+      update[petKey] = value.trim();
+    }
+  }
+  return Object.keys(update).length > 0 ? update : null;
 }
 
 // Despite the system prompt's "no markdown fences" instruction, Claude
@@ -150,7 +194,7 @@ function namesLikelyMatch(expectedPetName: string, documentPatientName: string):
 // is "image" here, content.mimetype is always one of these four already.
 type ImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
-export async function extractDocument(file: UploadedFile, expectedPetName: string): Promise<ExtractionResult> {
+export async function extractDocument(file: UploadedFile, pet: CurrentPet): Promise<ExtractionResult> {
   const content = await readContent(file);
 
   const completion = await anthropic.messages.create({
@@ -179,9 +223,9 @@ export async function extractDocument(file: UploadedFile, expectedPetName: strin
   const obj = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
 
   const patientName = typeof obj.patientName === "string" ? obj.patientName.trim() : "";
-  if (patientName && !namesLikelyMatch(expectedPetName, patientName)) {
+  if (patientName && !namesLikelyMatch(pet.name, patientName)) {
     throw new PetNameMismatchError(
-      `This document appears to be for a pet named "${patientName}", not ${expectedPetName}. Please double-check you're uploading the correct report.`,
+      `This document appears to be for a pet named "${patientName}", not ${pet.name}. Please double-check you're uploading the correct report.`,
     );
   }
 
@@ -198,5 +242,6 @@ export async function extractDocument(file: UploadedFile, expectedPetName: strin
       const result = CreateReminderBody.safeParse(item);
       return result.success ? result.data : null;
     }),
+    vetInfoUpdate: buildVetInfoUpdate(obj.vetInfo, pet),
   };
 }
