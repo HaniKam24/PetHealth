@@ -245,10 +245,11 @@ export const DocumentImportItemItemType = {
   health_record: 'health_record',
   medication: 'medication',
   reminder: 'reminder',
+  vet_info: 'vet_info',
 } as const;
 
 /**
- * Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object.
+ * Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for "vet_info" a partial object with any of vetName/vetClinic/vetPhone/vetAddress (only the fields the source document actually stated).
  */
 export type DocumentImportItemProposedData = { [key: string]: unknown };
 
@@ -277,7 +278,7 @@ export interface DocumentImportItem {
   id: number;
   importId: number;
   itemType: DocumentImportItemItemType;
-  /** Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object. */
+  /** Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for "vet_info" a partial object with any of vetName/vetClinic/vetPhone/vetAddress (only the fields the source document actually stated). */
   proposedData: DocumentImportItemProposedData;
   /** @nullable */
   duplicateOfType: DocumentImportItemDuplicateOfType;

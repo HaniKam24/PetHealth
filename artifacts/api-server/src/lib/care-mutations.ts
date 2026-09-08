@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import type { z } from "zod";
+import { z } from "zod";
 import { db, healthRecords, medications, pets, reminders } from "@workspace/db";
 import type { CreateHealthRecordBody, CreateMedicationBody, CreateReminderBody } from "@workspace/api-zod";
 import { runCareRecommendationsEngine } from "./care-recommendations";
@@ -37,4 +37,22 @@ export async function insertReminderForPet(petId: number, body: z.infer<typeof C
     .values({ petId, ...body, dueDate: asDateString(body.dueDate)!, completed: false, source: "owner" })
     .returning();
   return created!;
+}
+
+// Every field optional and, when present, non-empty — matches how
+// buildVetInfoUpdate (document-extraction.ts) builds a vet_info item's
+// proposedData: only the fields the source document actually stated, never
+// null. An owner editing the proposal before accepting goes through this
+// same schema, so it can't smuggle in an empty string to blank a field —
+// clearing a vet field is done from the pet's own profile page, not here.
+export const VetInfoUpdateBody = z.object({
+  vetName: z.string().min(1).optional(),
+  vetClinic: z.string().min(1).optional(),
+  vetPhone: z.string().min(1).optional(),
+  vetAddress: z.string().min(1).optional(),
+});
+
+export async function updatePetVetInfo(petId: number, body: z.infer<typeof VetInfoUpdateBody>) {
+  const [updated] = await db.update(pets).set(body).where(eq(pets.id, petId)).returning();
+  return updated!;
 }

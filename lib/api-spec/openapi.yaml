@@ -719,10 +719,10 @@ components:
       properties:
         id: { type: integer }
         importId: { type: integer }
-        itemType: { type: string, enum: [health_record, medication, reminder] }
+        itemType: { type: string, enum: [health_record, medication, reminder, vet_info] }
         proposedData:
           type: object
-          description: Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object.
+          description: Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for "vet_info" a partial object with any of vetName/vetClinic/vetPhone/vetAddress (only the fields the source document actually stated).
         duplicateOfType: { type: ["string", "null"], enum: [health_record, medication, reminder, null] }
         duplicateOfId: { type: ["integer", "null"] }
         status: { type: string, enum: [pending, accepted, rejected] }
