@@ -112,7 +112,7 @@ export default function Insights() {
                     {/* User Question */}
                     <div className="flex justify-end">
                       <div className="bg-primary text-primary-foreground px-6 py-4 rounded-3xl rounded-tr-sm max-w-[85%] shadow-sm">
-                        <p className="text-lg leading-relaxed">{insight.title.replace('Question: ', '')}</p>
+                        <p className="text-lg leading-relaxed">{insight.question}</p>
                         <span className="text-[10px] uppercase tracking-wider opacity-70 mt-2 block">
                           {format(new Date(insight.createdAt), 'h:mm a • MMM d')}
                         </span>
@@ -126,6 +126,12 @@ export default function Insights() {
                           <ToneIcon size={20} />
                         </div>
                         <div className="flex-1 min-w-0">
+                           {insight.kind === 'escalation' && (
+                             <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-destructive/10 border border-destructive/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-destructive">
+                               <ShieldAlert size={12} />
+                               Escalated — contact your vet
+                             </div>
+                           )}
                            <div className="prose prose-sm md:prose-base prose-p:leading-relaxed prose-p:text-muted-foreground prose-headings:font-serif prose-headings:text-foreground prose-strong:text-foreground max-w-none">
                              {/* Simple markdown parsing for the AI content — rendered as React nodes, never raw HTML */}
                              {insight.content.split('\n\n').map((paragraph, i) => (

@@ -86,8 +86,15 @@ export const insights = pgTable("insights", {
   petId: integer("pet_id").notNull().references(() => pets.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   content: text("content").notNull(),
+  // The owner's original question — kept separate from title (which is
+  // always one of a small set of fixed headline strings) so history can
+  // display what was actually asked.
+  question: text("question").notNull().default(""),
   tone: text("tone").notNull().default("helpful"),
   source: text("source").notNull().default("ai"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   disclaimer: text("disclaimer").notNull(),
+  // chat|escalation — the semantic audit flag distinct from `tone` (which
+  // is a UI-styling spectrum: helpful/watch/urgent).
+  kind: text("kind", { enum: ["chat", "escalation"] }).notNull().default("chat"),
 });

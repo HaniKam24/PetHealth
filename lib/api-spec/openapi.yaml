@@ -842,11 +842,13 @@ components:
         petId: { type: integer }
         title: { type: string }
         content: { type: string }
+        question: { type: string, description: "The owner's original question." }
         tone: { type: string, enum: [helpful, watch, urgent] }
         source: { type: string, enum: [ai, record, reminder] }
         createdAt: { type: string, format: date-time }
         disclaimer: { type: string }
-      required: [id, petId, title, content, tone, source, createdAt, disclaimer]
+        kind: { type: string, enum: [chat, escalation], description: "Whether a red flag short-circuited this to an escalation response." }
+      required: [id, petId, title, content, question, tone, source, createdAt, disclaimer, kind]
     InsightQuestion:
       type: object
       properties:

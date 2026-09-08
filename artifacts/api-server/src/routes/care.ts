@@ -40,6 +40,7 @@ import {
 import { anthropic } from "@workspace/integrations-anthropic-ai-server";
 import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument } from "../lib/storage";
 import { runCareRecommendationsEngine } from "../lib/care-recommendations";
+import { buildEscalationMessage, isRedFlagQuestion } from "../lib/symptom-escalation";
 import { ALLOWED_DOCUMENT_MIME_TYPES, handleSingleFileUpload } from "../lib/upload-middleware";
 import { logger } from "../lib/logger";
 
@@ -617,6 +618,25 @@ router.post("/insights", async (req, res, next) => {
       return;
     }
 
+    // Red flags short-circuit before any AI call — see symptom-escalation.ts.
+    if (isRedFlagQuestion(question)) {
+      const [created] = await db
+        .insert(insights)
+        .values({
+          petId,
+          title: "Please seek urgent veterinary care",
+          content: buildEscalationMessage(pet),
+          question,
+          tone: "urgent",
+          kind: "escalation",
+          source: "ai",
+          disclaimer: DISCLAIMER,
+        })
+        .returning();
+      res.json(asInsight(created!));
+      return;
+    }
+
     const records = await db
       .select()
       .from(healthRecords)
@@ -627,12 +647,17 @@ router.post("/insights", async (req, res, next) => {
       .select()
       .from(medications)
       .where(and(eq(medications.petId, petId), eq(medications.active, true)));
+    const upcomingReminders = await db
+      .select()
+      .from(reminders)
+      .where(and(eq(reminders.petId, petId), eq(reminders.completed, false)))
+      .orderBy(asc(reminders.dueDate));
 
     const completion = await anthropic.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 8192,
       system:
-        "You are a cautious pet care education assistant for pet owners. Give concise, practical, plain-language guidance grounded only in the supplied profile and records. Never diagnose, prescribe, change medication, or claim certainty. If the question mentions trouble breathing, collapse, seizures, uncontrolled bleeding, poisoning, inability to urinate, a swollen abdomen, severe pain, or rapidly worsening symptoms, lead with seeking emergency veterinary care now. Otherwise explain what to observe, low-risk supportive steps, and when to contact a veterinarian. Keep the answer under 170 words.",
+        "You are a cautious pet care education assistant for pet owners. Give concise, practical, plain-language guidance grounded only in the supplied profile and records. Never diagnose, prescribe, change medication, or claim certainty. Explain what to observe, low-risk supportive steps, and when to contact a veterinarian. Keep the answer under 170 words.",
       messages: [
         {
           role: "user",
@@ -640,6 +665,7 @@ router.post("/insights", async (req, res, next) => {
             pet: asPet(pet),
             recentRecords: records,
             activeMedications: meds.map(asMedication),
+            upcomingReminders,
             ownerQuestion: question,
           }),
         },
@@ -650,16 +676,15 @@ router.post("/insights", async (req, res, next) => {
     const content =
       textBlock?.text.trim() ||
       "I could not prepare guidance right now. If you are concerned about a new or worsening symptom, contact your veterinarian.";
-    const urgentPattern =
-      /trouble breathing|collapse|seizure|uncontrolled bleeding|poison|cannot urinate|swollen abdomen|severe pain|emergency/i;
-    const tone = urgentPattern.test(question) ? "urgent" : "helpful";
     const [created] = await db
       .insert(insights)
       .values({
         petId,
-        title: tone === "urgent" ? "Please seek urgent veterinary care" : "Guidance for your question",
+        title: "Guidance for your question",
         content,
-        tone,
+        question,
+        tone: "helpful",
+        kind: "chat",
         source: "ai",
         disclaimer: DISCLAIMER,
       })
