@@ -531,6 +531,22 @@ export interface InsightQuestion {
   question: string;
 }
 
+export interface SymptomLog {
+  id: number;
+  petId: number;
+  description: string;
+  loggedAt: string;
+  /** @nullable */
+  insightId: number | null;
+}
+
+export interface SymptomLogInput {
+  /** @minLength 1 */
+  description: string;
+  /** @nullable */
+  insightId?: number | null;
+}
+
 export type DashboardSummaryStats = {
   recordCount: number;
   activeMedicationCount: number;

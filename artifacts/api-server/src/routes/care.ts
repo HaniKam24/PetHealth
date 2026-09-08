@@ -10,6 +10,8 @@ import {
   CreatePetBody,
   CreateReminderBody,
   CreateReminderParams,
+  CreateSymptomLogBody,
+  CreateSymptomLogParams,
   DeleteHealthRecordParams,
   DeletePetParams,
   GetDashboardSummaryQueryParams,
@@ -19,6 +21,7 @@ import {
   ListInsightsQueryParams,
   ListMedicationsParams,
   ListRemindersParams,
+  ListSymptomLogsParams,
   LogMedicationDoseParams,
   UpdateHealthRecordBody,
   UpdateHealthRecordParams,
@@ -36,6 +39,7 @@ import {
   petOwners,
   pets,
   reminders,
+  symptomLogs,
 } from "@workspace/db";
 import { anthropic } from "@workspace/integrations-anthropic-ai-server";
 import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument } from "../lib/storage";
@@ -80,6 +84,11 @@ const INTERVAL_MS: Record<"hours" | "days" | "weeks" | "months", number> = {
 const asInsight = (insight: typeof insights.$inferSelect) => ({
   ...insight,
   createdAt: insight.createdAt.toISOString(),
+});
+
+const asSymptomLog = (log: typeof symptomLogs.$inferSelect) => ({
+  ...log,
+  loggedAt: log.loggedAt.toISOString(),
 });
 
 // Best-effort storage cleanup: the DB write it accompanies has already
@@ -572,6 +581,51 @@ router.post("/reminders/:reminderId/complete", async (req, res, next) => {
       return;
     }
     res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/pets/:petId/symptom-logs", async (req, res, next) => {
+  try {
+    const userId = requireUserId(req);
+    const { petId } = ListSymptomLogsParams.parse(req.params);
+    if (!(await isPetOwnedByUser(userId, petId))) {
+      res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+    const rows = await db
+      .select()
+      .from(symptomLogs)
+      .where(eq(symptomLogs.petId, petId))
+      .orderBy(desc(symptomLogs.loggedAt));
+    res.json(rows.map(asSymptomLog));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/pets/:petId/symptom-logs", async (req, res, next) => {
+  try {
+    const userId = requireUserId(req);
+    const { petId } = CreateSymptomLogParams.parse(req.params);
+    if (!(await isPetOwnedByUser(userId, petId))) {
+      res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+    const body = CreateSymptomLogBody.parse(req.body);
+    if (body.insightId != null) {
+      const [insight] = await db.select().from(insights).where(eq(insights.id, body.insightId));
+      if (!insight || insight.petId !== petId) {
+        res.status(404).json({ error: "Insight not found" });
+        return;
+      }
+    }
+    const [created] = await db
+      .insert(symptomLogs)
+      .values({ petId, ...body })
+      .returning();
+    res.status(201).json(asSymptomLog(created!));
   } catch (error) {
     next(error);
   }

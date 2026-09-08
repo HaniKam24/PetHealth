@@ -479,6 +479,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Reminder"
+  /pets/{petId}/symptom-logs:
+    get:
+      operationId: listSymptomLogs
+      tags: [pets]
+      summary: List symptom log entries for a pet
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          description: Symptom logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SymptomLog"
+    post:
+      operationId: createSymptomLog
+      tags: [pets]
+      summary: Add a symptom log entry, optionally confirmed from an AI insight
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SymptomLogInput"
+      responses:
+        "201":
+          description: Created symptom log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SymptomLog"
   /reminders/{reminderId}/complete:
     post:
       operationId: completeReminder
@@ -855,6 +890,21 @@ components:
         petId: { type: integer }
         question: { type: string, minLength: 1 }
       required: [petId, question]
+    SymptomLog:
+      type: object
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        description: { type: string }
+        loggedAt: { type: string, format: date-time }
+        insightId: { type: ["integer", "null"] }
+      required: [id, petId, description, loggedAt, insightId]
+    SymptomLogInput:
+      type: object
+      properties:
+        description: { type: string, minLength: 1 }
+        insightId: { type: ["integer", "null"] }
+      required: [description]
     DashboardSummary:
       type: object
       properties:
