@@ -89,13 +89,16 @@ function ItemSummary({ item }: { item: DocumentImportItem }) {
     );
   }
   if (item.itemType === 'medication') {
+    // frequency is already the human-readable form of the schedule (e.g.
+    // "Every 12 hours") whenever doseIntervalValue/doseIntervalUnit are set —
+    // same convention the real Medications page uses, where those two fields
+    // are never rendered as their own text, only used to decide whether dose
+    // logging is offered. Appending them here too just repeated the same
+    // wording a second time (e.g. "150mg · every 12 hours · every 12 hours").
     return (
       <div>
         <div className="font-medium">{str(d.name)}</div>
-        <div className="text-sm text-muted-foreground">
-          {str(d.dose)} · {str(d.frequency)}
-          {d.doseIntervalValue ? ` · every ${num(d.doseIntervalValue)} ${str(d.doseIntervalUnit)}` : ''}
-        </div>
+        <div className="text-sm text-muted-foreground">{str(d.dose)} · {str(d.frequency)}</div>
         {d.instructions ? <p className="text-sm text-muted-foreground mt-1">{str(d.instructions)}</p> : null}
       </div>
     );
