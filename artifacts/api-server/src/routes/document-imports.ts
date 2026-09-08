@@ -68,8 +68,10 @@ function serializeImport(
   };
 }
 
-// Best-effort storage cleanup: the caller's primary effect (a 400 response,
-// or a DB row already committed) has already happened regardless.
+// Best-effort storage cleanup: both call sites below are about to return a
+// 400 (or rethrow) regardless of whether this succeeds, since extraction
+// failed before any document_imports row was created — nothing to roll back,
+// just an orphaned file to avoid leaving behind.
 async function deleteDocumentBestEffort(path: string) {
   try {
     await deleteDocument(path);

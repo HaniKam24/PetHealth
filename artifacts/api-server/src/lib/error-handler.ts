@@ -6,11 +6,12 @@ import { logger } from "./logger";
 // one of the specific, already-handled error types (QuotaExceededError,
 // TooManyPagesError, etc. are caught inline and never reach this). Without
 // this, an unhandled error — a Zod validation failure, a DB error, an
-// upstream OpenAI failure — fell through to Express's default handler:
+// upstream AI-provider failure — fell through to Express's default handler:
 // non-JSON HTML output, and in a misconfigured NODE_ENV, a raw stack trace
-// or upstream error body (e.g. OpenAI's own HTML error page) leaked
-// straight to the client. This keeps every API response JSON and never
-// exposes internal details — the real error is logged server-side instead.
+// or upstream error body (confirmed live during testing: OpenAI's own HTML
+// error page, before the Claude migration) leaked straight to the client.
+// This keeps every API response JSON and never exposes internal details —
+// the real error is logged server-side instead.
 export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
   if (error instanceof ZodError) {
     const detail = error.issues

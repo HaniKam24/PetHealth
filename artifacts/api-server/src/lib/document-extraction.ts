@@ -144,10 +144,10 @@ function namesLikelyMatch(expectedPetName: string, documentPatientName: string):
   return aInB || bInA;
 }
 
-// Claude's vision input only accepts these four formats — narrower than
-// ALLOWED_DOCUMENT_MIME_TYPES (which also allows image/heic for the upload
-// itself). A HEIC upload still gets stored, but extraction on it fails with
-// a clean error (via the global error handler) rather than a silent guess.
+// Claude's vision input only accepts these four formats. HEIC/HEIF (allowed
+// at upload time, per ALLOWED_DOCUMENT_MIME_TYPES) is converted to JPEG in
+// readContent() above before reaching this type, so by the time content.kind
+// is "image" here, content.mimetype is always one of these four already.
 type ImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
 export async function extractDocument(file: UploadedFile, expectedPetName: string): Promise<ExtractionResult> {
