@@ -23,6 +23,7 @@ export * from './documentImportQuota';
 export * from './documentImportResponse';
 export * from './documentImportStatus';
 export * from './documentUploadResult';
+export * from './documentUrlResponse';
 export * from './error';
 export * from './getDashboardSummaryParams';
 export * from './healthRecord';

@@ -20,6 +20,8 @@ export interface HealthRecordInput {
   /** @nullable */
   documentUrl?: string | null;
   /** @nullable */
+  documentStoragePath?: string | null;
+  /** @nullable */
   documentType?: HealthRecordInputDocumentType;
   /** @nullable */
   documentName?: string | null;

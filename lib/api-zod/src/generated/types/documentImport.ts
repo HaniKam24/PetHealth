@@ -9,10 +9,12 @@ import type { DocumentImportItem } from './documentImportItem';
 import type { DocumentImportLane } from './documentImportLane';
 import type { DocumentImportStatus } from './documentImportStatus';
 
+/**
+ * The source document's storage path is server-internal (not exposed here) — fetch a viewable link via GET .../document-imports/{importId}/document-url.
+ */
 export interface DocumentImport {
   id: number;
   petId: number;
-  sourceDocumentUrl: string;
   documentName: string;
   lane: DocumentImportLane;
   status: DocumentImportStatus;

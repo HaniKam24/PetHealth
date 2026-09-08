@@ -27,6 +27,7 @@ import type {
   DocumentImportListResponse,
   DocumentImportResponse,
   DocumentUploadResult,
+  DocumentUrlResponse,
   Error,
   GetDashboardSummaryParams,
   HealthRecord,
@@ -892,6 +893,88 @@ export const useUploadHealthRecordDocument = <TError = ErrorType<Error | NotFoun
       return useMutation(getUploadHealthRecordDocumentMutationOptions(options));
     }
 
+export const getGetHealthRecordDocumentUrlUrl = (petId: number,
+    recordId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/records/${recordId}/document-url`
+}
+
+/**
+ * @summary Get a viewable link for a health record's attached document — a fresh short-lived signed URL for an uploaded file, or the stored link as-is for a pasted one
+ */
+export const getHealthRecordDocumentUrl = async (petId: number,
+    recordId: number, options?: Parameters<typeof customFetch>[1]): Promise<DocumentUrlResponse> => {
+
+  return customFetch<DocumentUrlResponse>(getGetHealthRecordDocumentUrlUrl(petId,recordId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetHealthRecordDocumentUrlQueryKey = (petId: number,
+    recordId: number,) => {
+    return [
+    `/api/pets/${petId}/records/${recordId}/document-url`
+    ] as const;
+    }
+
+
+export const getGetHealthRecordDocumentUrlQueryOptions = <TData = Awaited<ReturnType<typeof getHealthRecordDocumentUrl>>, TError = ErrorType<Error>>(petId: number,
+    recordId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHealthRecordDocumentUrl>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetHealthRecordDocumentUrlQueryKey(petId,recordId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHealthRecordDocumentUrl>>> = ({ signal }) => getHealthRecordDocumentUrl(petId,recordId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: petId !== null && petId !== undefined && recordId !== null && recordId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHealthRecordDocumentUrl>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetHealthRecordDocumentUrlQueryResult = NonNullable<Awaited<ReturnType<typeof getHealthRecordDocumentUrl>>>
+export type GetHealthRecordDocumentUrlQueryError = ErrorType<Error>
+
+
+/**
+ * @summary Get a viewable link for a health record's attached document — a fresh short-lived signed URL for an uploaded file, or the stored link as-is for a pasted one
+ */
+
+export function useGetHealthRecordDocumentUrl<TData = Awaited<ReturnType<typeof getHealthRecordDocumentUrl>>, TError = ErrorType<Error>>(
+ petId: number,
+    recordId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHealthRecordDocumentUrl>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetHealthRecordDocumentUrlQueryOptions(petId,recordId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListDocumentImportsUrl = (petId: number,) => {
 
 
@@ -1113,6 +1196,88 @@ export function useGetDocumentImport<TData = Awaited<ReturnType<typeof getDocume
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetDocumentImportQueryOptions(petId,importId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDocumentImportDocumentUrlUrl = (petId: number,
+    importId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/document-imports/${importId}/document-url`
+}
+
+/**
+ * @summary Get a fresh short-lived viewable link for a document import's source file
+ */
+export const getDocumentImportDocumentUrl = async (petId: number,
+    importId: number, options?: Parameters<typeof customFetch>[1]): Promise<DocumentUrlResponse> => {
+
+  return customFetch<DocumentUrlResponse>(getGetDocumentImportDocumentUrlUrl(petId,importId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDocumentImportDocumentUrlQueryKey = (petId: number,
+    importId: number,) => {
+    return [
+    `/api/pets/${petId}/document-imports/${importId}/document-url`
+    ] as const;
+    }
+
+
+export const getGetDocumentImportDocumentUrlQueryOptions = <TData = Awaited<ReturnType<typeof getDocumentImportDocumentUrl>>, TError = ErrorType<NotFoundResponse>>(petId: number,
+    importId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDocumentImportDocumentUrl>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDocumentImportDocumentUrlQueryKey(petId,importId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDocumentImportDocumentUrl>>> = ({ signal }) => getDocumentImportDocumentUrl(petId,importId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: petId !== null && petId !== undefined && importId !== null && importId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDocumentImportDocumentUrl>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDocumentImportDocumentUrlQueryResult = NonNullable<Awaited<ReturnType<typeof getDocumentImportDocumentUrl>>>
+export type GetDocumentImportDocumentUrlQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Get a fresh short-lived viewable link for a document import's source file
+ */
+
+export function useGetDocumentImportDocumentUrl<TData = Awaited<ReturnType<typeof getDocumentImportDocumentUrl>>, TError = ErrorType<NotFoundResponse>>(
+ petId: number,
+    importId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDocumentImportDocumentUrl>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDocumentImportDocumentUrlQueryOptions(petId,importId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
