@@ -212,6 +212,7 @@ export const CreateHealthRecordBody = zod.object({
   "clinic": zod.string().nullish(),
   "summary": zod.string().nullish(),
   "documentUrl": zod.string().url().nullish(),
+  "documentStoragePath": zod.string().nullish(),
   "documentType": zod.union([zod.literal('link'),zod.literal('upload'),zod.literal(null)]).nullish(),
   "documentName": zod.string().nullish()
 })
@@ -252,6 +253,7 @@ export const UpdateHealthRecordBody = zod.object({
   "clinic": zod.string().nullish(),
   "summary": zod.string().nullish(),
   "documentUrl": zod.string().url().nullish(),
+  "documentStoragePath": zod.string().nullish(),
   "documentType": zod.union([zod.literal('link'),zod.literal('upload'),zod.literal(null)]).nullish(),
   "documentName": zod.string().nullish()
 }).describe('Updated health record fields')
@@ -300,8 +302,25 @@ export const UploadHealthRecordDocumentBody = zod.object({
 })
 
 export const UploadHealthRecordDocumentResponse = zod.object({
-  "url": zod.string().url(),
+  "path": zod.string(),
   "name": zod.string()
+}).describe('path is a private storage key, not a usable URL — see the \/documents endpoint description')
+
+
+/**
+ * @summary Get a viewable link for a health record's attached document — a fresh short-lived signed URL for an uploaded file, or the stored link as-is for a pasted one
+ */
+
+
+
+
+export const GetHealthRecordDocumentUrlParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "recordId": zod.coerce.number().int().min(1)
+})
+
+export const GetHealthRecordDocumentUrlResponse = zod.object({
+  "url": zod.string().url()
 })
 
 
@@ -319,7 +338,6 @@ export const ListDocumentImportsResponse = zod.object({
   "imports": zod.array(zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
-  "sourceDocumentUrl": zod.string().url(),
   "documentName": zod.string(),
   "lane": zod.enum(['onboarding', 'ongoing']),
   "status": zod.enum(['pending_review', 'reviewed']),
@@ -336,7 +354,7 @@ export const ListDocumentImportsResponse = zod.object({
   "status": zod.enum(['pending', 'accepted', 'rejected']),
   "createdRecordId": zod.number().int().nullable()
 }))
-})),
+}).describe('The source document\'s storage path is server-internal (not exposed here) — fetch a viewable link via GET ...\/document-imports\/{importId}\/document-url.')),
   "quota": zod.object({
   "onboardingRemaining": zod.number().int().nullable().describe('null if the pet\'s onboarding window has expired or never applied'),
   "onboardingLimit": zod.number().int(),
@@ -364,7 +382,6 @@ export const CreateDocumentImportResponse = zod.object({
   "import": zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
-  "sourceDocumentUrl": zod.string().url(),
   "documentName": zod.string(),
   "lane": zod.enum(['onboarding', 'ongoing']),
   "status": zod.enum(['pending_review', 'reviewed']),
@@ -381,7 +398,7 @@ export const CreateDocumentImportResponse = zod.object({
   "status": zod.enum(['pending', 'accepted', 'rejected']),
   "createdRecordId": zod.number().int().nullable()
 }))
-}),
+}).describe('The source document\'s storage path is server-internal (not exposed here) — fetch a viewable link via GET ...\/document-imports\/{importId}\/document-url.'),
   "quota": zod.object({
   "onboardingRemaining": zod.number().int().nullable().describe('null if the pet\'s onboarding window has expired or never applied'),
   "onboardingLimit": zod.number().int(),
@@ -407,7 +424,6 @@ export const GetDocumentImportResponse = zod.object({
   "import": zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
-  "sourceDocumentUrl": zod.string().url(),
   "documentName": zod.string(),
   "lane": zod.enum(['onboarding', 'ongoing']),
   "status": zod.enum(['pending_review', 'reviewed']),
@@ -424,7 +440,7 @@ export const GetDocumentImportResponse = zod.object({
   "status": zod.enum(['pending', 'accepted', 'rejected']),
   "createdRecordId": zod.number().int().nullable()
 }))
-}),
+}).describe('The source document\'s storage path is server-internal (not exposed here) — fetch a viewable link via GET ...\/document-imports\/{importId}\/document-url.'),
   "quota": zod.object({
   "onboardingRemaining": zod.number().int().nullable().describe('null if the pet\'s onboarding window has expired or never applied'),
   "onboardingLimit": zod.number().int(),
@@ -432,6 +448,23 @@ export const GetDocumentImportResponse = zod.object({
   "ongoingLimit": zod.number().int()
 }).describe('Onboarding is a one-time 20-document allowance per pet (first 30 days); ongoing is a 10\/month allowance per account, separate from any chat quota.')
 }).describe('Quota reflects current account\/pet state — not a property of this specific import — so it\'s a sibling, not embedded per-import.')
+
+
+/**
+ * @summary Get a fresh short-lived viewable link for a document import's source file
+ */
+
+
+
+
+export const GetDocumentImportDocumentUrlParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "importId": zod.coerce.number().int().min(1)
+})
+
+export const GetDocumentImportDocumentUrlResponse = zod.object({
+  "url": zod.string().url()
+})
 
 
 /**

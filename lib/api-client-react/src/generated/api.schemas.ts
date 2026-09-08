@@ -200,6 +200,8 @@ export interface HealthRecordInput {
   /** @nullable */
   documentUrl?: string | null;
   /** @nullable */
+  documentStoragePath?: string | null;
+  /** @nullable */
   documentType?: HealthRecordInputDocumentType;
   /** @nullable */
   documentName?: string | null;
@@ -210,9 +212,16 @@ export interface HealthRecordInput {
  */
 export type HealthRecordUpdate = HealthRecordInput;
 
+/**
+ * path is a private storage key, not a usable URL — see the /documents endpoint description
+ */
 export interface DocumentUploadResult {
-  url: string;
+  path: string;
   name: string;
+}
+
+export interface DocumentUrlResponse {
+  url: string;
 }
 
 /**
@@ -295,10 +304,12 @@ export const DocumentImportStatus = {
   reviewed: 'reviewed',
 } as const;
 
+/**
+ * The source document's storage path is server-internal (not exposed here) — fetch a viewable link via GET .../document-imports/{importId}/document-url.
+ */
 export interface DocumentImport {
   id: number;
   petId: number;
-  sourceDocumentUrl: string;
   documentName: string;
   lane: DocumentImportLane;
   status: DocumentImportStatus;

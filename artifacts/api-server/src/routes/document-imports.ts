@@ -7,13 +7,15 @@ import {
   CreateHealthRecordBody,
   CreateMedicationBody,
   CreateReminderBody,
+  GetDocumentImportDocumentUrlParams,
   GetDocumentImportParams,
   ListDocumentImportsParams,
   RejectDocumentImportItemParams,
 } from "@workspace/api-zod";
 import { db, documentImportItems, documentImports, petOwners, pets } from "@workspace/db";
 import { ALLOWED_DOCUMENT_MIME_TYPES, handleSingleFileUpload } from "../lib/upload-middleware";
-import { uploadHealthRecordDocument } from "../lib/storage";
+import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument } from "../lib/storage";
+import { logger } from "../lib/logger";
 import {
   ScannedDocumentError,
   TooManyPagesError,
@@ -55,11 +57,24 @@ function serializeImport(
   imp: typeof documentImports.$inferSelect,
   items: (typeof documentImportItems.$inferSelect)[],
 ) {
+  // sourceDocumentPath is a private storage key, not a usable URL — omitted
+  // from the response on purpose; fetch a viewable link via document-url.
+  const { sourceDocumentPath: _sourceDocumentPath, ...rest } = imp;
   return {
-    ...imp,
+    ...rest,
     analyzedAt: imp.analyzedAt.toISOString(),
     items: items.map(serializeItem),
   };
+}
+
+// Best-effort storage cleanup: the caller's primary effect (a 400 response,
+// or a DB row already committed) has already happened regardless.
+async function deleteDocumentBestEffort(path: string) {
+  try {
+    await deleteDocument(path);
+  } catch (error) {
+    logger.error({ err: error, path }, "Failed to delete document-import source file from storage");
+  }
 }
 
 async function markReviewedIfComplete(importId: number) {
@@ -136,7 +151,9 @@ router.post(
       }
 
       // Stored regardless of what extraction finds, so the source document
-      // is always retrievable from the import.
+      // is always retrievable from the import. If extraction fails below and
+      // no document_imports row ends up referencing it, it's deleted again
+      // rather than left as an orphaned file.
       const uploaded = await uploadHealthRecordDocument(petId, req.file);
 
       let extraction;
@@ -144,9 +161,11 @@ router.post(
         extraction = await extractDocument(req.file);
       } catch (error) {
         if (error instanceof TooManyPagesError || error instanceof ScannedDocumentError) {
+          await deleteDocumentBestEffort(uploaded.path);
           res.status(400).json({ error: error.message });
           return;
         }
+        await deleteDocumentBestEffort(uploaded.path);
         throw error;
       }
 
@@ -158,7 +177,7 @@ router.post(
         .insert(documentImports)
         .values({
           petId,
-          sourceDocumentUrl: uploaded.url,
+          sourceDocumentPath: uploaded.path,
           documentName: uploaded.name,
           lane,
           status: "pending_review",
@@ -220,6 +239,28 @@ router.get("/pets/:petId/document-imports/:importId", async (req, res, next) => 
     const items = await db.select().from(documentImportItems).where(eq(documentImportItems.importId, importId));
     const quota = await getDocumentImportQuota(userId, pet);
     res.json({ import: serializeImport(imp, items), quota });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/pets/:petId/document-imports/:importId/document-url", async (req, res, next) => {
+  try {
+    const userId = requireUserId(req);
+    const { petId, importId } = GetDocumentImportDocumentUrlParams.parse(req.params);
+    if (!(await isPetOwnedByUser(userId, petId))) {
+      res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+    const [imp] = await db
+      .select()
+      .from(documentImports)
+      .where(and(eq(documentImports.id, importId), eq(documentImports.petId, petId)));
+    if (!imp) {
+      res.status(404).json({ error: "Import not found" });
+      return;
+    }
+    res.json({ url: await createSignedDocumentUrl(imp.sourceDocumentPath) });
   } catch (error) {
     next(error);
   }

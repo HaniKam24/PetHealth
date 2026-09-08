@@ -6,7 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * path is a private storage key, not a usable URL — see the /documents endpoint description
+ */
 export interface DocumentUploadResult {
-  url: string;
+  path: string;
   name: string;
 }

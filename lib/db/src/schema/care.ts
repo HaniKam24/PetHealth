@@ -39,7 +39,13 @@ export const healthRecords = pgTable("health_records", {
   date: text("date").notNull(),
   clinic: text("clinic"),
   summary: text("summary"),
+  // Populated only for documentType "link" — an owner-pasted external URL.
   documentUrl: text("document_url"),
+  // Populated only for documentType "upload" — the private Supabase Storage
+  // object key. Never a working URL by itself; a short-lived signed URL is
+  // minted on demand (see GET .../document-url) so a leaked link expires
+  // quickly instead of staying valid for years.
+  documentStoragePath: text("document_storage_path"),
   documentType: text("document_type", { enum: ["link", "upload"] }),
   documentName: text("document_name"),
 });

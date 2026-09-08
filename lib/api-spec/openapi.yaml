@@ -199,7 +199,7 @@ paths:
               required: [file]
       responses:
         "201":
-          description: Uploaded document
+          description: Uploaded document — path is a private storage key, not a usable URL by itself; attach it to a record via documentStoragePath, then fetch a viewable link on demand from GET .../document-url
           content:
             application/json:
               schema:
@@ -212,6 +212,27 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           $ref: "#/components/responses/NotFound"
+  /pets/{petId}/records/{recordId}/document-url:
+    get:
+      operationId: getHealthRecordDocumentUrl
+      tags: [pets]
+      summary: Get a viewable link for a health record's attached document — a fresh short-lived signed URL for an uploaded file, or the stored link as-is for a pasted one
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/HealthRecordId"
+      responses:
+        "200":
+          description: A link the client can open immediately; expires soon for uploaded documents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentUrlResponse"
+        "404":
+          description: Record not found, or it has no attached document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /pets/{petId}/document-imports:
     get:
       operationId: listDocumentImports
@@ -275,6 +296,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DocumentImportResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /pets/{petId}/document-imports/{importId}/document-url:
+    get:
+      operationId: getDocumentImportDocumentUrl
+      tags: [smart-upload]
+      summary: Get a fresh short-lived viewable link for a document import's source file
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/DocumentImportId"
+      responses:
+        "200":
+          description: A link the client can open immediately; expires soon
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentUrlResponse"
         "404":
           $ref: "#/components/responses/NotFound"
   /pets/{petId}/document-imports/{importId}/items/{itemId}/accept:
@@ -629,6 +667,9 @@ components:
         date: { type: string, format: date }
         clinic: { type: ["string", "null"] }
         summary: { type: ["string", "null"] }
+        # Populated only when documentType is "link" (an owner-pasted external
+        # URL). For "upload", this is always null — the private storage path
+        # is server-internal; call GET .../document-url for a viewable link.
         documentUrl: { type: ["string", "null"], format: uri }
         documentType: { type: ["string", "null"], enum: [link, upload, null] }
         documentName: { type: ["string", "null"] }
@@ -641,7 +682,10 @@ components:
         date: { type: string, format: date }
         clinic: { type: ["string", "null"] }
         summary: { type: ["string", "null"] }
+        # For documentType "link": the pasted external URL.
         documentUrl: { type: ["string", "null"], format: uri }
+        # For documentType "upload": the path returned by POST .../documents.
+        documentStoragePath: { type: ["string", "null"] }
         documentType: { type: ["string", "null"], enum: [link, upload, null] }
         documentName: { type: ["string", "null"] }
       required: [type, title, date]
@@ -651,10 +695,16 @@ components:
       description: Updated health record fields
     DocumentUploadResult:
       type: object
+      description: path is a private storage key, not a usable URL — see the /documents endpoint description
+      properties:
+        path: { type: string }
+        name: { type: string }
+      required: [path, name]
+    DocumentUrlResponse:
+      type: object
       properties:
         url: { type: string, format: uri }
-        name: { type: string }
-      required: [url, name]
+      required: [url]
     DocumentImportQuota:
       type: object
       description: Onboarding is a one-time 20-document allowance per pet (first 30 days); ongoing is a 10/month allowance per account, separate from any chat quota.
@@ -680,10 +730,10 @@ components:
       required: [id, importId, itemType, proposedData, duplicateOfType, duplicateOfId, status, createdRecordId]
     DocumentImport:
       type: object
+      description: The source document's storage path is server-internal (not exposed here) — fetch a viewable link via GET .../document-imports/{importId}/document-url.
       properties:
         id: { type: integer }
         petId: { type: integer }
-        sourceDocumentUrl: { type: string, format: uri }
         documentName: { type: string }
         lane: { type: string, enum: [onboarding, ongoing] }
         status: { type: string, enum: [pending_review, reviewed] }
@@ -692,7 +742,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DocumentImportItem"
-      required: [id, petId, sourceDocumentUrl, documentName, lane, status, analyzedAt, items]
+      required: [id, petId, documentName, lane, status, analyzedAt, items]
     DocumentImportResponse:
       type: object
       description: Quota reflects current account/pet state — not a property of this specific import — so it's a sibling, not embedded per-import.

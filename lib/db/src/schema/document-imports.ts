@@ -4,7 +4,9 @@ import { pets } from "./care";
 export const documentImports = pgTable("document_imports", {
   id: serial("id").primaryKey(),
   petId: integer("pet_id").notNull().references(() => pets.id, { onDelete: "cascade" }),
-  sourceDocumentUrl: text("source_document_url").notNull(),
+  // The private Supabase Storage object key, not a working URL — see the
+  // matching comment on health_records.documentStoragePath.
+  sourceDocumentPath: text("source_document_path").notNull(),
   documentName: text("document_name").notNull(),
   lane: text("lane", { enum: ["onboarding", "ongoing"] }).notNull(),
   status: text("status", { enum: ["pending_review", "reviewed"] })

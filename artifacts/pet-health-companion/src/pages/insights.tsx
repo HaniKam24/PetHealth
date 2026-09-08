@@ -14,6 +14,16 @@ const toneConfig = {
   urgent: { icon: ShieldAlert, color: 'text-destructive', bg: 'bg-destructive/10' },
 };
 
+// Renders **bold** spans as real React nodes instead of injecting HTML, so AI-generated
+// content can never carry an XSS payload through to the DOM.
+function renderFormattedText(text: string) {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, i) => {
+    const match = part.match(/^\*\*(.*)\*\*$/);
+    return match ? <strong key={i}>{match[1]}</strong> : part;
+  });
+}
+
 export default function Insights() {
   const { activePetId } = usePetContext();
   const queryClient = useQueryClient();
@@ -117,9 +127,9 @@ export default function Insights() {
                         </div>
                         <div className="flex-1 min-w-0">
                            <div className="prose prose-sm md:prose-base prose-p:leading-relaxed prose-p:text-muted-foreground prose-headings:font-serif prose-headings:text-foreground prose-strong:text-foreground max-w-none">
-                             {/* Simple markdown parsing for the AI content */}
+                             {/* Simple markdown parsing for the AI content — rendered as React nodes, never raw HTML */}
                              {insight.content.split('\n\n').map((paragraph, i) => (
-                               <p key={i} dangerouslySetInnerHTML={{ __html: paragraph.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                               <p key={i}>{renderFormattedText(paragraph)}</p>
                              ))}
                            </div>
                            

@@ -13,6 +13,7 @@ import {
   DeleteHealthRecordParams,
   DeletePetParams,
   GetDashboardSummaryQueryParams,
+  GetHealthRecordDocumentUrlParams,
   GetPetParams,
   ListHealthRecordsParams,
   ListInsightsQueryParams,
@@ -36,10 +37,11 @@ import {
   pets,
   reminders,
 } from "@workspace/db";
-import { openai } from "@workspace/integrations-openai-ai-server";
-import { uploadHealthRecordDocument } from "../lib/storage";
+import { anthropic } from "@workspace/integrations-anthropic-ai-server";
+import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument } from "../lib/storage";
 import { runCareRecommendationsEngine } from "../lib/care-recommendations";
 import { ALLOWED_DOCUMENT_MIME_TYPES, handleSingleFileUpload } from "../lib/upload-middleware";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 const MAX_PETS_PER_ACCOUNT = 3;
@@ -78,6 +80,16 @@ const asInsight = (insight: typeof insights.$inferSelect) => ({
   ...insight,
   createdAt: insight.createdAt.toISOString(),
 });
+
+// Best-effort storage cleanup: the DB write it accompanies has already
+// succeeded, so a storage failure here is logged, not surfaced to the client.
+async function deleteDocumentBestEffort(path: string) {
+  try {
+    await deleteDocument(path);
+  } catch (error) {
+    logger.error({ err: error, path }, "Failed to delete health record document from storage");
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Ownership helpers — every pet-scoped read/write goes through one of these.
@@ -213,7 +225,14 @@ router.delete("/pets/:petId", async (req, res, next) => {
       res.status(404).json({ error: "Pet not found" });
       return;
     }
+    // Read the attached-document paths before the cascade delete removes the
+    // rows that reference them — otherwise there's nothing left to clean up.
+    const docs = await db
+      .select({ path: healthRecords.documentStoragePath })
+      .from(healthRecords)
+      .where(and(eq(healthRecords.petId, petId), eq(healthRecords.documentType, "upload")));
     await db.delete(pets).where(eq(pets.id, petId));
+    await Promise.all(docs.map((doc) => (doc.path ? deleteDocumentBestEffort(doc.path) : undefined)));
     res.status(204).end();
   } catch (error) {
     next(error);
@@ -269,6 +288,10 @@ router.patch("/pets/:petId/records/:recordId", async (req, res, next) => {
       res.status(404).json({ error: "Pet not found" });
       return;
     }
+    const [existing] = await db
+      .select()
+      .from(healthRecords)
+      .where(and(eq(healthRecords.id, recordId), eq(healthRecords.petId, petId)));
     const body = UpdateHealthRecordBody.parse(req.body);
     const [updated] = await db
       .update(healthRecords)
@@ -278,6 +301,14 @@ router.patch("/pets/:petId/records/:recordId", async (req, res, next) => {
     if (!updated) {
       res.status(404).json({ error: "Record not found" });
       return;
+    }
+    // The old uploaded file is now either replaced or detached — either way
+    // it's no longer reachable from this record, so it's cleaned up here.
+    if (
+      existing?.documentStoragePath &&
+      existing.documentStoragePath !== updated.documentStoragePath
+    ) {
+      await deleteDocumentBestEffort(existing.documentStoragePath);
     }
     const [pet] = await db.select().from(pets).where(eq(pets.id, petId));
     if (pet) await runCareRecommendationsEngine(pet);
@@ -303,7 +334,40 @@ router.delete("/pets/:petId/records/:recordId", async (req, res, next) => {
       res.status(404).json({ error: "Record not found" });
       return;
     }
+    if (deleted.documentStoragePath) {
+      await deleteDocumentBestEffort(deleted.documentStoragePath);
+    }
     res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/pets/:petId/records/:recordId/document-url", async (req, res, next) => {
+  try {
+    const userId = requireUserId(req);
+    const { petId, recordId } = GetHealthRecordDocumentUrlParams.parse(req.params);
+    if (!(await isPetOwnedByUser(userId, petId))) {
+      res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+    const [record] = await db
+      .select()
+      .from(healthRecords)
+      .where(and(eq(healthRecords.id, recordId), eq(healthRecords.petId, petId)));
+    if (!record) {
+      res.status(404).json({ error: "Record not found" });
+      return;
+    }
+    if (record.documentType === "upload" && record.documentStoragePath) {
+      res.json({ url: await createSignedDocumentUrl(record.documentStoragePath) });
+      return;
+    }
+    if (record.documentType === "link" && record.documentUrl) {
+      res.json({ url: record.documentUrl });
+      return;
+    }
+    res.status(404).json({ error: "This record has no attached document." });
   } catch (error) {
     next(error);
   }
@@ -564,15 +628,12 @@ router.post("/insights", async (req, res, next) => {
       .from(medications)
       .where(and(eq(medications.petId, petId), eq(medications.active, true)));
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-5.4-mini",
-      max_completion_tokens: 8192,
+    const completion = await anthropic.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 8192,
+      system:
+        "You are a cautious pet care education assistant for pet owners. Give concise, practical, plain-language guidance grounded only in the supplied profile and records. Never diagnose, prescribe, change medication, or claim certainty. If the question mentions trouble breathing, collapse, seizures, uncontrolled bleeding, poisoning, inability to urinate, a swollen abdomen, severe pain, or rapidly worsening symptoms, lead with seeking emergency veterinary care now. Otherwise explain what to observe, low-risk supportive steps, and when to contact a veterinarian. Keep the answer under 170 words.",
       messages: [
-        {
-          role: "system",
-          content:
-            "You are a cautious pet care education assistant for pet owners. Give concise, practical, plain-language guidance grounded only in the supplied profile and records. Never diagnose, prescribe, change medication, or claim certainty. If the question mentions trouble breathing, collapse, seizures, uncontrolled bleeding, poisoning, inability to urinate, a swollen abdomen, severe pain, or rapidly worsening symptoms, lead with seeking emergency veterinary care now. Otherwise explain what to observe, low-risk supportive steps, and when to contact a veterinarian. Keep the answer under 170 words.",
-        },
         {
           role: "user",
           content: JSON.stringify({
@@ -585,8 +646,9 @@ router.post("/insights", async (req, res, next) => {
       ],
     });
 
+    const textBlock = completion.content.find((block) => block.type === "text");
     const content =
-      completion.choices[0]?.message?.content?.trim() ||
+      textBlock?.text.trim() ||
       "I could not prepare guidance right now. If you are concerned about a new or worsening symptom, contact your veterinarian.";
     const urgentPattern =
       /trouble breathing|collapse|seizure|uncontrolled bleeding|poison|cannot urinate|swollen abdomen|severe pain|emergency/i;
