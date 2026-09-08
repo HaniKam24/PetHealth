@@ -345,10 +345,10 @@ export const ListDocumentImportsResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.number().int(),
   "importId": zod.number().int(),
-  "itemType": zod.enum(['health_record', 'medication', 'reminder']),
+  "itemType": zod.enum(['health_record', 'medication', 'reminder', 'vet_info']),
   "proposedData": zod.object({
 
-}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object.'),
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial object with any of vetName\/vetClinic\/vetPhone\/vetAddress (only the fields the source document actually stated).'),
   "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
   "duplicateOfId": zod.number().int().nullable(),
   "status": zod.enum(['pending', 'accepted', 'rejected']),
@@ -389,10 +389,10 @@ export const CreateDocumentImportResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.number().int(),
   "importId": zod.number().int(),
-  "itemType": zod.enum(['health_record', 'medication', 'reminder']),
+  "itemType": zod.enum(['health_record', 'medication', 'reminder', 'vet_info']),
   "proposedData": zod.object({
 
-}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object.'),
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial object with any of vetName\/vetClinic\/vetPhone\/vetAddress (only the fields the source document actually stated).'),
   "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
   "duplicateOfId": zod.number().int().nullable(),
   "status": zod.enum(['pending', 'accepted', 'rejected']),
@@ -431,10 +431,10 @@ export const GetDocumentImportResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.number().int(),
   "importId": zod.number().int(),
-  "itemType": zod.enum(['health_record', 'medication', 'reminder']),
+  "itemType": zod.enum(['health_record', 'medication', 'reminder', 'vet_info']),
   "proposedData": zod.object({
 
-}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object.'),
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial object with any of vetName\/vetClinic\/vetPhone\/vetAddress (only the fields the source document actually stated).'),
   "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
   "duplicateOfId": zod.number().int().nullable(),
   "status": zod.enum(['pending', 'accepted', 'rejected']),
@@ -490,10 +490,10 @@ export const AcceptDocumentImportItemBody = zod.object({
 export const AcceptDocumentImportItemResponse = zod.object({
   "id": zod.number().int(),
   "importId": zod.number().int(),
-  "itemType": zod.enum(['health_record', 'medication', 'reminder']),
+  "itemType": zod.enum(['health_record', 'medication', 'reminder', 'vet_info']),
   "proposedData": zod.object({
 
-}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object.'),
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial object with any of vetName\/vetClinic\/vetPhone\/vetAddress (only the fields the source document actually stated).'),
   "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
   "duplicateOfId": zod.number().int().nullable(),
   "status": zod.enum(['pending', 'accepted', 'rejected']),
@@ -518,10 +518,10 @@ export const RejectDocumentImportItemParams = zod.object({
 export const RejectDocumentImportItemResponse = zod.object({
   "id": zod.number().int(),
   "importId": zod.number().int(),
-  "itemType": zod.enum(['health_record', 'medication', 'reminder']),
+  "itemType": zod.enum(['health_record', 'medication', 'reminder', 'vet_info']),
   "proposedData": zod.object({
 
-}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object.'),
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial object with any of vetName\/vetClinic\/vetPhone\/vetAddress (only the fields the source document actually stated).'),
   "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
   "duplicateOfId": zod.number().int().nullable(),
   "status": zod.enum(['pending', 'accepted', 'rejected']),

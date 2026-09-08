@@ -30,7 +30,13 @@ import {
   recordDocumentImportUsage,
 } from "../lib/document-import-quota";
 import { findDuplicate } from "../lib/duplicate-detection";
-import { insertHealthRecordForPet, insertMedicationForPet, insertReminderForPet } from "../lib/care-mutations";
+import {
+  VetInfoUpdateBody,
+  insertHealthRecordForPet,
+  insertMedicationForPet,
+  insertReminderForPet,
+  updatePetVetInfo,
+} from "../lib/care-mutations";
 
 const router: IRouter = Router();
 
@@ -158,7 +164,7 @@ router.post(
 
       let extraction;
       try {
-        extraction = await extractDocument(req.file);
+        extraction = await extractDocument(req.file, pet);
       } catch (error) {
         if (error instanceof TooManyPagesError || error instanceof ScannedDocumentError) {
           await deleteDocumentBestEffort(uploaded.path);
@@ -184,15 +190,26 @@ router.post(
         })
         .returning();
 
-      const candidates: { itemType: "health_record" | "medication" | "reminder"; proposedData: object }[] = [
+      const candidates: { itemType: "health_record" | "medication" | "reminder" | "vet_info"; proposedData: object }[] = [
         ...extraction.healthRecords.map((d) => ({ itemType: "health_record" as const, proposedData: d })),
         ...extraction.medications.map((d) => ({ itemType: "medication" as const, proposedData: d })),
         ...extraction.reminders.map((d) => ({ itemType: "reminder" as const, proposedData: d })),
+        // At most one — only present when extraction found vet/clinic
+        // contact info that's new or differs from the pet's current profile.
+        ...(extraction.vetInfoUpdate ? [{ itemType: "vet_info" as const, proposedData: extraction.vetInfoUpdate }] : []),
       ];
 
       const insertedItems: (typeof documentImportItems.$inferSelect)[] = [];
       for (const candidate of candidates) {
-        const duplicate = await findDuplicate(petId, candidate.itemType, candidate.proposedData as Record<string, unknown>);
+        // Duplicate detection only makes sense for record-shaped items
+        // (matched against existing rows of the same type) — a vet_info
+        // update is compared against the pet's current profile fields
+        // before it's even proposed (see buildVetInfoUpdate), not against
+        // a set of existing "vet_info records".
+        const duplicate =
+          candidate.itemType === "vet_info"
+            ? null
+            : await findDuplicate(petId, candidate.itemType, candidate.proposedData as Record<string, unknown>);
         const [item] = await db
           .insert(documentImportItems)
           .values({
@@ -298,7 +315,10 @@ router.post("/pets/:petId/document-imports/:importId/items/:itemId/accept", asyn
     const body = AcceptDocumentImportItemBody.parse(req.body ?? {});
     const dataToUse = body.proposedData ?? item.proposedData;
 
-    let createdRecordId: number;
+    // Null stays null for "vet_info" — accepting one updates the pet row
+    // directly rather than inserting a new child-table record, so there's
+    // no new record id to report.
+    let createdRecordId: number | null = null;
     try {
       if (item.itemType === "health_record") {
         const parsed = CreateHealthRecordBody.parse(dataToUse);
@@ -306,9 +326,12 @@ router.post("/pets/:petId/document-imports/:importId/items/:itemId/accept", asyn
       } else if (item.itemType === "medication") {
         const parsed = CreateMedicationBody.parse(dataToUse);
         createdRecordId = (await insertMedicationForPet(petId, parsed)).id;
-      } else {
+      } else if (item.itemType === "reminder") {
         const parsed = CreateReminderBody.parse(dataToUse);
         createdRecordId = (await insertReminderForPet(petId, parsed)).id;
+      } else {
+        const parsed = VetInfoUpdateBody.parse(dataToUse);
+        await updatePetVetInfo(petId, parsed);
       }
     } catch (error) {
       if (error instanceof Error && error.name === "ZodError") {

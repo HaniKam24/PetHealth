@@ -13,4 +13,5 @@ export const DocumentImportItemItemType = {
   health_record: 'health_record',
   medication: 'medication',
   reminder: 'reminder',
+  vet_info: 'vet_info',
 } as const;
