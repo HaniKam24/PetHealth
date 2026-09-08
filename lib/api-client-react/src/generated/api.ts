@@ -48,6 +48,8 @@ import type {
   PetUpdate,
   Reminder,
   ReminderInput,
+  SymptomLog,
+  SymptomLogInput,
   UploadHealthRecordDocumentBody
 } from './api.schemas';
 
@@ -1885,6 +1887,155 @@ export const useCreateReminder = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateReminderMutationOptions(options));
+    }
+
+export const getListSymptomLogsUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/symptom-logs`
+}
+
+/**
+ * @summary List symptom log entries for a pet
+ */
+export const listSymptomLogs = async (petId: number, options?: Parameters<typeof customFetch>[1]): Promise<SymptomLog[]> => {
+
+  return customFetch<SymptomLog[]>(getListSymptomLogsUrl(petId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSymptomLogsQueryKey = (petId: number,) => {
+    return [
+    `/api/pets/${petId}/symptom-logs`
+    ] as const;
+    }
+
+
+export const getListSymptomLogsQueryOptions = <TData = Awaited<ReturnType<typeof listSymptomLogs>>, TError = ErrorType<unknown>>(petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSymptomLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSymptomLogsQueryKey(petId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSymptomLogs>>> = ({ signal }) => listSymptomLogs(petId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: petId !== null && petId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSymptomLogs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSymptomLogsQueryResult = NonNullable<Awaited<ReturnType<typeof listSymptomLogs>>>
+export type ListSymptomLogsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List symptom log entries for a pet
+ */
+
+export function useListSymptomLogs<TData = Awaited<ReturnType<typeof listSymptomLogs>>, TError = ErrorType<unknown>>(
+ petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSymptomLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSymptomLogsQueryOptions(petId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSymptomLogUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/symptom-logs`
+}
+
+/**
+ * @summary Add a symptom log entry, optionally confirmed from an AI insight
+ */
+export const createSymptomLog = async (petId: number,
+    symptomLogInput: SymptomLogInput, options?: Parameters<typeof customFetch>[1]): Promise<SymptomLog> => {
+
+  return customFetch<SymptomLog>(getCreateSymptomLogUrl(petId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(symptomLogInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSymptomLogMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSymptomLog>>, TError,{petId: number;data: BodyType<SymptomLogInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSymptomLog>>, TError,{petId: number;data: BodyType<SymptomLogInput>}, TContext> => {
+
+const mutationKey = ['createSymptomLog'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSymptomLog>>, {petId: number;data: BodyType<SymptomLogInput>}> = (props) => {
+          const {petId,data} = props ?? {};
+
+          return  createSymptomLog(petId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSymptomLogMutationResult = NonNullable<Awaited<ReturnType<typeof createSymptomLog>>>
+    export type CreateSymptomLogMutationBody = BodyType<SymptomLogInput>
+    export type CreateSymptomLogMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a symptom log entry, optionally confirmed from an AI insight
+ */
+export const useCreateSymptomLog = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSymptomLog>>, TError,{petId: number;data: BodyType<SymptomLogInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSymptomLog>>,
+        TError,
+        {petId: number;data: BodyType<SymptomLogInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSymptomLogMutationOptions(options));
     }
 
 export const getCompleteReminderUrl = (reminderId: number,) => {

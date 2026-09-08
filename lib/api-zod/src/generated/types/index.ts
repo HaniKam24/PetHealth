@@ -64,4 +64,6 @@ export * from './reminderCategory';
 export * from './reminderInput';
 export * from './reminderInputCategory';
 export * from './reminderSource';
+export * from './symptomLog';
+export * from './symptomLogInput';
 export * from './uploadHealthRecordDocumentBody';

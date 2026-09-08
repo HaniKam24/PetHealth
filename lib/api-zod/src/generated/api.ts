@@ -734,6 +734,53 @@ export const CreateReminderResponse = zod.object({
 
 
 /**
+ * @summary List symptom log entries for a pet
+ */
+
+
+
+export const ListSymptomLogsParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+export const ListSymptomLogsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "description": zod.string(),
+  "loggedAt": zod.coerce.date(),
+  "insightId": zod.number().int().nullable()
+})
+export const ListSymptomLogsResponse = zod.array(ListSymptomLogsResponseItem)
+
+
+/**
+ * @summary Add a symptom log entry, optionally confirmed from an AI insight
+ */
+
+
+
+export const CreateSymptomLogParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const CreateSymptomLogBody = zod.object({
+  "description": zod.string().min(1),
+  "insightId": zod.number().int().nullish()
+})
+
+export const CreateSymptomLogResponse = zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "description": zod.string(),
+  "loggedAt": zod.coerce.date(),
+  "insightId": zod.number().int().nullable()
+})
+
+
+/**
  * @summary Complete a reminder
  */
 

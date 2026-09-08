@@ -1,9 +1,17 @@
 import { usePetContext } from '@/context/pet-context';
-import { useListInsights, getListInsightsQueryKey, useAskInsight } from '@workspace/api-client-react';
+import {
+  useListInsights,
+  getListInsightsQueryKey,
+  useAskInsight,
+  useListSymptomLogs,
+  getListSymptomLogsQueryKey,
+  useCreateSymptomLog,
+  type Insight,
+} from '@workspace/api-client-react';
 import { PageHeader } from '@/components/page-header';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Sparkles, Send, Bot, ShieldAlert, Heart, Activity } from 'lucide-react';
+import { Sparkles, Send, Bot, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -50,10 +58,37 @@ export default function Insights() {
     }
   });
 
+  const { data: symptomLogs } = useListSymptomLogs(
+    activePetId!,
+    { query: { enabled: !!activePetId, queryKey: activePetId ? getListSymptomLogsQueryKey(activePetId) : ['no-pet', 'symptom-logs'] } }
+  );
+  const loggedInsightIds = new Set(
+    (symptomLogs ?? []).map((log) => log.insightId).filter((id): id is number => id !== null)
+  );
+
+  const addToSymptomLog = useCreateSymptomLog({
+    mutation: {
+      onSuccess: () => {
+        if (activePetId) {
+          queryClient.invalidateQueries({ queryKey: getListSymptomLogsQueryKey(activePetId) });
+        }
+        toast({ title: "Added to symptom log", description: "You'll find it in Health Records." });
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Failed to add to symptom log.", variant: "destructive" });
+      }
+    }
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim() || !activePetId || askInsight.isPending) return;
     askInsight.mutate({ data: { petId: activePetId, question } });
+  };
+
+  const handleAddToSymptomLog = (insight: Insight) => {
+    if (!activePetId) return;
+    addToSymptomLog.mutate({ petId: activePetId, data: { description: insight.question, insightId: insight.id } });
   };
 
   if (!activePetId) return <div className="p-10 text-center text-muted-foreground mt-20">Please select or add a pet first.</div>;
@@ -139,9 +174,25 @@ export default function Insights() {
                              ))}
                            </div>
                            
-                           <div className="mt-6 pt-4 border-t border-border/50 text-xs text-muted-foreground/70 flex justify-between items-center">
+                           <div className="mt-6 pt-4 border-t border-border/50 text-xs text-muted-foreground/70 flex justify-between items-center gap-3">
                              <span>AI Generated • Not medical advice</span>
-                             <span className="capitalize">{insight.tone} priority</span>
+                             <div className="flex items-center gap-3 shrink-0">
+                               {loggedInsightIds.has(insight.id) ? (
+                                 <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
+                                   <CheckCircle2 size={14} /> Logged
+                                 </span>
+                               ) : (
+                                 <button
+                                   type="button"
+                                   onClick={() => handleAddToSymptomLog(insight)}
+                                   disabled={addToSymptomLog.isPending}
+                                   className="flex items-center gap-1.5 font-medium text-primary hover:underline disabled:opacity-50"
+                                 >
+                                   <ClipboardPlus size={14} /> Add to symptom log
+                                 </button>
+                               )}
+                               <span className="capitalize">{insight.tone} priority</span>
+                             </div>
                            </div>
                         </div>
                       </div>

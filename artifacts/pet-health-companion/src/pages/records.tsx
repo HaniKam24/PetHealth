@@ -7,6 +7,8 @@ import {
   useDeleteHealthRecord,
   useUploadHealthRecordDocument,
   getHealthRecordDocumentUrl,
+  useListSymptomLogs,
+  getListSymptomLogsQueryKey,
   type HealthRecord,
 } from '@workspace/api-client-react';
 import { PageHeader } from '@/components/page-header';
@@ -18,7 +20,7 @@ import { format, parseISO } from 'date-fns';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, FileText, Syringe, Stethoscope, TestTube, Activity, X, Pencil, Trash2, Paperclip, Link2, Upload, Loader2 } from 'lucide-react';
+import { Plus, Search, FileText, Syringe, Stethoscope, TestTube, Activity, X, Pencil, Trash2, Paperclip, Link2, Upload, Loader2, ClipboardList } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -105,6 +107,16 @@ export default function Records() {
       query: {
         enabled: !!activePetId,
         queryKey: activePetId ? getListHealthRecordsQueryKey(activePetId) : ['no-pet', 'records']
+      }
+    }
+  );
+
+  const { data: symptomLogs } = useListSymptomLogs(
+    activePetId!,
+    {
+      query: {
+        enabled: !!activePetId,
+        queryKey: activePetId ? getListSymptomLogsQueryKey(activePetId) : ['no-pet', 'symptom-logs']
       }
     }
   );
@@ -359,6 +371,32 @@ export default function Records() {
           </button>
         )}
       </div>
+
+      {symptomLogs && symptomLogs.length > 0 && (
+        <div className="mb-8 bg-card border border-border rounded-3xl p-6 md:p-8 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-accent text-primary flex items-center justify-center shrink-0">
+              <ClipboardList size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-medium text-foreground">Symptom Log</h3>
+              <p className="text-sm text-muted-foreground">Symptoms noted from AI Health Assistant conversations.</p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {[...symptomLogs]
+              .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
+              .map((log) => (
+                <div key={log.id} className="flex items-start justify-between gap-4 bg-background border border-border/50 rounded-2xl px-4 py-3">
+                  <p className="text-foreground/90 leading-relaxed">{log.description}</p>
+                  <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap pt-0.5">
+                    {format(new Date(log.loggedAt), 'MMM d, yyyy')}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-4">

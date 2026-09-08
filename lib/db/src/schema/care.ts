@@ -98,3 +98,14 @@ export const insights = pgTable("insights", {
   // is a UI-styling spectrum: helpful/watch/urgent).
   kind: text("kind", { enum: ["chat", "escalation"] }).notNull().default("chat"),
 });
+
+export const symptomLogs = pgTable("symptom_logs", {
+  id: serial("id").primaryKey(),
+  petId: integer("pet_id").notNull().references(() => pets.id, { onDelete: "cascade" }),
+  description: text("description").notNull(),
+  loggedAt: timestamp("logged_at", { withTimezone: true }).notNull().defaultNow(),
+  // The insights row this was confirmed from, if any — nullable because a
+  // future direct-entry path (or the insight itself being pruned) shouldn't
+  // orphan the log.
+  insightId: integer("insight_id").references(() => insights.id, { onDelete: "set null" }),
+});
