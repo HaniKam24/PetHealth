@@ -163,11 +163,17 @@ router.post(
       try {
         extraction = await extractDocument(req.file, pet.name);
       } catch (error) {
-        if (
-          error instanceof TooManyPagesError ||
-          error instanceof ScannedDocumentError ||
-          error instanceof PetNameMismatchError
-        ) {
+        if (error instanceof PetNameMismatchError) {
+          // Tagged with a code (unlike the other 400 cases below) so the
+          // client can single this one out and show it as a prominent
+          // dialog instead of an easy-to-miss toast — this is the one
+          // upload failure that means "you probably grabbed the wrong
+          // file," not just "this file didn't work."
+          await deleteDocumentBestEffort(uploaded.path);
+          res.status(400).json({ error: error.message, code: "pet_name_mismatch" });
+          return;
+        }
+        if (error instanceof TooManyPagesError || error instanceof ScannedDocumentError) {
           await deleteDocumentBestEffort(uploaded.path);
           res.status(400).json({ error: error.message });
           return;
