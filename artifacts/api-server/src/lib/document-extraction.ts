@@ -1,6 +1,8 @@
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { PDFParse } from "pdf-parse";
-import { openai } from "@workspace/integrations-openai-ai-server";
+import convertHeic from "heic-convert";
+import { anthropic } from "@workspace/integrations-anthropic-ai-server";
 import { CreateHealthRecordBody, CreateMedicationBody, CreateReminderBody } from "@workspace/api-zod";
 import type { z } from "zod";
 
@@ -12,14 +14,20 @@ import type { z } from "zod";
 // pdfjs-dist is only a transitive dependency (via pdf-parse), so pnpm's strict
 // node_modules layout blocks resolving it directly from this package's scope —
 // resolve it relative to pdf-parse's own location instead.
+//
+// require.resolve() returns a plain OS path (on Windows, "C:\...\pdf.worker.mjs").
+// pdfjs loads the worker via the ESM loader, which requires an actual file://
+// URL — a bare Windows path fails with "Received protocol 'c:'". pathToFileURL
+// converts correctly on both Windows and POSIX.
 const require = createRequire(import.meta.url);
 const pdfParseEntry = require.resolve("pdf-parse");
-PDFParse.setWorker(createRequire(pdfParseEntry).resolve("pdfjs-dist/legacy/build/pdf.worker.mjs"));
+const workerPath = createRequire(pdfParseEntry).resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
+PDFParse.setWorker(pathToFileURL(workerPath).href);
 
 // Same low-cost model tier as symptom chat / the AI insights route — the
 // Care Recommendations Engine (rule-based) is the one AI feature in this
 // app that costs nothing per run; this and chat are the two that do.
-const MODEL = "gpt-5.4-mini";
+const MODEL = "claude-haiku-4-5";
 const MAX_PAGES = 20;
 // Below this, a "text-based" PDF is almost certainly a scanned image with
 // no real text layer — not a precise detector, just a cheap first filter.
@@ -35,7 +43,7 @@ interface UploadedFile {
 
 async function readContent(
   file: UploadedFile,
-): Promise<{ kind: "text"; text: string } | { kind: "image"; dataUrl: string }> {
+): Promise<{ kind: "text"; text: string } | { kind: "image"; mimetype: string; base64: string }> {
   if (file.mimetype === "application/pdf") {
     const parser = new PDFParse({ data: file.buffer });
     try {
@@ -55,7 +63,14 @@ async function readContent(
       await parser.destroy();
     }
   }
-  return { kind: "image", dataUrl: `data:${file.mimetype};base64,${file.buffer.toString("base64")}` };
+  // Claude's vision input doesn't accept HEIC/HEIF (the format iPhone camera
+  // photos use by default), even though it's an allowed upload type — convert
+  // to JPEG first so an iPhone photo of a vet report is actually readable.
+  if (file.mimetype === "image/heic" || file.mimetype === "image/heif") {
+    const jpegBuffer = Buffer.from(await convertHeic({ buffer: file.buffer, format: "JPEG", quality: 0.92 }));
+    return { kind: "image", mimetype: "image/jpeg", base64: jpegBuffer.toString("base64") };
+  }
+  return { kind: "image", mimetype: file.mimetype, base64: file.buffer.toString("base64") };
 }
 
 const SYSTEM_PROMPT = `You are a document-extraction assistant for a pet health records app. You will be given the text or an image of a veterinary report. Extract ONLY information explicitly present in the document — never invent, guess, or infer facts that aren't stated. If the document is unrelated to pet health, or unreadable, return all three arrays empty.
@@ -81,6 +96,21 @@ export interface ExtractionResult {
   reminders: z.infer<typeof CreateReminderBody>[];
 }
 
+// Despite the system prompt's "no markdown fences" instruction, Claude
+// sometimes wraps the JSON in a ```json ... ``` code fence anyway — a plain
+// JSON.parse on that throws and (by design) silently falls back to "no items
+// found" rather than erroring, which made a real, correct extraction look
+// like an empty one. Strip a fence if present before parsing.
+function parseJsonObject(raw: string): unknown {
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  const candidate = fenced ? fenced[1] : raw;
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return {};
+  }
+}
+
 function parseArray<T>(value: unknown, parseOne: (item: unknown) => T | null): T[] {
   if (!Array.isArray(value)) return [];
   const out: T[] = [];
@@ -91,34 +121,38 @@ function parseArray<T>(value: unknown, parseOne: (item: unknown) => T | null): T
   return out;
 }
 
+// Claude's vision input only accepts these four formats — narrower than
+// ALLOWED_DOCUMENT_MIME_TYPES (which also allows image/heic for the upload
+// itself). A HEIC upload still gets stored, but extraction on it fails with
+// a clean error (via the global error handler) rather than a silent guess.
+type ImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+
 export async function extractDocument(file: UploadedFile): Promise<ExtractionResult> {
   const content = await readContent(file);
 
-  const completion = await openai.chat.completions.create({
+  const completion = await anthropic.messages.create({
     model: MODEL,
-    max_completion_tokens: 4096,
-    response_format: { type: "json_object" },
+    max_tokens: 4096,
+    system: SYSTEM_PROMPT,
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
       content.kind === "text"
         ? { role: "user", content: `Vet report text:\n\n${content.text}` }
         : {
             role: "user",
             content: [
               { type: "text", text: "Extract structured info from this vet report image." },
-              { type: "image_url", image_url: { url: content.dataUrl } },
+              {
+                type: "image",
+                source: { type: "base64", media_type: content.mimetype as ImageMediaType, data: content.base64 },
+              },
             ],
           },
     ],
   });
 
-  const raw = completion.choices[0]?.message?.content ?? "{}";
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    parsed = {};
-  }
+  const textBlock = completion.content.find((block) => block.type === "text");
+  const raw = textBlock?.text ?? "{}";
+  const parsed = parseJsonObject(raw);
   const obj = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
 
   return {

@@ -2,10 +2,10 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 const BUCKET = "health-record-documents";
-// The bucket is private (not publicly readable) — every document is served
-// via a signed URL. Ten years is effectively "doesn't expire" for an MVP
-// without a signed-URL-refresh flow, while still not being a truly public link.
-const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 365 * 10;
+// Short-lived by design: URLs are minted on demand each time a document is
+// actually viewed (see createSignedDocumentUrl), not once at upload time.
+// A leaked link expires on its own instead of staying valid for years.
+const DEFAULT_SIGNED_URL_TTL_SECONDS = 60 * 60;
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -47,10 +47,13 @@ export interface UploadedFile {
   mimetype: string;
 }
 
+// Uploads the file and returns its private storage path — deliberately not a
+// URL. Callers persist the path and mint a fresh signed URL only when a
+// document is actually viewed, via createSignedDocumentUrl.
 export async function uploadHealthRecordDocument(
   petId: number,
   file: UploadedFile,
-): Promise<{ url: string; name: string }> {
+): Promise<{ path: string; name: string }> {
   await ensureBucket();
 
   const ext = file.originalname.includes(".")
@@ -65,12 +68,27 @@ export async function uploadHealthRecordDocument(
     throw uploadError;
   }
 
-  const { data, error: signError } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
-  if (signError || !data) {
-    throw signError ?? new Error("Failed to create a signed URL for the upload.");
-  }
+  return { path, name: file.originalname };
+}
 
-  return { url: data.signedUrl, name: file.originalname };
+export async function createSignedDocumentUrl(
+  path: string,
+  ttlSeconds: number = DEFAULT_SIGNED_URL_TTL_SECONDS,
+): Promise<string> {
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(path, ttlSeconds);
+  if (error || !data) {
+    throw error ?? new Error("Failed to create a signed URL for the document.");
+  }
+  return data.signedUrl;
+}
+
+// Best-effort: callers should catch and log rather than fail a request whose
+// primary (DB) effect already succeeded.
+export async function deleteDocument(path: string): Promise<void> {
+  const { error } = await supabase.storage.from(BUCKET).remove([path]);
+  if (error) {
+    throw error;
+  }
 }
