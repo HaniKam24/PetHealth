@@ -35,6 +35,7 @@ const MIN_TEXT_LENGTH = 40;
 
 export class TooManyPagesError extends Error {}
 export class ScannedDocumentError extends Error {}
+export class PetNameMismatchError extends Error {}
 
 interface UploadedFile {
   buffer: Buffer;
@@ -75,15 +76,17 @@ async function readContent(
 
 const SYSTEM_PROMPT = `You are a document-extraction assistant for a pet health records app. You will be given the text or an image of a veterinary report. Extract ONLY information explicitly present in the document — never invent, guess, or infer facts that aren't stated. If the document is unrelated to pet health, or unreadable, return all three arrays empty.
 
-Return a single JSON object with exactly these three arrays (empty if nothing applies):
+Return a single JSON object with exactly these four fields:
 
 {
+  "patientName": string|null,
   "healthRecords": [ { "type": "visit"|"vaccine"|"lab"|"procedure"|"note", "title": string, "date": "YYYY-MM-DD", "clinic": string|null, "summary": string|null } ],
   "medications": [ { "name": string, "dose": string, "frequency": string, "doseIntervalValue": number|null, "doseIntervalUnit": "hours"|"days"|"weeks"|"months"|null, "instructions": string|null } ],
   "reminders": [ { "title": string, "dueDate": "YYYY-MM-DD", "category": "appointment"|"vaccine"|"medication"|"wellness"|"other", "note": string|null } ]
 }
 
 Rules:
+- patientName: the pet/patient's name exactly as written in the document (e.g. next to "Patient:", "Pet Name:", or similar). null if the document doesn't state one or it's illegible — never guess.
 - healthRecords: one entry per distinct visit/vaccine/lab/procedure/note documented. "type" must be exactly one of the listed values — pick the closest match (an exam/checkup is "visit", a vaccination is "vaccine").
 - medications: one entry per medication/prescription mentioned, "dose" as written (e.g. "5mg", "1 tablet"). Only set doseIntervalValue/doseIntervalUnit if the document states a clear fixed interval (e.g. "twice daily" -> 12/"hours", "every 30 days" -> 30/"days"); otherwise leave both null and describe the schedule in "frequency" as free text.
 - reminders: only include a follow-up if the document explicitly states one is needed (e.g. "recheck in 2 weeks", "next booster due March 2027"). Compute "dueDate" as an absolute date from the document's own dated context; omit the reminder if no date can be determined.
@@ -121,13 +124,33 @@ function parseArray<T>(value: unknown, parseOne: (item: unknown) => T | null): T
   return out;
 }
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Loose on purpose: word-boundary substring match in either direction, so
+// "Milo" matches a document that says "Milo" or "Milo (Canine)" or "Milo
+// Smith", not just an exact string. A name the document never states at all
+// (patientName null) is not treated as a mismatch — plenty of real reports
+// don't repeat the pet's name anywhere machine-readable, and that's not
+// evidence it's the wrong pet.
+function namesLikelyMatch(expectedPetName: string, documentPatientName: string): boolean {
+  const a = expectedPetName.trim().toLowerCase();
+  const b = documentPatientName.trim().toLowerCase();
+  if (!a || !b) return true;
+  if (a === b) return true;
+  const aInB = new RegExp(`\\b${escapeRegExp(a)}\\b`).test(b);
+  const bInA = new RegExp(`\\b${escapeRegExp(b)}\\b`).test(a);
+  return aInB || bInA;
+}
+
 // Claude's vision input only accepts these four formats — narrower than
 // ALLOWED_DOCUMENT_MIME_TYPES (which also allows image/heic for the upload
 // itself). A HEIC upload still gets stored, but extraction on it fails with
 // a clean error (via the global error handler) rather than a silent guess.
 type ImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
-export async function extractDocument(file: UploadedFile): Promise<ExtractionResult> {
+export async function extractDocument(file: UploadedFile, expectedPetName: string): Promise<ExtractionResult> {
   const content = await readContent(file);
 
   const completion = await anthropic.messages.create({
@@ -154,6 +177,13 @@ export async function extractDocument(file: UploadedFile): Promise<ExtractionRes
   const raw = textBlock?.text ?? "{}";
   const parsed = parseJsonObject(raw);
   const obj = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
+
+  const patientName = typeof obj.patientName === "string" ? obj.patientName.trim() : "";
+  if (patientName && !namesLikelyMatch(expectedPetName, patientName)) {
+    throw new PetNameMismatchError(
+      `This document appears to be for a pet named "${patientName}", not ${expectedPetName}. Please double-check you're uploading the correct report.`,
+    );
+  }
 
   return {
     healthRecords: parseArray(obj.healthRecords, (item) => {

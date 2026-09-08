@@ -17,6 +17,7 @@ import { ALLOWED_DOCUMENT_MIME_TYPES, handleSingleFileUpload } from "../lib/uplo
 import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument } from "../lib/storage";
 import { logger } from "../lib/logger";
 import {
+  PetNameMismatchError,
   ScannedDocumentError,
   TooManyPagesError,
   extractDocument,
@@ -158,9 +159,13 @@ router.post(
 
       let extraction;
       try {
-        extraction = await extractDocument(req.file);
+        extraction = await extractDocument(req.file, pet.name);
       } catch (error) {
-        if (error instanceof TooManyPagesError || error instanceof ScannedDocumentError) {
+        if (
+          error instanceof TooManyPagesError ||
+          error instanceof ScannedDocumentError ||
+          error instanceof PetNameMismatchError
+        ) {
           await deleteDocumentBestEffort(uploaded.path);
           res.status(400).json({ error: error.message });
           return;
