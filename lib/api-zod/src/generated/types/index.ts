@@ -37,6 +37,7 @@ export * from './healthRecordType';
 export * from './healthRecordUpdate';
 export * from './healthStatus';
 export * from './insight';
+export * from './insightKind';
 export * from './insightQuestion';
 export * from './insightSource';
 export * from './insightTone';

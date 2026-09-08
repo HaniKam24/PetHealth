@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { InsightKind } from './insightKind';
 import type { InsightSource } from './insightSource';
 import type { InsightTone } from './insightTone';
 
@@ -13,8 +14,12 @@ export interface Insight {
   petId: number;
   title: string;
   content: string;
+  /** The owner's original question. */
+  question: string;
   tone: InsightTone;
   source: InsightSource;
   createdAt: Date;
   disclaimer: string;
+  /** Whether a red flag short-circuited this to an escalation response. */
+  kind: InsightKind;
 }

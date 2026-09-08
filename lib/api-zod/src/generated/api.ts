@@ -826,10 +826,12 @@ export const GetDashboardSummaryResponse = zod.object({
   "petId": zod.number().int(),
   "title": zod.string(),
   "content": zod.string(),
+  "question": zod.string().describe('The owner\'s original question.'),
   "tone": zod.enum(['helpful', 'watch', 'urgent']),
   "source": zod.enum(['ai', 'record', 'reminder']),
   "createdAt": zod.coerce.date(),
-  "disclaimer": zod.string()
+  "disclaimer": zod.string(),
+  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.')
 })),
   "stats": zod.object({
   "recordCount": zod.number().int(),
@@ -854,10 +856,12 @@ export const ListInsightsResponseItem = zod.object({
   "petId": zod.number().int(),
   "title": zod.string(),
   "content": zod.string(),
+  "question": zod.string().describe('The owner\'s original question.'),
   "tone": zod.enum(['helpful', 'watch', 'urgent']),
   "source": zod.enum(['ai', 'record', 'reminder']),
   "createdAt": zod.coerce.date(),
-  "disclaimer": zod.string()
+  "disclaimer": zod.string(),
+  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.')
 })
 export const ListInsightsResponse = zod.array(ListInsightsResponseItem)
 
@@ -878,10 +882,12 @@ export const AskInsightResponse = zod.object({
   "petId": zod.number().int(),
   "title": zod.string(),
   "content": zod.string(),
+  "question": zod.string().describe('The owner\'s original question.'),
   "tone": zod.enum(['helpful', 'watch', 'urgent']),
   "source": zod.enum(['ai', 'record', 'reminder']),
   "createdAt": zod.coerce.date(),
-  "disclaimer": zod.string()
+  "disclaimer": zod.string(),
+  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.')
 })
 
 

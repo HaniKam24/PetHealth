@@ -499,15 +499,30 @@ export const InsightSource = {
   reminder: 'reminder',
 } as const;
 
+/**
+ * Whether a red flag short-circuited this to an escalation response.
+ */
+export type InsightKind = typeof InsightKind[keyof typeof InsightKind];
+
+
+export const InsightKind = {
+  chat: 'chat',
+  escalation: 'escalation',
+} as const;
+
 export interface Insight {
   id: number;
   petId: number;
   title: string;
   content: string;
+  /** The owner's original question. */
+  question: string;
   tone: InsightTone;
   source: InsightSource;
   createdAt: string;
   disclaimer: string;
+  /** Whether a red flag short-circuited this to an escalation response. */
+  kind: InsightKind;
 }
 
 export interface InsightQuestion {
