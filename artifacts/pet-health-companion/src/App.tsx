@@ -15,6 +15,7 @@ import Records from '@/pages/records';
 import Medications from '@/pages/medications';
 import Reminders from '@/pages/reminders';
 import Insights from '@/pages/insights';
+import SmartUpload from '@/pages/smart-upload';
 import Profile from '@/pages/profile';
 import Login from '@/pages/login';
 import Signup from '@/pages/signup';
@@ -40,6 +41,7 @@ function AuthedApp() {
           <Route path="/medications" component={Medications} />
           <Route path="/reminders" component={Reminders} />
           <Route path="/insights" component={Insights} />
+          <Route path="/smart-upload" component={SmartUpload} />
           <Route path="/profile" component={Profile} />
           <Route component={NotFound} />
         </Switch>

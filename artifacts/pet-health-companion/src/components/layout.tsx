@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, FileText, Pill, Bell, Sparkles, User, Plus, HeartPulse, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, Pill, Bell, Sparkles, User, Plus, HeartPulse, LogOut, UploadCloud } from 'lucide-react';
 import { usePetContext } from '@/context/pet-context';
 import { useListPets } from '@workspace/api-client-react';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { href: '/medications', label: 'Medications', icon: Pill },
     { href: '/reminders', label: 'Reminders', icon: Bell },
     { href: '/insights', label: 'AI Insights', icon: Sparkles },
+    { href: '/smart-upload', label: 'Smart Upload', icon: UploadCloud },
     { href: '/profile', label: 'Pet Profile', icon: User },
   ];
 

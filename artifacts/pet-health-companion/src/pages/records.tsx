@@ -6,6 +6,7 @@ import {
   useUpdateHealthRecord,
   useDeleteHealthRecord,
   useUploadHealthRecordDocument,
+  getHealthRecordDocumentUrl,
   type HealthRecord,
 } from '@workspace/api-client-react';
 import { PageHeader } from '@/components/page-header';
@@ -84,7 +85,17 @@ export default function Records() {
   const [deletingRecord, setDeletingRecord] = useState<HealthRecord | null>(null);
   const [attachMode, setAttachMode] = useState<'link' | 'upload'>('link');
   const [documentUrl, setDocumentUrl] = useState('');
+  // Storage path from an upload this session — never the record's existing
+  // path, which isn't exposed to the client (only a fresh signed URL is,
+  // fetched on demand via handleViewDocument).
+  const [documentPath, setDocumentPath] = useState('');
   const [documentName, setDocumentName] = useState('');
+  // Only true once the owner actually touches the attachment control this
+  // edit session — lets onSubmit omit document* fields entirely when
+  // untouched, so an unrelated edit (e.g. fixing a typo in notes) never
+  // clears an existing attachment whose real value isn't loaded into state.
+  const [documentChanged, setDocumentChanged] = useState(false);
+  const [openingDocumentId, setOpeningDocumentId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -109,7 +120,9 @@ export default function Records() {
     setEditingRecord(null);
     setAttachMode('link');
     setDocumentUrl('');
+    setDocumentPath('');
     setDocumentName('');
+    setDocumentChanged(false);
     form.reset(EMPTY_RECORD);
   };
 
@@ -155,8 +168,9 @@ export default function Records() {
   const uploadDocument = useUploadHealthRecordDocument({
     mutation: {
       onSuccess: (result) => {
-        setDocumentUrl(result.url);
+        setDocumentPath(result.path);
         setDocumentName(result.name);
+        setDocumentChanged(true);
       },
       onError: () => {
         toast({ title: "Error", description: "Failed to upload the file.", variant: "destructive" });
@@ -180,8 +194,10 @@ export default function Records() {
         summary: editingRecord.summary || '',
       });
       setAttachMode(editingRecord.documentType === 'upload' ? 'upload' : 'link');
-      setDocumentUrl(editingRecord.documentUrl || '');
-      setDocumentName(editingRecord.documentName || '');
+      setDocumentUrl(editingRecord.documentType === 'link' ? editingRecord.documentUrl || '' : '');
+      setDocumentPath('');
+      setDocumentName(editingRecord.documentType === 'upload' ? editingRecord.documentName || '' : '');
+      setDocumentChanged(false);
     }
   }, [editingRecord, form]);
 
@@ -215,12 +231,27 @@ export default function Records() {
   const isSaving = createRecord.isPending || updateRecord.isPending;
 
   const onSubmit = (data: RecordFormValues) => {
-    const payload = {
-      ...data,
-      documentUrl: documentUrl || null,
-      documentType: documentUrl ? attachMode : null,
-      documentName: attachMode === 'upload' && documentUrl ? documentName || null : null,
-    };
+    // Omit document* fields entirely when the attachment wasn't touched this
+    // session (edit only) — a PATCH with these keys absent leaves the
+    // existing attachment untouched, rather than clearing it using empty
+    // client-side state that was never loaded with the real value.
+    const documentFields =
+      !editingRecord || documentChanged
+        ? attachMode === 'link'
+          ? {
+              documentUrl: documentUrl || null,
+              documentType: (documentUrl ? 'link' : null) as 'link' | null,
+              documentStoragePath: null,
+              documentName: null,
+            }
+          : {
+              documentStoragePath: documentPath || null,
+              documentType: (documentPath ? 'upload' : null) as 'upload' | null,
+              documentName: documentPath ? documentName || null : null,
+              documentUrl: null,
+            }
+        : {};
+    const payload = { ...data, ...documentFields };
     if (editingRecord) {
       updateRecord.mutate({ petId: activePetId, recordId: editingRecord.id, data: payload });
     } else {
@@ -237,6 +268,23 @@ export default function Records() {
       return;
     }
     uploadDocument.mutate({ petId: activePetId, data: { file } });
+  };
+
+  const handleViewDocument = async (record: HealthRecord) => {
+    if (openingDocumentId) return;
+    // Open the tab synchronously within the click gesture so browsers don't
+    // treat the post-await redirect as a blocked popup.
+    const tab = window.open('', '_blank', 'noopener,noreferrer');
+    setOpeningDocumentId(record.id);
+    try {
+      const { url } = await getHealthRecordDocumentUrl(activePetId!, record.id);
+      if (tab) tab.location.href = url;
+    } catch {
+      tab?.close();
+      toast({ title: "Error", description: "Failed to open the document.", variant: "destructive" });
+    } finally {
+      setOpeningDocumentId(null);
+    }
   };
 
   return (
@@ -397,16 +445,16 @@ export default function Records() {
                     </p>
                   )}
 
-                  {record.documentUrl && (
-                    <a
-                      href={record.documentUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                  {(record.documentType === 'upload' || (record.documentType === 'link' && record.documentUrl)) && (
+                    <button
+                      type="button"
+                      onClick={() => handleViewDocument(record)}
+                      disabled={openingDocumentId === record.id}
+                      className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline disabled:opacity-60"
                     >
-                      <Paperclip size={14} />
+                      {openingDocumentId === record.id ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
                       {record.documentType === 'upload' ? (record.documentName || 'View document') : 'View linked document'}
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>
@@ -541,7 +589,10 @@ export default function Records() {
                     type="url"
                     placeholder="https://..."
                     value={documentUrl}
-                    onChange={(e) => setDocumentUrl(e.target.value)}
+                    onChange={(e) => {
+                      setDocumentUrl(e.target.value);
+                      setDocumentChanged(true);
+                    }}
                     className="h-12 bg-accent/50"
                   />
                 ) : (
@@ -568,8 +619,9 @@ export default function Records() {
                         <button
                           type="button"
                           onClick={() => {
-                            setDocumentUrl('');
+                            setDocumentPath('');
                             setDocumentName('');
+                            setDocumentChanged(true);
                             if (fileInputRef.current) fileInputRef.current.value = '';
                           }}
                           className="text-muted-foreground hover:text-destructive"
