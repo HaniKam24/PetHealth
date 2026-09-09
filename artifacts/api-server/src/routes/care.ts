@@ -45,6 +45,7 @@ import { anthropic } from "@workspace/integrations-anthropic-ai-server";
 import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument } from "../lib/storage";
 import { runCareRecommendationsEngine } from "../lib/care-recommendations";
 import { buildEscalationMessage, isRedFlagQuestion } from "../lib/symptom-escalation";
+import { assertChatQuotaAvailable, ChatQuotaExceededError, getChatQuota, recordChatUsage } from "../lib/chat-quota";
 import { ALLOWED_DOCUMENT_MIME_TYPES, handleSingleFileUpload } from "../lib/upload-middleware";
 import { logger } from "../lib/logger";
 
@@ -636,8 +637,9 @@ router.get("/insights", async (req, res, next) => {
     const userId = requireUserId(req);
     const { petId } = ListInsightsQueryParams.parse(req.query);
     const ownedIds = await getOwnedPetIds(userId);
+    const quota = await getChatQuota(userId);
     if (ownedIds.length === 0) {
-      res.json([]);
+      res.json({ insights: [], quota });
       return;
     }
     if (petId && !ownedIds.includes(petId)) {
@@ -651,7 +653,7 @@ router.get("/insights", async (req, res, next) => {
       .where(condition)
       .orderBy(desc(insights.createdAt))
       .limit(12);
-    res.json(rows.map(asInsight));
+    res.json({ insights: rows.map(asInsight), quota });
   } catch (error) {
     next(error);
   }
@@ -673,6 +675,9 @@ router.post("/insights", async (req, res, next) => {
     }
 
     // Red flags short-circuit before any AI call — see symptom-escalation.ts.
+    // This never draws on the chat quota below: it's a deterministic,
+    // zero-AI-cost message, and a maxed-out quota must never block a
+    // genuine emergency escalation.
     if (isRedFlagQuestion(question)) {
       const [created] = await db
         .insert(insights)
@@ -687,8 +692,18 @@ router.post("/insights", async (req, res, next) => {
           disclaimer: DISCLAIMER,
         })
         .returning();
-      res.json(asInsight(created!));
+      res.json({ insight: asInsight(created!), quota: await getChatQuota(userId) });
       return;
+    }
+
+    try {
+      await assertChatQuotaAvailable(userId);
+    } catch (error) {
+      if (error instanceof ChatQuotaExceededError) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      throw error;
     }
 
     const records = await db
@@ -743,7 +758,8 @@ router.post("/insights", async (req, res, next) => {
         disclaimer: DISCLAIMER,
       })
       .returning();
-    res.json(asInsight(created!));
+    await recordChatUsage(userId);
+    res.json({ insight: asInsight(created!), quota: await getChatQuota(userId) });
   } catch (error) {
     next(error);
   }

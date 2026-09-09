@@ -551,13 +551,11 @@ paths:
         - $ref: "#/components/parameters/PetIdQuery"
       responses:
         "200":
-          description: Recent insights
+          description: Recent insights and the account's current monthly chat quota
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Insight"
+                $ref: "#/components/schemas/InsightListResponse"
     post:
       operationId: askInsight
       tags: [insights]
@@ -570,11 +568,17 @@ paths:
               $ref: "#/components/schemas/InsightQuestion"
       responses:
         "200":
-          description: AI guidance
+          description: AI guidance and the account's chat quota after this question. A red-flag escalation never draws on the quota.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Insight"
+                $ref: "#/components/schemas/InsightResponse"
+        "400":
+          description: Account has used all of this month's AI chat questions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   parameters:
     PetId:
@@ -884,6 +888,28 @@ components:
         disclaimer: { type: string }
         kind: { type: string, enum: [chat, escalation], description: "Whether a red flag short-circuited this to an escalation response." }
       required: [id, petId, title, content, question, tone, source, createdAt, disclaimer, kind]
+    ChatQuota:
+      type: object
+      description: A single account-wide monthly allowance for symptom-chat AI questions (50/month), separate from the document-import lanes in DocumentImportQuota. A red-flag escalation never draws on this.
+      properties:
+        used: { type: integer }
+        limit: { type: integer }
+        remaining: { type: integer }
+      required: [used, limit, remaining]
+    InsightListResponse:
+      type: object
+      properties:
+        insights:
+          type: array
+          items: { $ref: "#/components/schemas/Insight" }
+        quota: { $ref: "#/components/schemas/ChatQuota" }
+      required: [insights, quota]
+    InsightResponse:
+      type: object
+      properties:
+        insight: { $ref: "#/components/schemas/Insight" }
+        quota: { $ref: "#/components/schemas/ChatQuota" }
+      required: [insight, quota]
     InsightQuestion:
       type: object
       properties:
