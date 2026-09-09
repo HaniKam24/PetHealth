@@ -1,12 +1,14 @@
 # Pet Health Companion — Product Requirements
 
-**Status:** Draft v1.2 (MVP scope confirmed via stakeholder Q&A)
+**Status:** Draft v1.3 (MVP scope confirmed via stakeholder Q&A)
 **Prepared:** 2026-09-06
 **Stage:** Phase 0 → 1
 **Live version:** https://claude.ai/code/artifact/6e021d93-7e21-4b48-81a4-f36196d44962
 
 An owner-first hub for pet medical history, reminders, and cautious AI-assisted insight — built the way a family keeps a paper vet folder, made searchable, shared, and a little smarter.
 
+> **v1.3 changelog:** Fixed a roadmap inconsistency — Bolt 13 (co-owner invites) had been listed under Phase 2, contradicting the Phase 3 "designed for, not built" status already given to the co-owner persona (section 2) and its P3 tag (section 5). Moved it to Phase 3 to match; no scope change otherwise.
+>
 > **v1.2 changelog:** Added **Smart Document Upload** — upload a vet visit report and the AI proposes health records, medications, and reminders to add, which the owner reviews and confirms rather than the app writing them automatically. Introduced a two-lane usage quota (one-time onboarding-import allowance + smaller ongoing monthly allowance) so backfilling years of history doesn't compete with steady-state usage. Unit economics were checked (~$0.10–0.15/month even at full quota usage on a low-cost model tier) — the quota is an abuse/storage guardrail, not a margin necessity.
 >
 > **v1.1 changelog:** MVP scope was walked through question-by-question rather than assumed. Attachments (upload *and* link) and a rule-based care-recommendation engine moved **into** MVP; a symptom log and vet-contact field were added; AI chat usage is quota-governed; monetization/tiering was explicitly pushed **out** of MVP.
@@ -231,9 +233,9 @@ flowchart LR
 **Phase 2 — Depth** *(next)*
 - Bolt 11 — Email digest + recurring reminders
 - Bolt 12 — Trend insights (weight, adherence) with Recharts
-- Bolt 13 — Co-owner invites on `pet_owners`
 
 **Phase 3 — Platform** *(later)*
+- Bolt 13 — Co-owner invites on `pet_owners` — matches the "designed for, not built" status already given to the co-owner persona in section 2 and the P3 tag in section 5; kept here rather than Phase 2 despite the schema already being multi-owner-shaped
 - Bolt 14 — Verified clinic accounts, read-only share links
 - Bolt 15 — Native mobile / push notifications
 - Bolt 16 — One-click PDF record export for vet visits
