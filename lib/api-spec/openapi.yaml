@@ -444,6 +444,22 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           $ref: "#/components/responses/NotFound"
+  /pets/{petId}/trends:
+    get:
+      operationId: getPetTrends
+      tags: [pets]
+      summary: Get weight history and medication adherence trends for a pet
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          description: Trend data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PetTrends"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /pets/{petId}/reminders:
     get:
       operationId: listReminders
@@ -853,6 +869,36 @@ components:
       allOf:
         - $ref: "#/components/schemas/MedicationInput"
       description: Updated medication fields
+    WeightLog:
+      type: object
+      description: Auto-recorded whenever a pet's weight is set or changed via the pet create/update routes — no separate logging action.
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        weight: { type: number }
+        weightUnit: { type: string, enum: [lb, kg] }
+        recordedAt: { type: string, format: date-time }
+      required: [id, petId, weight, weightUnit, recordedAt]
+    MedicationAdherence:
+      type: object
+      description: Frequency-based over the trailing 30 days — doses logged ÷ doses expected from the medication's structured interval, capped at 100%. Only computed for active medications with a structured interval set.
+      properties:
+        medicationId: { type: integer }
+        medicationName: { type: string }
+        adherencePercent: { type: integer, minimum: 0, maximum: 100 }
+        dosesLogged: { type: integer }
+        dosesExpected: { type: integer }
+      required: [medicationId, medicationName, adherencePercent, dosesLogged, dosesExpected]
+    PetTrends:
+      type: object
+      properties:
+        weightLogs:
+          type: array
+          items: { $ref: "#/components/schemas/WeightLog" }
+        medicationAdherence:
+          type: array
+          items: { $ref: "#/components/schemas/MedicationAdherence" }
+      required: [weightLogs, medicationAdherence]
     Reminder:
       type: object
       properties:

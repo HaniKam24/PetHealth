@@ -109,3 +109,25 @@ export const symptomLogs = pgTable("symptom_logs", {
   // orphan the log.
   insightId: integer("insight_id").references(() => insights.id, { onDelete: "set null" }),
 });
+
+// Auto-recorded by routes/care.ts whenever a pet's weight is set or changed
+// via the create/update pet routes — there's no separate owner-facing
+// logging action. Powers the weight trend chart (Bolt 12).
+export const weightLogs = pgTable("weight_logs", {
+  id: serial("id").primaryKey(),
+  petId: integer("pet_id").notNull().references(() => pets.id, { onDelete: "cascade" }),
+  weight: numeric("weight").notNull(),
+  weightUnit: text("weight_unit").notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// One row per POST .../log-dose call — the log-dose route itself only used
+// to mutate medications.nextDoseAt with no history kept. Powers the
+// frequency-based medication adherence trend (Bolt 12): doses logged ÷
+// doses expected from the medication's interval, over a trailing window.
+export const medicationDoseLogs = pgTable("medication_dose_logs", {
+  id: serial("id").primaryKey(),
+  medicationId: integer("medication_id").notNull().references(() => medications.id, { onDelete: "cascade" }),
+  petId: integer("pet_id").notNull().references(() => pets.id, { onDelete: "cascade" }),
+  loggedAt: timestamp("logged_at", { withTimezone: true }).notNull().defaultNow(),
+});
