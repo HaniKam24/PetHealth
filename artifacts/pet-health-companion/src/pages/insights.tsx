@@ -155,15 +155,17 @@ export default function Insights() {
                 
                 return (
                   <div key={insight.id} className="space-y-6">
-                    {/* User Question */}
-                    <div className="flex justify-end">
-                      <div className="bg-primary text-primary-foreground px-6 py-4 rounded-3xl rounded-tr-sm max-w-[85%] shadow-sm">
-                        <p className="text-lg leading-relaxed">{insight.question}</p>
-                        <span className="text-[10px] uppercase tracking-wider opacity-70 mt-2 block">
-                          {format(new Date(insight.createdAt), 'h:mm a • MMM d')}
-                        </span>
+                    {/* User Question — omitted for insights with no real question attached (e.g. orphaned rows predating the question field) */}
+                    {insight.question.trim().length > 0 && (
+                      <div className="flex justify-end">
+                        <div className="bg-primary text-primary-foreground px-6 py-4 rounded-3xl rounded-tr-sm max-w-[85%] shadow-sm">
+                          <p className="text-lg leading-relaxed">{insight.question}</p>
+                          <span className="text-[10px] uppercase tracking-wider opacity-70 mt-2 block">
+                            {format(new Date(insight.createdAt), 'h:mm a • MMM d')}
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* AI Response */}
                     <div className="flex justify-start">
@@ -192,7 +194,7 @@ export default function Insights() {
                                  <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
                                    <CheckCircle2 size={14} /> Logged
                                  </span>
-                               ) : (
+                               ) : insight.question.trim().length > 0 ? (
                                  <button
                                    type="button"
                                    onClick={() => handleAddToSymptomLog(insight)}
@@ -201,7 +203,7 @@ export default function Insights() {
                                  >
                                    <ClipboardPlus size={14} /> Add to symptom log
                                  </button>
-                               )}
+                               ) : null}
                                <span className="capitalize">{insight.tone} priority</span>
                              </div>
                            </div>
