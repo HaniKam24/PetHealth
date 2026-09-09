@@ -525,6 +525,25 @@ export interface Insight {
   kind: InsightKind;
 }
 
+/**
+ * A single account-wide monthly allowance for symptom-chat AI questions (50/month), separate from the document-import lanes in DocumentImportQuota. A red-flag escalation never draws on this.
+ */
+export interface ChatQuota {
+  used: number;
+  limit: number;
+  remaining: number;
+}
+
+export interface InsightListResponse {
+  insights: Insight[];
+  quota: ChatQuota;
+}
+
+export interface InsightResponse {
+  insight: Insight;
+  quota: ChatQuota;
+}
+
 export interface InsightQuestion {
   petId: number;
   /** @minLength 1 */

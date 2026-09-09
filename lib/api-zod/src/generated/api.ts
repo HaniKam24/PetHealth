@@ -898,7 +898,8 @@ export const ListInsightsQueryParams = zod.object({
   "petId": zod.coerce.number().int().min(1).optional()
 })
 
-export const ListInsightsResponseItem = zod.object({
+export const ListInsightsResponse = zod.object({
+  "insights": zod.array(zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
   "title": zod.string(),
@@ -909,8 +910,13 @@ export const ListInsightsResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "disclaimer": zod.string(),
   "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.')
+})),
+  "quota": zod.object({
+  "used": zod.number().int(),
+  "limit": zod.number().int(),
+  "remaining": zod.number().int()
+}).describe('A single account-wide monthly allowance for symptom-chat AI questions (50\/month), separate from the document-import lanes in DocumentImportQuota. A red-flag escalation never draws on this.')
 })
-export const ListInsightsResponse = zod.array(ListInsightsResponseItem)
 
 
 /**
@@ -925,6 +931,7 @@ export const AskInsightBody = zod.object({
 })
 
 export const AskInsightResponse = zod.object({
+  "insight": zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
   "title": zod.string(),
@@ -935,6 +942,12 @@ export const AskInsightResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "disclaimer": zod.string(),
   "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.')
+}),
+  "quota": zod.object({
+  "used": zod.number().int(),
+  "limit": zod.number().int(),
+  "remaining": zod.number().int()
+}).describe('A single account-wide monthly allowance for symptom-chat AI questions (50\/month), separate from the document-import lanes in DocumentImportQuota. A red-flag escalation never draws on this.')
 })
 
 

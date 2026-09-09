@@ -38,10 +38,13 @@ export default function Insights() {
   const [question, setQuestion] = useState('');
   const { toast } = useToast();
 
-  const { data: insights, isLoading } = useListInsights(
+  const { data, isLoading } = useListInsights(
     activePetId ? { petId: activePetId } : undefined,
     { query: { enabled: !!activePetId, queryKey: activePetId ? getListInsightsQueryKey({ petId: activePetId }) : ['no-pet', 'insights'] } }
   );
+  const insights = data?.insights;
+  const quota = data?.quota;
+  const quotaExhausted = quota !== undefined && quota.remaining <= 0;
 
   const askInsight = useAskInsight({
     mutation: {
@@ -52,8 +55,8 @@ export default function Insights() {
         setQuestion('');
         toast({ title: "Insight generated", description: "Scroll down to see the AI response." });
       },
-      onError: () => {
-        toast({ title: "Error", description: "Failed to get AI insight.", variant: "destructive" });
+      onError: (error) => {
+        toast({ title: "Couldn't get AI insight", description: error.message, variant: "destructive" });
       }
     }
   });
@@ -82,7 +85,7 @@ export default function Insights() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!question.trim() || !activePetId || askInsight.isPending) return;
+    if (!question.trim() || !activePetId || askInsight.isPending || quotaExhausted) return;
     askInsight.mutate({ data: { petId: activePetId, question } });
   };
 
@@ -96,10 +99,18 @@ export default function Insights() {
   return (
     <div className="p-6 md:p-10 max-w-4xl mx-auto flex flex-col h-full min-h-[calc(100vh-2rem)]">
       <div className="shrink-0 mb-8">
-        <PageHeader 
-          title="AI Health Assistant" 
+        <PageHeader
+          title="AI Health Assistant"
           description="Ask questions about symptoms, diet, or behavior. Always consult your vet for real medical advice."
         />
+        {quota && (
+          <div className="mt-4 bg-card border border-border rounded-2xl p-4 inline-flex items-baseline gap-2">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">AI questions this month</span>
+            <span className={cn("text-sm font-serif", quotaExhausted && "text-destructive")}>
+              {quota.remaining} of {quota.limit} left
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 flex flex-col min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden relative">
@@ -226,27 +237,33 @@ export default function Insights() {
 
         {/* Input Area */}
         <div className="p-4 bg-background border-t border-border z-20">
-          <form onSubmit={handleSubmit} className="relative flex items-end">
-            <textarea
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Describe symptoms or ask a health question..."
-              className="w-full bg-accent/30 border border-border rounded-2xl pl-6 pr-16 py-4 min-h-[60px] max-h-[160px] resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground/70 shadow-inner"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit(e);
-                }
-              }}
-            />
-            <button
-              type="submit"
-              disabled={!question.trim() || askInsight.isPending}
-              className="absolute right-2 bottom-2 w-11 h-11 bg-primary text-primary-foreground rounded-xl flex items-center justify-center hover:bg-primary/90 transition-all disabled:opacity-50 disabled:hover:bg-primary shadow-sm"
-            >
-              <Send size={18} className="ml-1" />
-            </button>
-          </form>
+          {quotaExhausted ? (
+            <div className="text-center text-sm text-muted-foreground py-4">
+              You've used all {quota!.limit} AI questions for this month. Your allowance resets next month.
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="relative flex items-end">
+              <textarea
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder="Describe symptoms or ask a health question..."
+                className="w-full bg-accent/30 border border-border rounded-2xl pl-6 pr-16 py-4 min-h-[60px] max-h-[160px] resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground/70 shadow-inner"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
+                }}
+              />
+              <button
+                type="submit"
+                disabled={!question.trim() || askInsight.isPending}
+                className="absolute right-2 bottom-2 w-11 h-11 bg-primary text-primary-foreground rounded-xl flex items-center justify-center hover:bg-primary/90 transition-all disabled:opacity-50 disabled:hover:bg-primary shadow-sm"
+              >
+                <Send size={18} className="ml-1" />
+              </button>
+            </form>
+          )}
           <div className="text-center mt-3 text-[11px] text-muted-foreground uppercase tracking-widest font-bold">
             Powered by Veterinary AI context
           </div>

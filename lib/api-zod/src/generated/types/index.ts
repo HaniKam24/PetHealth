@@ -8,6 +8,7 @@
 
 export * from './acceptDocumentImportItemBody';
 export * from './acceptDocumentImportItemBodyProposedData';
+export * from './chatQuota';
 export * from './createDocumentImportBody';
 export * from './dashboardSummary';
 export * from './dashboardSummaryStats';
@@ -38,7 +39,9 @@ export * from './healthRecordUpdate';
 export * from './healthStatus';
 export * from './insight';
 export * from './insightKind';
+export * from './insightListResponse';
 export * from './insightQuestion';
+export * from './insightResponse';
 export * from './insightSource';
 export * from './insightTone';
 export * from './listInsightsParams';

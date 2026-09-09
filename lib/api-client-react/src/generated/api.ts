@@ -35,8 +35,9 @@ import type {
   HealthRecordInput,
   HealthRecordUpdate,
   HealthStatus,
-  Insight,
+  InsightListResponse,
   InsightQuestion,
+  InsightResponse,
   ListInsightsParams,
   Medication,
   MedicationInput,
@@ -2211,9 +2212,9 @@ export const getListInsightsUrl = (params?: ListInsightsParams,) => {
 /**
  * @summary List recent AI insights
  */
-export const listInsights = async (params?: ListInsightsParams, options?: Parameters<typeof customFetch>[1]): Promise<Insight[]> => {
+export const listInsights = async (params?: ListInsightsParams, options?: Parameters<typeof customFetch>[1]): Promise<InsightListResponse> => {
 
-  return customFetch<Insight[]>(getListInsightsUrl(params),
+  return customFetch<InsightListResponse>(getListInsightsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2288,9 +2289,9 @@ export const getAskInsightUrl = () => {
 /**
  * @summary Ask AI for owner-safe care guidance
  */
-export const askInsight = async (insightQuestion: InsightQuestion, options?: Parameters<typeof customFetch>[1]): Promise<Insight> => {
+export const askInsight = async (insightQuestion: InsightQuestion, options?: Parameters<typeof customFetch>[1]): Promise<InsightResponse> => {
 
-  return customFetch<Insight>(getAskInsightUrl(),
+  return customFetch<InsightResponse>(getAskInsightUrl(),
   {
     ...options,
     method: 'POST',
@@ -2303,7 +2304,7 @@ export const askInsight = async (insightQuestion: InsightQuestion, options?: Par
 
 
 
-export const getAskInsightMutationOptions = <TError = ErrorType<unknown>,
+export const getAskInsightMutationOptions = <TError = ErrorType<Error>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askInsight>>, TError,{data: BodyType<InsightQuestion>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof askInsight>>, TError,{data: BodyType<InsightQuestion>}, TContext> => {
 
@@ -2332,12 +2333,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type AskInsightMutationResult = NonNullable<Awaited<ReturnType<typeof askInsight>>>
     export type AskInsightMutationBody = BodyType<InsightQuestion>
-    export type AskInsightMutationError = ErrorType<unknown>
+    export type AskInsightMutationError = ErrorType<Error>
 
     /**
  * @summary Ask AI for owner-safe care guidance
  */
-export const useAskInsight = <TError = ErrorType<unknown>,
+export const useAskInsight = <TError = ErrorType<Error>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askInsight>>, TError,{data: BodyType<InsightQuestion>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof askInsight>>,
