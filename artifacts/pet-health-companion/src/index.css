@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400..900;1,400..900&family=Figtree:ital,wght@0,300..900;1,300..900&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
@@ -29,8 +29,8 @@
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
 
-  --font-sans: 'DM Sans', sans-serif;
-  --font-serif: 'Fraunces', serif;
+  --font-sans: 'Figtree', sans-serif;
+  --font-serif: 'Nunito', sans-serif;
 
   --radius-xl: 1rem;
   --radius-lg: 0.75rem;
@@ -39,62 +39,64 @@
 }
 
 :root {
-  /* Warm Oatmeal Background */
-  --background: 40 33% 97%;
-  /* Deep Espresso Text */
-  --foreground: 20 20% 15%;
-  /* Soft Sand Borders */
-  --border: 20 15% 90%;
-  --input: 20 15% 90%;
-  
-  /* Rich Terracotta Primary */
-  --primary: 24 75% 48%;
+  /* Warm Clinic — Mint/Cream Background (#E4EDF0) */
+  --background: 195 29% 92%;
+  /* Deep Teal Text (#12303A) */
+  --foreground: 195 53% 15%;
+  /* Cool Mint Borders (#D3E0E4) */
+  --border: 194 24% 86%;
+  --input: 194 24% 86%;
+
+  /* Clinic Teal Primary (#0E9A8D) */
+  --primary: 174 83% 33%;
   --primary-foreground: 0 0% 100%;
-  --ring: 24 75% 48%;
+  --ring: 174 83% 33%;
 
-  /* Soft Clay Muted */
-  --muted: 35 30% 92%;
-  --muted-foreground: 20 15% 45%;
+  /* Pale Mint Muted (#F4F8F9) / Slate Muted Text (#456673) */
+  --muted: 192 29% 97%;
+  --muted-foreground: 197 25% 36%;
 
-  /* Warm Accent */
-  --accent: 35 30% 92%;
-  --accent-foreground: 20 20% 15%;
+  /* Pale Mint Accent (#F4F8F9) */
+  --accent: 192 29% 97%;
+  --accent-foreground: 195 53% 15%;
 
-  /* Pure White Cards with a hint of warmth */
+  /* Pure White Cards */
   --card: 0 0% 100%;
-  --card-foreground: 20 20% 15%;
+  --card-foreground: 195 53% 15%;
   --popover: 0 0% 100%;
-  --popover-foreground: 20 20% 15%;
+  --popover-foreground: 195 53% 15%;
 
-  --destructive: 0 70% 50%;
+  /* Warm Red-Orange for late/urgent states (#C94520) */
+  --destructive: 13 73% 46%;
   --destructive-foreground: 0 0% 100%;
 
   --radius: 1rem;
 }
 
 .dark {
-  /* Soft Dark Mode - Espresso/Olive base */
-  --background: 20 15% 12%;
-  --foreground: 40 30% 95%;
-  --border: 20 10% 20%;
-  --input: 20 10% 20%;
-  
-  --primary: 24 70% 55%;
+  /* Warm Clinic dark mode — not in the source design, extrapolated to keep
+     the teal identity rather than reverting to the old terracotta palette. */
+  --background: 195 30% 10%;
+  --foreground: 195 25% 95%;
+  --border: 195 15% 22%;
+  --input: 195 15% 22%;
+
+  --primary: 174 60% 45%;
   --primary-foreground: 0 0% 100%;
-  --ring: 24 70% 55%;
+  --ring: 174 60% 45%;
 
-  --muted: 20 10% 18%;
-  --muted-foreground: 40 15% 65%;
+  --muted: 195 15% 16%;
+  --muted-foreground: 195 15% 65%;
 
-  --accent: 20 10% 18%;
-  --accent-foreground: 40 30% 95%;
+  --accent: 195 15% 16%;
+  --accent-foreground: 195 25% 95%;
 
-  --card: 20 15% 14%;
-  --card-foreground: 40 30% 95%;
-  --popover: 20 15% 14%;
-  --popover-foreground: 40 30% 95%;
+  --card: 195 20% 13%;
+  --card-foreground: 195 25% 95%;
+  --popover: 195 20% 13%;
+  --popover-foreground: 195 25% 95%;
 
-  --destructive: 0 60% 40%;
+  --destructive: 13 65% 50%;
   --destructive-foreground: 0 0% 100%;
 }
 
