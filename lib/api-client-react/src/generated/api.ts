@@ -46,6 +46,7 @@ import type {
   Pet,
   PetInput,
   PetLimitReachedResponse,
+  PetTrends,
   PetUpdate,
   Reminder,
   ReminderInput,
@@ -1740,6 +1741,83 @@ export const useLogMedicationDose = <TError = ErrorType<Error | NotFoundResponse
       > => {
       return useMutation(getLogMedicationDoseMutationOptions(options));
     }
+
+export const getGetPetTrendsUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/trends`
+}
+
+/**
+ * @summary Get weight history and medication adherence trends for a pet
+ */
+export const getPetTrends = async (petId: number, options?: Parameters<typeof customFetch>[1]): Promise<PetTrends> => {
+
+  return customFetch<PetTrends>(getGetPetTrendsUrl(petId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPetTrendsQueryKey = (petId: number,) => {
+    return [
+    `/api/pets/${petId}/trends`
+    ] as const;
+    }
+
+
+export const getGetPetTrendsQueryOptions = <TData = Awaited<ReturnType<typeof getPetTrends>>, TError = ErrorType<NotFoundResponse>>(petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPetTrends>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPetTrendsQueryKey(petId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPetTrends>>> = ({ signal }) => getPetTrends(petId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: petId !== null && petId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPetTrends>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPetTrendsQueryResult = NonNullable<Awaited<ReturnType<typeof getPetTrends>>>
+export type GetPetTrendsQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Get weight history and medication adherence trends for a pet
+ */
+
+export function useGetPetTrends<TData = Awaited<ReturnType<typeof getPetTrends>>, TError = ErrorType<NotFoundResponse>>(
+ petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPetTrends>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPetTrendsQueryOptions(petId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListRemindersUrl = (petId: number,) => {
 

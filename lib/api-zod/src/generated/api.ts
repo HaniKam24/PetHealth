@@ -677,6 +677,39 @@ export const LogMedicationDoseResponse = zod.object({
 
 
 /**
+ * @summary Get weight history and medication adherence trends for a pet
+ */
+
+
+
+export const GetPetTrendsParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+export const getPetTrendsResponseMedicationAdherenceItemAdherencePercentMin = 0;
+export const getPetTrendsResponseMedicationAdherenceItemAdherencePercentMax = 100;
+
+
+
+export const GetPetTrendsResponse = zod.object({
+  "weightLogs": zod.array(zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "weight": zod.number(),
+  "weightUnit": zod.enum(['lb', 'kg']),
+  "recordedAt": zod.coerce.date()
+}).describe('Auto-recorded whenever a pet\'s weight is set or changed via the pet create\/update routes — no separate logging action.')),
+  "medicationAdherence": zod.array(zod.object({
+  "medicationId": zod.number().int(),
+  "medicationName": zod.string(),
+  "adherencePercent": zod.number().int().min(getPetTrendsResponseMedicationAdherenceItemAdherencePercentMin).max(getPetTrendsResponseMedicationAdherenceItemAdherencePercentMax),
+  "dosesLogged": zod.number().int(),
+  "dosesExpected": zod.number().int()
+}).describe('Frequency-based over the trailing 30 days — doses logged ÷ doses expected from the medication\'s structured interval, capped at 100%. Only computed for active medications with a structured interval set.'))
+})
+
+
+/**
  * @summary List reminders for a pet
  */
 

@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
 import {
   AskInsightBody,
   CompleteReminderParams,
@@ -17,6 +17,7 @@ import {
   GetDashboardSummaryQueryParams,
   GetHealthRecordDocumentUrlParams,
   GetPetParams,
+  GetPetTrendsParams,
   ListHealthRecordsParams,
   ListInsightsQueryParams,
   ListMedicationsParams,
@@ -35,11 +36,13 @@ import {
   db,
   healthRecords,
   insights,
+  medicationDoseLogs,
   medications,
   petOwners,
   pets,
   reminders,
   symptomLogs,
+  weightLogs,
 } from "@workspace/db";
 import { anthropic } from "@workspace/integrations-anthropic-ai-server";
 import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument } from "../lib/storage";
@@ -72,6 +75,22 @@ const asMedication = (medication: typeof medications.$inferSelect) => ({
   ...medication,
   nextDoseAt: medication.nextDoseAt?.toISOString() ?? null,
 });
+
+// Auto-records a weight_logs snapshot when weight actually changes — never
+// on an unrelated PATCH that just happens to re-send the current weight (the
+// profile edit form always includes it), and never on an explicit clear to
+// null. `previousWeight` is the pet's weight column value before this write.
+async function logWeightIfChanged(
+  petId: number,
+  newWeight: number | null | undefined,
+  weightUnit: string,
+  previousWeight: string | null,
+): Promise<void> {
+  if (newWeight === undefined || newWeight === null) return;
+  const previous = previousWeight === null ? null : Number(previousWeight);
+  if (previous === newWeight) return;
+  await db.insert(weightLogs).values({ petId, weight: newWeight.toString(), weightUnit });
+}
 
 // A calendar month has no fixed length — 30 days is an approximation, fine
 // for scheduling reminders but not for anything date-precise.
@@ -173,6 +192,7 @@ router.post("/pets", async (req, res, next) => {
     await db
       .insert(petOwners)
       .values({ userId, petId: created!.id, role: "owner" });
+    await logWeightIfChanged(created!.id, body.weight, created!.weightUnit, null);
     await runCareRecommendationsEngine(created!);
     res.status(201).json(asPet(created!));
   } catch (error) {
@@ -207,6 +227,7 @@ router.patch("/pets/:petId", async (req, res, next) => {
       res.status(404).json({ error: "Pet not found" });
       return;
     }
+    const [before] = await db.select().from(pets).where(eq(pets.id, petId));
     const body = UpdatePetBody.parse(req.body);
     const [updated] = await db
       .update(pets)
@@ -221,6 +242,7 @@ router.patch("/pets/:petId", async (req, res, next) => {
       res.status(404).json({ error: "Pet not found" });
       return;
     }
+    await logWeightIfChanged(petId, body.weight, updated.weightUnit, before?.weight ?? null);
     await runCareRecommendationsEngine(updated);
     res.json(asPet(updated));
   } catch (error) {
@@ -509,7 +531,71 @@ router.post("/pets/:petId/medications/:medicationId/log-dose", async (req, res, 
       .set({ nextDoseAt })
       .where(eq(medications.id, medicationId))
       .returning();
+    await db.insert(medicationDoseLogs).values({ medicationId, petId });
     res.json(asMedication(updated!));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Frequency-based, not timing-based: doses logged ÷ doses expected from the
+// medication's own interval, over this trailing window. Simpler than judging
+// "late" vs "on time" against no real basis for a lateness threshold.
+const ADHERENCE_WINDOW_DAYS = 30;
+
+router.get("/pets/:petId/trends", async (req, res, next) => {
+  try {
+    const userId = requireUserId(req);
+    const { petId } = GetPetTrendsParams.parse(req.params);
+    if (!(await isPetOwnedByUser(userId, petId))) {
+      res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+
+    const weightRows = await db
+      .select()
+      .from(weightLogs)
+      .where(eq(weightLogs.petId, petId))
+      .orderBy(asc(weightLogs.recordedAt));
+
+    const activeMeds = await db
+      .select()
+      .from(medications)
+      .where(and(eq(medications.petId, petId), eq(medications.active, true)));
+
+    const windowMs = ADHERENCE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    const windowStart = new Date(Date.now() - windowMs);
+
+    const medicationAdherence = [];
+    for (const med of activeMeds) {
+      // Only meaningful for a medication with a structured schedule — one
+      // that's purely descriptive (frequency text only) has no interval to
+      // compute an expected dose count from.
+      if (!med.doseIntervalValue || !med.doseIntervalUnit) continue;
+      const intervalMs = med.doseIntervalValue * INTERVAL_MS[med.doseIntervalUnit];
+      const dosesExpected = Math.max(1, Math.round(windowMs / intervalMs));
+      const doseLogs = await db
+        .select()
+        .from(medicationDoseLogs)
+        .where(and(eq(medicationDoseLogs.medicationId, med.id), gte(medicationDoseLogs.loggedAt, windowStart)));
+      const dosesLogged = doseLogs.length;
+      medicationAdherence.push({
+        medicationId: med.id,
+        medicationName: med.name,
+        adherencePercent: Math.min(100, Math.round((dosesLogged / dosesExpected) * 100)),
+        dosesLogged,
+        dosesExpected,
+      });
+    }
+
+    res.json({
+      weightLogs: weightRows.map((row) => ({
+        ...row,
+        weight: Number(row.weight),
+        recordedAt: row.recordedAt.toISOString(),
+      })),
+      medicationAdherence,
+    });
   } catch (error) {
     next(error);
   }

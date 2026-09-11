@@ -428,6 +428,45 @@ export interface MedicationInput {
  */
 export type MedicationUpdate = MedicationInput;
 
+export type WeightLogWeightUnit = typeof WeightLogWeightUnit[keyof typeof WeightLogWeightUnit];
+
+
+export const WeightLogWeightUnit = {
+  lb: 'lb',
+  kg: 'kg',
+} as const;
+
+/**
+ * Auto-recorded whenever a pet's weight is set or changed via the pet create/update routes — no separate logging action.
+ */
+export interface WeightLog {
+  id: number;
+  petId: number;
+  weight: number;
+  weightUnit: WeightLogWeightUnit;
+  recordedAt: string;
+}
+
+/**
+ * Frequency-based over the trailing 30 days — doses logged ÷ doses expected from the medication's structured interval, capped at 100%. Only computed for active medications with a structured interval set.
+ */
+export interface MedicationAdherence {
+  medicationId: number;
+  medicationName: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  adherencePercent: number;
+  dosesLogged: number;
+  dosesExpected: number;
+}
+
+export interface PetTrends {
+  weightLogs: WeightLog[];
+  medicationAdherence: MedicationAdherence[];
+}
+
 export type ReminderCategory = typeof ReminderCategory[keyof typeof ReminderCategory];
 
 

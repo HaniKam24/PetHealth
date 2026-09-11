@@ -6,15 +6,19 @@ import {
   useListSymptomLogs,
   getListSymptomLogsQueryKey,
   useCreateSymptomLog,
+  useGetPetTrends,
+  getGetPetTrendsQueryKey,
   type Insight,
 } from '@workspace/api-client-react';
 import { PageHeader } from '@/components/page-header';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Sparkles, Send, Bot, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Send, Bot, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 
 const toneConfig = {
   helpful: { icon: Heart, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
@@ -32,11 +36,23 @@ function renderFormattedText(text: string) {
   });
 }
 
+const weightChartConfig: ChartConfig = {
+  weight: { label: 'Weight', color: 'hsl(var(--primary))' },
+};
+
 export default function Insights() {
   const { activePetId } = usePetContext();
   const queryClient = useQueryClient();
   const [question, setQuestion] = useState('');
+  const [tab, setTab] = useState<'chat' | 'trends'>('chat');
   const { toast } = useToast();
+
+  const { data: trends, isLoading: trendsLoading } = useGetPetTrends(activePetId!, {
+    query: {
+      enabled: !!activePetId && tab === 'trends',
+      queryKey: activePetId ? getGetPetTrendsQueryKey(activePetId) : ['no-pet', 'trends'],
+    },
+  });
 
   const { data, isLoading } = useListInsights(
     activePetId ? { petId: activePetId } : undefined,
@@ -103,16 +119,106 @@ export default function Insights() {
           title="AI Health Assistant"
           description="Ask questions about symptoms, diet, or behavior. Always consult your vet for real medical advice."
         />
-        {quota && (
-          <div className="mt-4 bg-card border border-border rounded-2xl p-4 inline-flex items-baseline gap-2">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">AI questions this month</span>
-            <span className={cn("text-sm font-serif", quotaExhausted && "text-destructive")}>
-              {quota.remaining} of {quota.limit} left
-            </span>
+        <div className="mt-4 flex items-center gap-3 flex-wrap">
+          <div className="inline-flex bg-accent/40 border border-border rounded-xl p-1">
+            <button
+              type="button"
+              onClick={() => setTab('chat')}
+              className={cn(
+                'flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors',
+                tab === 'chat' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Sparkles size={14} /> Chat
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('trends')}
+              className={cn(
+                'flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors',
+                tab === 'trends' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <TrendingUp size={14} /> Trends
+            </button>
           </div>
-        )}
+          {tab === 'chat' && quota && (
+            <div className="bg-card border border-border rounded-2xl px-4 py-2 inline-flex items-baseline gap-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">AI questions this month</span>
+              <span className={cn("text-sm font-serif", quotaExhausted && "text-destructive")}>
+                {quota.remaining} of {quota.limit} left
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
+      {tab === 'trends' ? (
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-6">
+          <div className="bg-card border border-border rounded-3xl shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Scale size={18} className="text-primary" />
+              <h3 className="font-serif text-xl text-foreground">Weight trend</h3>
+            </div>
+            {trendsLoading ? (
+              <div className="h-64 bg-accent/30 rounded-2xl animate-pulse" />
+            ) : !trends || trends.weightLogs.length < 2 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                Not enough weight history yet — this fills in automatically as you update this pet's weight on their profile.
+              </p>
+            ) : (
+              <ChartContainer config={weightChartConfig} className="h-64 w-full">
+                <LineChart data={trends.weightLogs.map((log) => ({ ...log, dateLabel: format(new Date(log.recordedAt), 'MMM d') }))}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis dataKey="dateLabel" tickLine={false} axisLine={false} />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    width={40}
+                    unit={trends.weightLogs[trends.weightLogs.length - 1]?.weightUnit}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Line type="monotone" dataKey="weight" stroke="var(--color-weight)" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ChartContainer>
+            )}
+          </div>
+
+          <div className="bg-card border border-border rounded-3xl shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Pill size={18} className="text-primary" />
+              <h3 className="font-serif text-xl text-foreground">Medication adherence</h3>
+              <span className="text-xs text-muted-foreground">(last 30 days)</span>
+            </div>
+            {trendsLoading ? (
+              <div className="h-24 bg-accent/30 rounded-2xl animate-pulse" />
+            ) : !trends || trends.medicationAdherence.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                No active medications with a structured schedule to track adherence for yet.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {trends.medicationAdherence.map((med) => (
+                  <div key={med.medicationId}>
+                    <div className="flex justify-between items-baseline mb-1.5">
+                      <span className="text-sm font-medium text-foreground">{med.medicationName}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {med.adherencePercent}% <span className="text-xs">({med.dosesLogged}/{med.dosesExpected} doses)</span>
+                      </span>
+                    </div>
+                    <div className="h-2 bg-accent rounded-full overflow-hidden">
+                      <div
+                        className={cn('h-full rounded-full', med.adherencePercent >= 80 ? 'bg-emerald-500' : med.adherencePercent >= 50 ? 'bg-amber-500' : 'bg-destructive')}
+                        style={{ width: `${med.adherencePercent}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
       <div className="flex-1 flex flex-col min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden relative">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent h-32 pointer-events-none"></div>
         
@@ -271,6 +377,7 @@ export default function Insights() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
