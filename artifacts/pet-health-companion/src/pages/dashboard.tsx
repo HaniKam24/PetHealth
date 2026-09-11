@@ -1,53 +1,113 @@
 import { usePetContext } from '@/context/pet-context';
-import { useGetDashboardSummary, getGetDashboardSummaryQueryKey, useCompleteReminder, useLogMedicationDose } from '@workspace/api-client-react';
-import { PageHeader } from '@/components/page-header';
+import {
+  useGetDashboardSummary,
+  getGetDashboardSummaryQueryKey,
+  useCompleteReminder,
+  useLogMedicationDose,
+  useGetPetTrends,
+  getGetPetTrendsQueryKey,
+  useListDocumentImports,
+  getListDocumentImportsQueryKey,
+  useListPets,
+  type Pet,
+} from '@workspace/api-client-react';
 import { Link } from 'wouter';
-import { Calendar, Pill, FileText, Sparkles, Circle, HeartPulse, ArrowRight, Syringe, Loader2 } from 'lucide-react';
+import {
+  Plus,
+  UploadCloud,
+  Check,
+  Loader2,
+  Syringe,
+  Stethoscope,
+  Pill,
+  HeartPulse,
+  Sparkles,
+  ClipboardList,
+  MessageCircle,
+  FileText,
+  ArrowRight,
+} from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, addDays } from 'date-fns';
+import { resolvePetAvatar } from '@/lib/pet-avatar';
 
-const DUE_SOON_WINDOW_MS = 48 * 60 * 60 * 1000;
+const CATEGORY_ICON: Record<string, typeof Stethoscope> = {
+  appointment: Stethoscope,
+  vaccine: Syringe,
+  medication: Pill,
+  wellness: HeartPulse,
+  other: ClipboardList,
+};
+
+type Bucket = 'late' | 'today' | 'tomorrow' | 'later';
 
 type UpcomingItem =
-  | { kind: 'reminder'; id: number; title: string; when: Date; category: string; suggested: boolean }
-  | { kind: 'medication'; id: number; title: string; when: Date; dose: string; suggested: false };
+  | { kind: 'reminder'; id: number; title: string; subtitle: string; bucket: Bucket; suggested: boolean; icon: typeof Stethoscope }
+  | { kind: 'medication'; id: number; title: string; subtitle: string; bucket: Bucket; suggested: false; icon: typeof Pill };
+
+function bucketReminder(dueDate: string, todayStr: string, tomorrowStr: string): Bucket {
+  if (dueDate < todayStr) return 'late';
+  if (dueDate === todayStr) return 'today';
+  if (dueDate === tomorrowStr) return 'tomorrow';
+  return 'later';
+}
+
+function bucketMedication(nextDoseAt: string, now: Date, todayStr: string, tomorrowStr: string): Bucket {
+  if (new Date(nextDoseAt).getTime() < now.getTime()) return 'late';
+  const doseDateStr = format(new Date(nextDoseAt), 'yyyy-MM-dd');
+  if (doseDateStr === todayStr) return 'today';
+  if (doseDateStr === tomorrowStr) return 'tomorrow';
+  return 'later';
+}
 
 export default function Dashboard() {
   const { activePetId } = usePetContext();
   const queryClient = useQueryClient();
+  const { data: pets } = useListPets();
 
   const { data: summary, isLoading, error } = useGetDashboardSummary(
     activePetId ? { petId: activePetId } : undefined,
     {
       query: {
-      enabled: !!activePetId,
-      queryKey: activePetId ? getGetDashboardSummaryQueryKey({ petId: activePetId }) : ['no-pet']
-      }
-    }
+        enabled: !!activePetId,
+        queryKey: activePetId ? getGetDashboardSummaryQueryKey({ petId: activePetId }) : ['no-pet'],
+      },
+    },
   );
+
+  const { data: trends } = useGetPetTrends(activePetId!, {
+    query: {
+      enabled: !!activePetId,
+      queryKey: activePetId ? getGetPetTrendsQueryKey(activePetId) : ['no-pet', 'trends'],
+    },
+  });
+
+  const { data: imports } = useListDocumentImports(activePetId!, {
+    query: {
+      enabled: !!activePetId,
+      queryKey: activePetId ? getListDocumentImportsQueryKey(activePetId) : ['no-pet', 'document-imports'],
+    },
+  });
+  const pendingImportItems = (imports?.imports ?? []).flatMap((imp) => imp.items.filter((item) => item.status === 'pending'));
 
   const invalidateSummary = () => {
     if (activePetId) {
       queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey({ petId: activePetId }) });
     }
   };
+  const completeReminder = useCompleteReminder({ mutation: { onSuccess: invalidateSummary } });
+  const logDose = useLogMedicationDose({ mutation: { onSuccess: invalidateSummary } });
 
-  const completeReminder = useCompleteReminder({
-    mutation: { onSuccess: invalidateSummary }
-  });
-
-  const logDose = useLogMedicationDose({
-    mutation: { onSuccess: invalidateSummary }
-  });
+  const otherPet = (pets ?? []).find((pet) => pet.id !== activePetId);
 
   if (!activePetId) {
     return (
       <div className="p-8 max-w-5xl mx-auto flex items-center justify-center min-h-[80vh]">
         <div className="text-center max-w-md animate-in fade-in zoom-in-95 duration-700 ease-out">
           <div className="w-24 h-24 bg-card shadow-sm border border-border rounded-full flex items-center justify-center mx-auto mb-8 text-primary relative">
-             <div className="absolute inset-0 bg-primary/10 rounded-full animate-ping opacity-20"></div>
-             <HeartPulse size={40} strokeWidth={2} />
+            <div className="absolute inset-0 bg-primary/10 rounded-full animate-ping opacity-20"></div>
+            <HeartPulse size={40} strokeWidth={2} />
           </div>
           <h2 className="text-3xl font-serif mb-4 text-foreground">Welcome to Health Hub</h2>
           <p className="text-muted-foreground mb-10 text-lg">Your peaceful space for tracking your pet's wellness, medications, and care routines.</p>
@@ -60,222 +120,360 @@ export default function Dashboard() {
   }
 
   if (isLoading) {
-    return <div className="p-8 animate-pulse flex space-x-4">
-       <div className="flex-1 space-y-6 py-1">
-         <div className="h-10 bg-muted rounded-lg w-1/3"></div>
-         <div className="h-4 bg-muted rounded w-1/4 mb-8"></div>
-         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-           <div className="lg:col-span-2 h-64 bg-muted rounded-2xl"></div>
-           <div className="h-64 bg-muted rounded-2xl"></div>
-         </div>
-       </div>
-    </div>;
+    return (
+      <div className="p-8 animate-pulse flex space-x-4">
+        <div className="flex-1 space-y-6 py-1">
+          <div className="h-10 bg-muted rounded-lg w-1/3"></div>
+          <div className="h-4 bg-muted rounded w-1/4 mb-8"></div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 h-64 bg-muted rounded-2xl"></div>
+            <div className="h-64 bg-muted rounded-2xl"></div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error || !summary) {
     return <div className="p-8 text-destructive bg-destructive/10 rounded-xl m-8 border border-destructive/20 text-center py-12">Failed to load dashboard. Please try again.</div>;
   }
 
-  const now = Date.now();
-  const isDueSoon = (when: Date) => when.getTime() - now <= DUE_SOON_WINDOW_MS;
+  const now = new Date();
+  const todayStr = format(now, 'yyyy-MM-dd');
+  const tomorrowStr = format(addDays(now, 1), 'yyyy-MM-dd');
 
-  const upcomingItems: UpcomingItem[] = [
+  const items: UpcomingItem[] = [
     ...summary.upcomingReminders.map((r): UpcomingItem => ({
-      kind: 'reminder', id: r.id, title: r.title, when: new Date(r.dueDate), category: r.category, suggested: r.source === 'system',
+      kind: 'reminder',
+      id: r.id,
+      title: r.title,
+      subtitle: `Due ${format(parseISO(r.dueDate), 'EEEE, MMM d')}${r.note ? ` · ${r.note}` : ''}`,
+      bucket: bucketReminder(r.dueDate, todayStr, tomorrowStr),
+      suggested: r.source === 'system',
+      icon: CATEGORY_ICON[r.category] ?? ClipboardList,
     })),
     ...summary.activeMedications
       .filter((m) => m.nextDoseAt)
       .map((m): UpcomingItem => ({
-        kind: 'medication', id: m.id, title: m.name, when: new Date(m.nextDoseAt!), dose: m.dose, suggested: false,
+        kind: 'medication',
+        id: m.id,
+        title: `${m.name}, ${m.dose}`,
+        subtitle: `${format(new Date(m.nextDoseAt!), 'h:mm a, MMM d')} · ${m.frequency}`,
+        bucket: bucketMedication(m.nextDoseAt!, now, todayStr, tomorrowStr),
+        suggested: false,
+        icon: Pill,
       })),
-  ].sort((a, b) => a.when.getTime() - b.when.getTime());
+  ];
+
+  const late = items.filter((i) => i.bucket === 'late');
+  const today = items.filter((i) => i.bucket === 'today');
+  const tomorrow = items.filter((i) => i.bucket === 'tomorrow');
+  const later = items.filter((i) => i.bucket === 'later').sort((a, b) => a.subtitle.localeCompare(b.subtitle));
+
+  const actionableCount = late.length + today.length;
+  const nextClearDate = tomorrow.length > 0 ? 'tomorrow' : later.length > 0 ? 'soon' : null;
+  const headline =
+    actionableCount === 0
+      ? `${summary.pet.name} is all caught up`
+      : `${summary.pet.name} needs you ${actionableCount === 1 ? 'once' : `${actionableCount} times`} today`;
+  const subheadline =
+    actionableCount === 0
+      ? nextClearDate
+        ? `Nothing due until ${nextClearDate}.`
+        : "Nothing on the horizon — they're all clear."
+      : `${late.length > 0 ? `${late.length} thing${late.length > 1 ? 's are' : ' is'} overdue. ` : ''}${nextClearDate ? `After that, clear until ${nextClearDate}.` : 'That covers everything for now.'}`;
+
+  const lastVisit = summary.recentRecords.find((r) => r.type === 'visit');
+  const nextAppointment = summary.upcomingReminders.find((r) => r.category === 'appointment');
+
+  const weightBars = (trends?.weightLogs ?? []).slice(-4);
+  const maxWeight = Math.max(...weightBars.map((w) => Number(w.weight)), 1);
 
   return (
-    <div className="p-6 md:p-10 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
-      <PageHeader 
-        title={`How is ${summary.pet.name} doing?`} 
-        description="Here's a gentle overview of their upcoming care and recent health context."
-      />
+    <div className="px-6 md:px-10 py-9 pb-16 max-w-[1180px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
+      <div className="flex items-end justify-between gap-8 flex-wrap mb-6">
+        <div>
+          <div className="text-sm font-bold text-muted-foreground">{format(now, 'EEEE, d MMMM')}</div>
+          <h1 className="font-serif text-3xl md:text-4xl font-extrabold tracking-tight mt-2 text-foreground">{headline}</h1>
+          <p className="mt-2 text-base text-muted-foreground max-w-xl">{subheadline}</p>
+        </div>
+        <div className="flex gap-2.5 shrink-0">
+          <Link
+            href="/smart-upload"
+            className="h-[46px] flex items-center gap-2 px-[18px] rounded-full bg-card border border-border text-sm font-bold hover:border-primary/30 transition-colors"
+          >
+            <UploadCloud size={17} /> Upload a vet report
+          </Link>
+          <Link
+            href="/records?new=true"
+            className="h-[46px] flex items-center gap-2 px-5 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm shadow-primary/30 hover:bg-primary/90 transition-colors"
+          >
+            <Plus size={17} /> Add something
+          </Link>
+        </div>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Reminders Card */}
-        <div className="col-span-1 lg:col-span-2 bg-card border border-border rounded-3xl p-8 shadow-sm">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="font-serif text-2xl flex items-center gap-3 text-foreground">
-              <div className="p-2 bg-accent rounded-xl text-primary"><Calendar size={22} /></div>
-              Upcoming Care
-            </h3>
-            <Link href="/reminders" className="text-sm font-medium text-primary hover:bg-primary/10 px-4 py-2 rounded-full transition-colors">View All</Link>
-          </div>
-          
-          {upcomingItems.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed border-border rounded-2xl bg-background/50">
-              <p className="text-muted-foreground">No upcoming reminders.</p>
-              <Link href="/reminders?new=true" className="text-primary font-medium hover:underline mt-2 inline-block">Add a reminder</Link>
+      <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5 items-start">
+        <div className="flex flex-col gap-4">
+          <TriageSection
+            label="Late"
+            tone="late"
+            items={late}
+            onComplete={(id) => completeReminder.mutate({ reminderId: id })}
+            onLogDose={(id) => activePetId && logDose.mutate({ petId: activePetId, medicationId: id })}
+            pending={completeReminder.isPending || logDose.isPending}
+          />
+          <TriageSection
+            label="Today"
+            tone="today"
+            items={today}
+            onComplete={(id) => completeReminder.mutate({ reminderId: id })}
+            onLogDose={(id) => activePetId && logDose.mutate({ petId: activePetId, medicationId: id })}
+            pending={completeReminder.isPending || logDose.isPending}
+          />
+          <TriageSection
+            label="Tomorrow"
+            tone="tomorrow"
+            items={tomorrow}
+            onComplete={(id) => completeReminder.mutate({ reminderId: id })}
+            onLogDose={(id) => activePetId && logDose.mutate({ petId: activePetId, medicationId: id })}
+            pending={completeReminder.isPending || logDose.isPending}
+          />
+
+          {late.length === 0 && today.length === 0 && tomorrow.length === 0 && (
+            <div className="text-center py-10 border-2 border-dashed border-border rounded-2xl bg-card/50">
+              <p className="text-muted-foreground">Nothing due in the next couple of days.</p>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {upcomingItems.map(item => {
-                const dueSoon = isDueSoon(item.when);
-                return (
-                  <div key={`${item.kind}-${item.id}`} className={cn(
-                    "flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300",
-                    dueSoon ? "bg-amber-50 border-amber-200" : "bg-background border-border hover:border-primary/30 shadow-sm"
-                  )}>
-                    {item.kind === 'reminder' ? (
-                      <button
-                        onClick={() => completeReminder.mutate({ reminderId: item.id })}
-                        disabled={completeReminder.isPending}
-                        className="flex-shrink-0 text-primary hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full"
-                      >
-                        <Circle size={28} className="text-muted-foreground hover:text-primary transition-colors" />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => activePetId && logDose.mutate({ petId: activePetId, medicationId: item.id })}
-                        disabled={logDose.isPending}
-                        title="Mark dose given"
-                        className="flex-shrink-0 text-primary hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full disabled:opacity-50"
-                      >
-                        {logDose.isPending ? <Loader2 size={28} className="animate-spin" /> : <Syringe size={28} />}
-                      </button>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-lg">{item.title}</p>
-                      <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
-                        {item.suggested && (
-                          <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-700 font-medium text-xs tracking-wide">
-                            <Sparkles size={12} /> Suggested
-                          </span>
-                        )}
-                        <span className="capitalize px-2.5 py-0.5 rounded-md bg-accent text-accent-foreground font-medium text-xs tracking-wide">
-                          {item.kind === 'reminder' ? item.category : item.dose}
-                        </span>
-                        <span>{format(item.when, item.kind === 'medication' ? 'MMM d, h:mm a' : 'MMM d, yyyy')}</span>
-                        {dueSoon && (
-                          <span className="px-2.5 py-0.5 rounded-md bg-amber-500 text-white font-medium text-xs tracking-wide">Due soon</span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
+          )}
+
+          {otherPet && (
+            <OtherPetNudge pet={otherPet} />
+          )}
+
+          {pendingImportItems.length > 0 && (
+            <div className="bg-card border border-border rounded-[20px] p-5 flex items-center gap-[18px]">
+              <div className="w-[52px] h-[52px] rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <FileText size={24} />
+              </div>
+              <div className="flex-1">
+                <div className="font-serif text-lg font-extrabold">
+                  {pendingImportItems.length} thing{pendingImportItems.length > 1 ? 's' : ''} from a vet report {pendingImportItems.length > 1 ? 'are' : 'is'} waiting
+                </div>
+                <div className="mt-1 text-sm text-muted-foreground">Nothing goes in the file until you say yes.</div>
+              </div>
+              <Link href="/smart-upload" className="h-11 flex items-center px-5 rounded-full bg-foreground text-background text-sm font-bold shrink-0">
+                Check them over
+              </Link>
+            </div>
+          )}
+
+          {later.length > 0 && (
+            <div className="bg-card border border-border rounded-[20px] px-5 pt-2 pb-4">
+              <div className="h-[52px] flex items-center justify-between">
+                <span className="font-serif text-[17px] font-extrabold">Coming up</span>
+                <Link href="/reminders" className="text-sm font-bold text-primary">All reminders</Link>
+              </div>
+              {later.slice(0, 4).map((item) => (
+                <div key={`${item.kind}-${item.id}`} className="flex items-center gap-4 py-3 border-t border-border/60">
+                  <span className="flex-1 text-[15px]">{item.title} <span className="text-muted-foreground">· {item.subtitle}</span></span>
+                </div>
+              ))}
             </div>
           )}
         </div>
 
-        {/* Stats & Quick Actions */}
-        <div className="space-y-6 flex flex-col">
-          <div className="bg-primary text-primary-foreground rounded-3xl p-8 shadow-md flex-1 flex flex-col justify-between overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
-            
-            <div>
-              <h3 className="font-serif text-xl flex items-center gap-2 mb-6">
-                 <Sparkles size={20} className="text-primary-foreground/80" />
-                 Health Snapshot
-              </h3>
-              <div className="space-y-5">
-                <div className="flex justify-between items-end border-b border-primary-foreground/20 pb-3">
-                   <span className="text-primary-foreground/80 text-sm font-medium">Active Meds</span>
-                   <span className="font-serif text-3xl leading-none">{summary.stats.activeMedicationCount}</span>
-                </div>
-                <div className="flex justify-between items-end border-b border-primary-foreground/20 pb-3">
-                   <span className="text-primary-foreground/80 text-sm font-medium">Total Records</span>
-                   <span className="font-serif text-3xl leading-none">{summary.stats.recordCount}</span>
-                </div>
-                <div className="flex justify-between items-end">
-                   <span className="text-primary-foreground/80 text-sm font-medium">Pending Reminders</span>
-                   <span className="font-serif text-3xl leading-none">{summary.stats.upcomingReminderCount}</span>
+        <div className="flex flex-col gap-4">
+          <div className="bg-card border border-border rounded-[20px] p-6">
+            <div className="flex items-center gap-3.5 gap-[14px]">
+              {resolvePetAvatar(null, summary.pet.species) && (
+                <img src={resolvePetAvatar(null, summary.pet.species)!} alt={summary.pet.name} className="w-[62px] h-[62px] rounded-full bg-muted shrink-0" />
+              )}
+              <div>
+                <div className="font-serif text-2xl font-extrabold tracking-tight">{summary.pet.name}</div>
+                <div className="text-sm text-muted-foreground mt-0.5">
+                  {summary.pet.breed ?? summary.pet.species} · {summary.pet.sex}
                 </div>
               </div>
             </div>
+            <div className="mt-[18px] flex flex-col">
+              <StatRow label="Weight" value={summary.pet.weight != null ? `${summary.pet.weight} ${summary.pet.weightUnit}` : '—'} />
+              <StatRow label="Last seen by a vet" value={lastVisit ? format(parseISO(lastVisit.date), 'MMM d') : 'No visits yet'} />
+              <StatRow label="Next appointment" value={nextAppointment ? format(parseISO(nextAppointment.dueDate), 'MMM d') : 'None scheduled'} />
+              <StatRow label="On medicine" value={summary.activeMedications.length > 0 ? summary.activeMedications.map((m) => m.name).join(', ') : 'None'} last />
+            </div>
+            {weightBars.length >= 2 && (
+              <>
+                <div className="mt-3.5 mt-[14px] flex items-end gap-2.5 h-16">
+                  {weightBars.map((log, i) => (
+                    <div
+                      key={log.id}
+                      className={cn('flex-1 rounded-t-md', i === weightBars.length - 1 ? 'bg-primary' : 'bg-muted')}
+                      style={{ height: `${Math.max(20, (Number(log.weight) / maxWeight) * 100)}%` }}
+                    />
+                  ))}
+                </div>
+                <div className="mt-1.5 flex justify-between text-[12.5px] text-muted-foreground">
+                  <span>{format(new Date(weightBars[0].recordedAt), 'MMM yyyy')}</span>
+                  <span className="font-extrabold text-primary">{format(new Date(weightBars[weightBars.length - 1].recordedAt), 'MMM yyyy')}</span>
+                </div>
+              </>
+            )}
+            <Link
+              href="/profile"
+              className="mt-4 h-[42px] flex items-center justify-center rounded-full bg-muted border border-border text-primary text-sm font-extrabold hover:bg-accent transition-colors"
+            >
+              {summary.pet.name}'s details
+            </Link>
           </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-             <Link href="/records?new=true" className="group flex flex-col items-center justify-center p-5 rounded-3xl bg-card border border-border hover:bg-primary hover:border-primary hover:text-primary-foreground transition-all duration-300 text-center gap-3 shadow-sm hover:shadow-md">
-               <div className="p-3 rounded-full bg-accent group-hover:bg-primary-foreground/20 transition-colors">
-                 <FileText size={22} className="text-primary group-hover:text-primary-foreground" />
-               </div>
-               <span className="text-sm font-medium">Add Record</span>
-             </Link>
-             <Link href="/medications?new=true" className="group flex flex-col items-center justify-center p-5 rounded-3xl bg-card border border-border hover:bg-primary hover:border-primary hover:text-primary-foreground transition-all duration-300 text-center gap-3 shadow-sm hover:shadow-md">
-               <div className="p-3 rounded-full bg-accent group-hover:bg-primary-foreground/20 transition-colors">
-                 <Pill size={22} className="text-primary group-hover:text-primary-foreground" />
-               </div>
-               <span className="text-sm font-medium">Add Meds</span>
-             </Link>
+
+          <div className="bg-card border border-border rounded-[20px] px-5 pt-2 pb-4">
+            <div className="h-[52px] flex items-center justify-between">
+              <span className="font-serif text-[17px] font-extrabold">Lately in the file</span>
+              <Link href="/records" className="text-sm font-bold text-primary">All records</Link>
+            </div>
+            {summary.recentRecords.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">No records added yet.</p>
+            ) : (
+              summary.recentRecords.slice(0, 3).map((record) => (
+                <div key={record.id} className="flex gap-3 py-3 border-t border-border/60">
+                  <span className="w-14 shrink-0 text-sm font-bold text-muted-foreground">{format(parseISO(record.date), 'MMM d')}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[15.5px] font-bold truncate">{record.title}</div>
+                    {record.clinic && <div className="text-sm text-muted-foreground truncate">{record.clinic}</div>}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="bg-muted border border-border rounded-[20px] p-5">
+            <div className="font-serif text-[17px] font-extrabold">Noticed something?</div>
+            <p className="mt-1.5 mb-[14px] text-sm leading-relaxed text-muted-foreground">
+              Describe it and we'll explain what it might mean using {summary.pet.name}'s records. Information, not a diagnosis.
+            </p>
+            <Link
+              href="/insights"
+              className="h-11 flex items-center justify-center gap-2 rounded-full bg-foreground text-background text-sm font-bold"
+            >
+              <MessageCircle size={16} /> Ask about {summary.pet.name}
+            </Link>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">
-         {/* Recent Insights */}
-         <div className="bg-card border border-border rounded-3xl p-8 shadow-sm flex flex-col">
-           <div className="flex items-center justify-between mb-8">
-              <h3 className="font-serif text-xl flex items-center gap-3">
-                <div className="p-2 bg-accent rounded-xl text-primary"><Sparkles size={20} /></div>
-                Recent Insights
-              </h3>
-              <Link href="/insights" className="text-sm font-medium text-primary hover:bg-primary/10 px-4 py-2 rounded-full transition-colors">Ask AI</Link>
-           </div>
-           {summary.recentInsights.length === 0 ? (
-             <div className="flex-1 flex items-center justify-center text-center p-6 border-2 border-dashed border-border rounded-2xl bg-background/50">
-               <p className="text-muted-foreground text-sm">Ask a question to generate personalized AI insights.</p>
-             </div>
-           ) : (
-             <div className="space-y-4">
-               {summary.recentInsights.slice(0, 2).map(insight => (
-                 <div key={insight.id} className="p-5 rounded-2xl bg-accent/40 border border-border/50">
-                   <div className="flex items-center gap-2 mb-2">
-                     <span className={cn(
-                       "w-2 h-2 rounded-full",
-                       insight.tone === 'urgent' ? "bg-destructive" : insight.tone === 'watch' ? "bg-amber-500" : "bg-emerald-500"
-                     )}></span>
-                     <h4 className="font-medium text-foreground">{insight.title}</h4>
-                   </div>
-                   <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">{insight.content}</p>
-                 </div>
-               ))}
-             </div>
-           )}
-         </div>
+function StatRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  return (
+    <div className={cn('flex items-baseline justify-between gap-3 py-2.5 border-t border-border/60', last && 'pb-0')}>
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-[15px] font-bold text-right">{value}</span>
+    </div>
+  );
+}
 
-         {/* Recent Records */}
-         <div className="bg-card border border-border rounded-3xl p-8 shadow-sm flex flex-col">
-           <div className="flex items-center justify-between mb-8">
-              <h3 className="font-serif text-xl flex items-center gap-3">
-                <div className="p-2 bg-accent rounded-xl text-primary"><FileText size={20} /></div>
-                Recent Records
-              </h3>
-              <Link href="/records" className="text-sm font-medium text-primary hover:bg-primary/10 px-4 py-2 rounded-full transition-colors">View All</Link>
-           </div>
-           {summary.recentRecords.length === 0 ? (
-             <div className="flex-1 flex items-center justify-center text-center p-6 border-2 border-dashed border-border rounded-2xl bg-background/50">
-               <p className="text-muted-foreground text-sm">No recent health records added.</p>
-             </div>
-           ) : (
-             <div className="space-y-5">
-               {summary.recentRecords.slice(0, 3).map((record, i) => (
-                 <div key={record.id} className={cn("flex justify-between items-start", i !== summary.recentRecords.slice(0, 3).length - 1 && "border-b border-border/60 pb-5")}>
-                   <div className="pr-4">
-                     <p className="font-medium text-foreground mb-1">{record.title}</p>
-                     <p className="text-sm text-muted-foreground flex items-center gap-2">
-                       <span>{format(parseISO(record.date), 'MMM d, yyyy')}</span>
-                       <span className="w-1 h-1 bg-border rounded-full"></span>
-                       <span className="capitalize">{record.type}</span>
-                     </p>
-                   </div>
-                   {record.clinic && (
-                     <span className="text-xs font-medium bg-background border border-border text-muted-foreground px-3 py-1 rounded-full whitespace-nowrap">
-                       {record.clinic}
-                     </span>
-                   )}
-                 </div>
-               ))}
-             </div>
-           )}
-         </div>
+const TONE_STYLES: Record<'late' | 'today' | 'tomorrow', { label: string; wrap: string; icon: string }> = {
+  late: { label: 'Late', wrap: 'bg-destructive/10 border-destructive/20', icon: 'bg-destructive/15 text-destructive' },
+  today: { label: 'Today', wrap: 'bg-card border-border', icon: 'bg-primary/10 text-primary' },
+  tomorrow: { label: 'Tomorrow', wrap: 'bg-amber-50 border-amber-200', icon: 'bg-amber-100 text-amber-800' },
+};
+
+function TriageSection({
+  label,
+  tone,
+  items,
+  onComplete,
+  onLogDose,
+  pending,
+}: {
+  label: string;
+  tone: 'late' | 'today' | 'tomorrow';
+  items: UpcomingItem[];
+  onComplete: (id: number) => void;
+  onLogDose: (id: number) => void;
+  pending: boolean;
+}) {
+  if (items.length === 0) return null;
+  const style = TONE_STYLES[tone];
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="flex items-center gap-2.5">
+        <span className={cn('font-serif text-[13.5px] font-extrabold uppercase tracking-wider', tone === 'late' ? 'text-destructive' : 'text-muted-foreground')}>
+          {label}
+        </span>
+        <span className="flex-1 h-px bg-border" />
       </div>
+      {items.map((item) => (
+        <div key={`${item.kind}-${item.id}`} className={cn('flex items-center gap-4 px-5 py-4 rounded-[18px] border', style.wrap)}>
+          <div className={cn('w-[52px] h-[52px] rounded-2xl flex items-center justify-center shrink-0', style.icon)}>
+            <item.icon size={22} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-serif text-lg font-extrabold">{item.title}</span>
+              {item.suggested && (
+                <span className="flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                  <Sparkles size={11} /> We worked this out
+                </span>
+              )}
+            </div>
+            <div className="text-sm text-muted-foreground mt-0.5">{item.subtitle}</div>
+          </div>
+          {item.kind === 'reminder' ? (
+            <button
+              type="button"
+              onClick={() => onComplete(item.id)}
+              disabled={pending}
+              className="h-11 flex items-center gap-2 px-5 rounded-full bg-foreground text-background text-sm font-bold shrink-0 disabled:opacity-50"
+            >
+              <Check size={15} /> Done
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onLogDose(item.id)}
+              disabled={pending}
+              className="h-11 flex items-center gap-2 px-5 rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0 disabled:opacity-50 shadow-sm shadow-primary/25"
+            >
+              {pending ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Given
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function OtherPetNudge({ pet }: { pet: Pet }) {
+  const { setActivePetId } = usePetContext();
+  const { data: summary } = useGetDashboardSummary(
+    { petId: pet.id },
+    { query: { queryKey: getGetDashboardSummaryQueryKey({ petId: pet.id }) } },
+  );
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const lateReminder = summary?.upcomingReminders.find((r) => r.dueDate < todayStr);
+
+  return (
+    <div className="flex items-center gap-4 px-5 py-4 rounded-[18px] bg-card border border-border">
+      {resolvePetAvatar(null, pet.species) && (
+        <img src={resolvePetAvatar(null, pet.species)!} alt={pet.name} className="w-11 h-11 rounded-full bg-muted shrink-0" />
+      )}
+      <div className="flex-1 text-[15px]">
+        {lateReminder ? (
+          <>
+            <span className="font-bold">{pet.name} has something late too</span>{' '}
+            <span className="text-muted-foreground">· {lateReminder.title}, due {format(parseISO(lateReminder.dueDate), 'MMM d')}</span>
+          </>
+        ) : (
+          <span className="text-muted-foreground">{pet.name} is all caught up</span>
+        )}
+      </div>
+      <button type="button" onClick={() => setActivePetId(pet.id)} className="text-sm font-bold text-primary shrink-0">
+        Switch to them
+      </button>
     </div>
   );
 }
