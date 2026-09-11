@@ -182,7 +182,7 @@ The repo already has a scaffold — the call here is **keep it**, not replace it
 - **AI:** OpenAI SDK (Replit-provisioned) — low-cost model tier for both chat and document extraction; the Care Recommendations Engine calls no AI provider at all.
 
 **Backend — add for MVP**
-- **Auth:** better-auth, email + password, Drizzle adapter — Postgres-native and portable off Replit.
+- **Auth:** Clerk, email + password — hosted accounts/sessions, no local password storage. (Originally better-auth; see docs/PROJECT.md for the current setup.)
 - **File storage:** **Supabase Storage** — free tier has no time limit (unlike AWS S3's 12-month free tier), S3-compatible API, simple to wire up for PDF/image uploads with signed URLs.
 - **Document parsing:** a PDF text-extraction library (e.g. `pdf-parse`) for the cheap text path, falling back to the vision-capable call on the same OpenAI low-cost tier for scanned/image documents.
 - **Rate limiting:** express-rate-limit on the chat and document-analysis routes, layered on top of the monthly quotas to prevent burst abuse within a day.
@@ -201,7 +201,7 @@ The repo already has a scaffold — the call here is **keep it**, not replace it
 ```mermaid
 flowchart LR
   Owner["Owner (browser)"] -->|HTTPS| SPA["React SPA — Vite build"]
-  SPA -->|"OpenAPI client (Orval-generated)"| API["Express API + better-auth session"]
+  SPA -->|"OpenAPI client (Orval-generated)"| API["Express API + Clerk session"]
   API --> DB[(PostgreSQL via Drizzle)]
   API --> Rules["Care Recommendations Engine\n(rule-based, no LLM)"]
   API -->|"upload / signed URL"| Store[("Supabase Storage")]

@@ -125,14 +125,12 @@ async function deleteDocumentBestEffort(path: string) {
 // Ownership helpers — every pet-scoped read/write goes through one of these.
 // ---------------------------------------------------------------------------
 
-// better-auth's `User.id` is typed `string` regardless of adapter; our schema
-// uses integer ids (`advanced.database.generateId: "serial"`), so the actual
-// runtime value is already numeric — this just satisfies the type checker.
-function requireUserId(req: Request): number {
-  return Number(req.user!.id);
+// Set by requireAuth (see @workspace/auth) from the verified Clerk session.
+function requireUserId(req: Request): string {
+  return req.userId!;
 }
 
-async function getOwnedPetIds(userId: number): Promise<number[]> {
+async function getOwnedPetIds(userId: string): Promise<number[]> {
   const rows = await db
     .select({ petId: petOwners.petId })
     .from(petOwners)
@@ -140,7 +138,7 @@ async function getOwnedPetIds(userId: number): Promise<number[]> {
   return rows.map((row) => row.petId);
 }
 
-async function isPetOwnedByUser(userId: number, petId: number): Promise<boolean> {
+async function isPetOwnedByUser(userId: string, petId: number): Promise<boolean> {
   const [row] = await db
     .select({ petId: petOwners.petId })
     .from(petOwners)

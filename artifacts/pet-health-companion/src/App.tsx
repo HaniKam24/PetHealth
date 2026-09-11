@@ -1,5 +1,7 @@
 import { type ReactNode, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useAuth } from '@clerk/react';
+import { setAuthTokenGetter } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -8,7 +10,6 @@ import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 
 import { PetProvider } from '@/context/pet-context';
 import { Layout } from '@/components/layout';
-import { useSession } from '@/lib/auth-client';
 
 import Dashboard from '@/pages/dashboard';
 import Records from '@/pages/records';
@@ -51,24 +52,34 @@ function AuthedApp() {
 }
 
 function Router() {
-  const { data: session, isPending } = useSession();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
   const [location, setLocation] = useLocation();
   const isAuthPage = AUTH_PAGES.has(location);
 
+  // Every generated API client request runs through customFetch, which
+  // attaches whatever this getter returns as `Authorization: Bearer <token>`
+  // — see setAuthTokenGetter's own doc comment. Registered once auth is
+  // loaded so the api-server's requireAuth middleware can verify the
+  // session on every pet-scoped request.
   useEffect(() => {
-    if (isPending) return;
-    if (!session && !isAuthPage) {
+    if (!isLoaded) return;
+    setAuthTokenGetter(isSignedIn ? () => getToken() : null);
+  }, [isLoaded, isSignedIn, getToken]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!isSignedIn && !isAuthPage) {
       setLocation('/login');
-    } else if (session && isAuthPage) {
+    } else if (isSignedIn && isAuthPage) {
       setLocation('/');
     }
-  }, [session, isPending, isAuthPage, setLocation]);
+  }, [isSignedIn, isLoaded, isAuthPage, setLocation]);
 
-  if (isPending) {
+  if (!isLoaded) {
     return <FullPageLoader />;
   }
 
-  if (!session) {
+  if (!isSignedIn) {
     return (
       <Switch>
         <Route path="/signup" component={Signup} />

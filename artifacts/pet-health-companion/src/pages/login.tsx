@@ -4,11 +4,11 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { HeartPulse, LogIn } from 'lucide-react';
+import { useSignIn } from '@clerk/react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { signIn } from '@/lib/auth-client';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
@@ -17,8 +17,24 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+// Clerk's returned `error` is either a ClerkAPIResponseError-shaped object
+// (an `errors` array of { message, longMessage }) or something else entirely
+// (a plain Error, a network failure) — extract defensively rather than
+// assuming one shape, since the docs for this API surface are thin.
+function extractErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'errors' in error) {
+    const clerkErrors = (error as { errors?: Array<{ longMessage?: string; message?: string }> }).errors;
+    const first = clerkErrors?.[0];
+    if (first?.longMessage) return first.longMessage;
+    if (first?.message) return first.message;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return 'Could not sign in with those details.';
+}
+
 export default function Login() {
   const [, setLocation] = useLocation();
+  const { signIn } = useSignIn();
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<LoginFormValues>({
@@ -28,17 +44,21 @@ export default function Login() {
 
   const onSubmit = async (values: LoginFormValues) => {
     setFormError(null);
-    const { error } = await signIn.email({
-      email: values.email,
+    const { error } = await signIn.password({
+      emailAddress: values.email,
       password: values.password,
     });
 
     if (error) {
-      setFormError(error.message ?? 'Could not sign in with those details.');
+      setFormError(extractErrorMessage(error));
       return;
     }
 
-    setLocation('/');
+    if (signIn.status === 'complete') {
+      await signIn.finalize({ navigate: () => setLocation('/') });
+    } else {
+      setFormError('Sign-in needs an extra step this app does not support yet — contact support.');
+    }
   };
 
   return (

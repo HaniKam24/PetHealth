@@ -41,8 +41,11 @@ export default defineConfig({
       strict: true,
     },
     // Local dev only: proxies API calls to the api-server so the browser
-    // sees one origin (this is what makes better-auth's session cookie and
-    // the app's relative `/api/...` fetches work without extra CORS setup).
+    // sees one origin, letting the app's relative `/api/...` fetches work
+    // without extra CORS setup. Auth itself doesn't go through this proxy —
+    // sign-in/sign-up run client-side against Clerk's own API, and the
+    // Clerk session token is attached to these proxied requests as an
+    // Authorization header (see setAuthTokenGetter in App.tsx).
     proxy: {
       '/api': {
         target: process.env.API_PROXY_TARGET ?? 'http://localhost:5050',

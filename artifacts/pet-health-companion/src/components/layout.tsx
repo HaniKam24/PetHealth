@@ -5,13 +5,14 @@ import { usePetContext } from '@/context/pet-context';
 import { useListPets } from '@workspace/api-client-react';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
-import { signOut, useSession } from '@/lib/auth-client';
+import { useClerk, useUser } from '@clerk/react';
 
 export function Layout({ children }: { children: ReactNode }) {
-  const [location, setLocation] = useLocation();
+  const [location] = useLocation();
   const { activePetId, setActivePetId } = usePetContext();
   const { data: pets } = useListPets();
-  const { data: session } = useSession();
+  const { user } = useUser();
+  const { signOut } = useClerk();
 
   const navItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -106,13 +107,11 @@ export function Layout({ children }: { children: ReactNode }) {
 
         <div className="mt-auto p-6 pt-4 border-t border-border">
           <button
-            onClick={() => {
-              void signOut().then(() => setLocation('/login'));
-            }}
+            onClick={() => void signOut({ redirectUrl: '/login' })}
             className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
           >
             <LogOut size={18} className="opacity-70" />
-            <span className="truncate">{session?.user.email ?? 'Sign out'}</span>
+            <span className="truncate">{user?.primaryEmailAddress?.emailAddress ?? 'Sign out'}</span>
           </button>
         </div>
       </aside>

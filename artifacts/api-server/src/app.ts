@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
-import { authHandler } from "@workspace/auth";
+import { clerkAuthMiddleware } from "@workspace/auth";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { errorHandler, notFoundHandler } from "./lib/error-handler";
@@ -39,10 +39,10 @@ app.use(
   }),
 );
 
-// Mounted before express.json(): better-auth's handler reads and parses the
-// raw request body itself, so a body-parser upstream would consume the
-// stream first and break it.
-app.all("/api/auth/*splat", authHandler);
+// Reads the Clerk session token (if any) off the request and attaches it —
+// sign-up/sign-in themselves happen client-side against Clerk's own API,
+// not through this server.
+app.use(clerkAuthMiddleware);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
