@@ -34,6 +34,10 @@ services:
         sync: false
       - key: CLERK_SECRET_KEY
         sync: false
+      # @clerk/express's clerkMiddleware() needs this too, not just the
+      # secret key — it 500s on every request without it.
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
@@ -70,7 +74,7 @@ services:
       # never has to deal with cross-origin requests.
       - type: rewrite
         source: /api/*
-        destination: https://pethealth-api.onrender.com/api/*
+        destination: https://pethealth-api-68wo.onrender.com/api/*
       # Client-side routing (wouter) — unmatched paths fall back to index.html.
       - type: rewrite
         source: /*
