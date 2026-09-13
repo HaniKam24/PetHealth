@@ -68,7 +68,7 @@ export default function Signup() {
                     <FormItem>
                       <FormLabel>Your name</FormLabel>
                       <FormControl>
-                        <Input autoComplete="name" placeholder="Jamie Rivera" className="h-11" {...field} />
+                        <Input autoComplete="name" placeholder="Jamie Rivera" className="h-11 rounded-full" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -81,7 +81,7 @@ export default function Signup() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" autoComplete="email" placeholder="you@example.com" className="h-11" {...field} />
+                        <Input type="email" autoComplete="email" placeholder="you@example.com" className="h-11 rounded-full" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -94,7 +94,7 @@ export default function Signup() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" autoComplete="new-password" className="h-11" {...field} />
+                        <Input type="password" autoComplete="new-password" className="h-11 rounded-full" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -108,7 +108,7 @@ export default function Signup() {
                 <Button
                   type="submit"
                   size="lg"
-                  className="w-full"
+                  className="w-full rounded-full"
                   disabled={form.formState.isSubmitting}
                 >
                   <UserPlus size={18} />

@@ -1,12 +1,11 @@
 import { usePetContext } from '@/context/pet-context';
 import { useGetPet, getGetPetQueryKey, useUpdatePet, useCreatePet, useDeletePet, getListPetsQueryKey, type Pet } from '@workspace/api-client-react';
-import { PageHeader } from '@/components/page-header';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useSearch } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Save, Trash2, HeartPulse } from 'lucide-react';
+import { Trash2, HeartPulse, Check } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -342,7 +341,7 @@ export default function Profile() {
       vetPhone: data.vetPhone || null,
       vetAddress: data.vetAddress || null,
     };
-    
+
     if (isNew) {
       createPet.mutate({ data: payload });
     } else if (activePetId) {
@@ -350,7 +349,7 @@ export default function Profile() {
     }
   };
 
-  if (isLoading && !isNew) return <div className="p-10 animate-pulse text-center">Loading profile...</div>;
+  if (isLoading && !isNew) return <div className="p-10 animate-pulse text-center text-muted-foreground">Loading profile...</div>;
 
   const name = form.watch('name');
   const selectedSpecies = form.watch('species');
@@ -362,124 +361,122 @@ export default function Profile() {
       ? [{ value: savedBreed, label: `${savedBreed} (saved)` }, ...breedOptions]
       : breedOptions;
 
+  const fieldClass = 'h-12 rounded-2xl bg-accent/40';
+
   return (
-    <div className="p-6 md:p-10 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
-      <PageHeader 
-        title={isNew ? "Add a Pet" : `${pet?.name || 'Pet'}'s Profile`}
-        description={isNew ? "Tell us about your furry, feathered, or scaly friend." : "Keep their vital details up to date."}
-      />
+    <div className="p-6 md:p-10 max-w-3xl mx-auto pb-16">
+      <h1 className="font-serif text-[34px] font-extrabold tracking-tight">
+        {isNew ? "Let's add your pet" : `${pet?.name ?? 'Pet'}'s details`}
+      </h1>
+      <p className="mt-1 mb-6 text-[16.5px] text-muted-foreground">
+        {isNew ? 'Tell us about your furry, feathered, or scaly friend.' : 'The bits a vet always asks for. Keep them current and everything else gets smarter.'}
+      </p>
 
-      <div className="bg-card border border-border rounded-3xl p-6 md:p-10 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-primary/10 to-transparent"></div>
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="relative z-10">
-            
-            {/* Header / Avatar Area */}
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 mb-12">
-               <div className="relative">
-                 <div className="w-32 h-32 rounded-full border-4 border-background shadow-lg overflow-hidden bg-accent flex items-center justify-center text-primary text-4xl font-serif">
-                    {currentPhotoSrc ? (
-                      <img src={currentPhotoSrc} alt="Pet avatar" className="w-full h-full object-cover" />
-                   ) : (
-                     name ? name.charAt(0) : <HeartPulse size={40} />
-                   )}
-                 </div>
-               </div>
-               
-               <div className="flex-1 w-full space-y-4">
-                 <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <input 
-                            placeholder="Pet's Name" 
-                            className="text-4xl md:text-5xl font-serif font-medium bg-transparent border-none focus:outline-none focus:ring-0 placeholder:text-muted w-full border-b-2 border-transparent focus:border-primary transition-colors pb-2" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-               </div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-5">
+          <div className="bg-card border border-border rounded-3xl p-7 flex items-center gap-6">
+            <div className="w-24 h-24 rounded-full bg-accent flex items-center justify-center text-primary shrink-0 overflow-hidden">
+              {currentPhotoSrc ? (
+                <img src={currentPhotoSrc} alt="Pet avatar" className="w-full h-full object-cover" />
+              ) : name ? (
+                <span className="text-4xl font-serif font-extrabold">{name.charAt(0)}</span>
+              ) : (
+                <HeartPulse size={40} />
+              )}
             </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold text-muted-foreground">Name</div>
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <input
+                        placeholder="Pet's Name"
+                        className="w-full mt-0.5 text-[32px] font-serif font-extrabold tracking-tight bg-transparent border-b-2 border-border focus:border-primary focus:outline-none pb-1 transition-colors"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="text-sm text-muted-foreground shrink-0 hidden sm:block text-right">
+              Using the {selectedSpecies} illustration
+            </div>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
-              
-              <div className="space-y-8">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Basic Info</h3>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="species"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Species</FormLabel>
-                        <Select
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            form.setValue('breed', '', { shouldDirty: true });
-                          }}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="bg-accent/30 h-12">
-                              <SelectValue placeholder="Species" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="dog">Dog</SelectItem>
-                            <SelectItem value="cat">Cat</SelectItem>
-                            <SelectItem value="bird">Bird</SelectItem>
-                            <SelectItem value="rabbit">Rabbit</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="sex"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Sex</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger className="bg-accent/30 h-12">
-                              <SelectValue placeholder="Sex" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="female">Female</SelectItem>
-                            <SelectItem value="male">Male</SelectItem>
-                            <SelectItem value="unknown">Unknown</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="bg-card border border-border rounded-3xl p-6">
+              <div className="font-serif text-lg font-extrabold mb-4">The basics</div>
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="species"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Species</FormLabel>
+                      <Select
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          form.setValue('breed', '', { shouldDirty: true });
+                        }}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger className={fieldClass}>
+                            <SelectValue placeholder="Species" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="dog">Dog</SelectItem>
+                          <SelectItem value="cat">Cat</SelectItem>
+                          <SelectItem value="bird">Bird</SelectItem>
+                          <SelectItem value="rabbit">Rabbit</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
+                <FormField
+                  control={form.control}
+                  name="sex"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sex</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className={fieldClass}>
+                            <SelectValue placeholder="Sex" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="unknown">Unknown</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="mt-3">
                 <FormField
                   control={form.control}
                   name="breed"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Breed (Optional)</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value ?? ''}
-                      >
+                      <Select onValueChange={field.onChange} value={field.value ?? ''}>
                         <FormControl>
-                          <SelectTrigger className="bg-accent/30 h-12">
+                          <SelectTrigger className={fieldClass}>
                             <SelectValue placeholder={`Select a ${selectedSpecies} breed`} />
                           </SelectTrigger>
                         </FormControl>
@@ -495,172 +492,172 @@ export default function Profile() {
                     </FormItem>
                   )}
                 />
-              </div>
-
-              <div className="space-y-8">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Vitals</h3>
-                
-                <FormField
-                  control={form.control}
-                  name="birthDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Birth Date / Gotcha Day</FormLabel>
-                      <FormControl>
-                        <Input type="date" className="bg-accent/30 h-12" {...field} value={field.value || ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-[minmax(0,1fr)_6rem] items-start gap-3">
-                  <FormField
-                    control={form.control}
-                    name="weight"
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormLabel>Weight</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.1" placeholder="0.0" className="bg-accent/30 h-12" {...field} value={field.value || ''} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="weightUnit"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Unit</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger className="bg-accent/30 h-12">
-                              <SelectValue placeholder="Unit" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="lb">lbs</SelectItem>
-                            <SelectItem value="kg">kg</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <p className="mt-1.5 text-xs text-muted-foreground">{breedOptions.length} {selectedSpecies} breeds listed, or type your own.</p>
               </div>
             </div>
 
-            <div className="mt-10 pt-8 border-t border-border/50">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground border-b border-border pb-2 mb-8">Vet Contact (Optional)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
-                <FormField
-                  control={form.control}
-                  name="vetName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Vet Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Dr. Jamie Rivera" className="bg-accent/30 h-12" {...field} value={field.value || ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="vetClinic"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Clinic</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Harbor Veterinary Clinic" className="bg-accent/30 h-12" {...field} value={field.value || ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="vetPhone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
-                      <FormControl>
-                        <Input type="tel" placeholder="(555) 123-4567" className="bg-accent/30 h-12" {...field} value={field.value || ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="vetAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="123 Harbor St, Portland, ME" className="bg-accent/30 h-12" {...field} value={field.value || ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-
-            <div className="mt-10 pt-8 border-t border-border/50">
+            <div className="bg-card border border-border rounded-3xl p-6">
+              <div className="font-serif text-lg font-extrabold mb-4">Vitals</div>
               <FormField
                 control={form.control}
-                name="notes"
+                name="birthDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-lg font-serif">Important Notes & Quirks</FormLabel>
+                    <FormLabel>Birthday or gotcha day</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Allergies, microchip number, favorite hiding spots, fears..." 
-                        className="resize-none bg-accent/20 min-h-[150px] text-lg p-6 rounded-2xl" 
-                        {...field}
-                        value={field.value || ''} 
-                      />
+                      <Input type="date" className={fieldClass} {...field} value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_6rem] items-start gap-3">
+                <FormField
+                  control={form.control}
+                  name="weight"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>Weight</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.1" placeholder="0.0" className={fieldClass} {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="weightUnit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Unit</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className={fieldClass}>
+                            <SelectValue placeholder="Unit" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="lb">lbs</SelectItem>
+                          <SelectItem value="kg">kg</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-3xl p-6">
+            <div className="font-serif text-lg font-extrabold mb-4">Their vet</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="vetName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vet</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Dr. Jamie Rivera" className={fieldClass} {...field} value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="vetClinic"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Clinic</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Harbor Veterinary Clinic" className={fieldClass} {...field} value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="vetPhone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone</FormLabel>
+                    <FormControl>
+                      <Input type="tel" placeholder="(555) 123-4567" className={fieldClass} {...field} value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="vetAddress"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="123 Harbor St, Portland, ME" className={fieldClass} {...field} value={field.value || ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+          </div>
 
-            <div className="mt-12 flex items-center justify-between">
-              {!isNew && (
-                <button
-                  type="button"
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  className="text-destructive hover:bg-destructive/10 px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2"
-                >
-                  <Trash2 size={18} /> Delete Profile
-                </button>
+          <div className="bg-card border border-border rounded-3xl p-6">
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-serif text-lg font-extrabold">Things worth remembering</FormLabel>
+                  <p className="text-sm text-muted-foreground mb-1">Microchip number, allergies, what frightens them, where they hide.</p>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Allergies, microchip number, favorite hiding spots, fears..."
+                      className="resize-none rounded-2xl bg-accent/40 min-h-[130px]"
+                      {...field}
+                      value={field.value || ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
-              <div className={cn("flex gap-4", isNew && "w-full justify-end")}>
-                <button 
-                  type="submit" 
-                  disabled={updatePet.isPending || createPet.isPending}
-                  className="bg-primary text-primary-foreground px-10 py-4 rounded-xl font-medium shadow-md hover:shadow-lg hover:bg-primary/90 transition-all flex items-center gap-3 ml-auto text-lg"
-                >
-                  <Save size={20} />
-                  {isNew ? 'Create Profile' : 'Save Changes'}
-                </button>
-              </div>
-            </div>
-            
-          </form>
-        </Form>
-      </div>
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4 pt-1">
+            {!isNew ? (
+              <button
+                type="button"
+                onClick={() => setIsDeleteDialogOpen(true)}
+                className="h-[50px] px-5 flex items-center gap-2 rounded-full border border-destructive/30 text-destructive font-bold hover:bg-destructive/10 transition-colors"
+              >
+                <Trash2 size={17} /> Delete {pet?.name ?? 'pet'} and everything in their file
+              </button>
+            ) : (
+              <span />
+            )}
+            <button
+              type="submit"
+              disabled={updatePet.isPending || createPet.isPending}
+              className="h-[52px] px-7 flex items-center gap-2.5 rounded-full bg-primary text-primary-foreground font-extrabold shadow-md shadow-primary/25 hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              <Check size={19} />
+              {isNew ? 'Create profile' : 'Save changes'}
+            </button>
+          </div>
+        </form>
+      </Form>
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-3xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {pet?.name || 'this'} profile?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -668,9 +665,9 @@ export default function Profile() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletePet.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-full" disabled={deletePet.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={deletePet.isPending}
               onClick={() => {
                 if (activePetId) {

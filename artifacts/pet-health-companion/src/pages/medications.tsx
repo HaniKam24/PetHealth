@@ -5,9 +5,9 @@ import {
   useCreateMedication,
   useUpdateMedication,
   useLogMedicationDose,
+  useListPets,
   type Medication,
 } from '@workspace/api-client-react';
-import { PageHeader } from '@/components/page-header';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { z } from 'zod';
@@ -144,6 +144,9 @@ export default function Medications() {
   const [nameSearch, setNameSearch] = useState('');
   const { toast } = useToast();
 
+  const { data: pets } = useListPets();
+  const activePet = pets?.find((p) => p.id === activePetId);
+
   const { data: medications, isLoading } = useListMedications(
     activePetId!,
     {
@@ -247,152 +250,124 @@ export default function Medications() {
   const pastMeds = medications?.filter(m => !m.active) || [];
 
   return (
-    <div className="p-6 md:p-10 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
-      <PageHeader
-        title="Medications"
-        description="Track active prescriptions, doses, and schedules."
-        action={
-          <button
-            onClick={() => setIsNewOpen(true)}
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-xl font-medium shadow-sm hover:shadow-md hover:bg-primary/90 transition-all active:scale-95"
-          >
-            <Plus size={20} /> Add Medication
-          </button>
-        }
-      />
+    <div className="p-6 md:p-10 max-w-5xl mx-auto pb-16">
+      <div className="flex items-end justify-between gap-6 mb-7">
+        <div>
+          <h1 className="font-serif text-[34px] font-extrabold tracking-tight">{activePet ? `${activePet.name}'s medicines` : 'Medicines'}</h1>
+          <p className="mt-1 text-[16.5px] text-muted-foreground">
+            {activeMeds.length > 0
+              ? `${activeMeds.length} on the go. We'll work out the next dose each time you tick one off.`
+              : 'Track prescriptions, preventatives, and supplements here.'}
+          </p>
+        </div>
+        <button
+          onClick={() => setIsNewOpen(true)}
+          className="h-[46px] shrink-0 flex items-center gap-2 px-5 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-md shadow-primary/25 hover:bg-primary/90 transition-colors"
+        >
+          <Plus size={17} /> Add a medicine
+        </button>
+      </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1,2,3].map(i => (
-            <div key={i} className="h-64 bg-card/50 border border-border rounded-3xl animate-pulse"></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {[1, 2].map((i) => (
+            <div key={i} className="h-64 bg-card/50 border border-border rounded-3xl animate-pulse" />
           ))}
         </div>
       ) : !medications || medications.length === 0 ? (
-        <div className="text-center py-20 bg-card border-2 border-dashed border-border rounded-3xl max-w-3xl mx-auto">
-          <div className="w-20 h-20 bg-accent rounded-full flex items-center justify-center mx-auto mb-6 text-primary">
-            <Pill size={32} />
+        <div className="text-center py-16 bg-card border-2 border-dashed border-border rounded-3xl">
+          <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center mx-auto mb-5 text-primary">
+            <Pill size={28} />
           </div>
-          <h3 className="text-2xl font-serif mb-3">No medications tracked</h3>
-          <p className="text-muted-foreground text-lg mb-8 max-w-md mx-auto">
+          <h3 className="font-serif text-xl font-extrabold mb-2">No medicines tracked yet</h3>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
             Keep track of prescriptions, flea/tick preventatives, and supplements here.
           </p>
           <button
             onClick={() => setIsNewOpen(true)}
-            className="bg-primary text-primary-foreground px-8 py-3 rounded-xl font-medium shadow-sm hover:shadow-md hover:bg-primary/90 transition-all"
+            className="h-11 px-6 rounded-full bg-primary text-primary-foreground font-bold hover:bg-primary/90 transition-colors"
           >
-            Add a medication
+            Add a medicine
           </button>
         </div>
       ) : (
-        <div className="space-y-12">
+        <div className="space-y-9">
           {activeMeds.length > 0 && (
-            <div>
-              <h2 className="font-serif text-2xl mb-6 text-foreground">Active Prescriptions</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {activeMeds.map(med => (
-                  <div key={med.id} className="bg-card border-t-[6px] border-t-primary border-x border-b border-border rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                    <div className="absolute -right-6 -top-6 w-24 h-24 bg-primary/5 rounded-full group-hover:scale-150 transition-transform duration-500 pointer-events-none"></div>
-
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="p-3 bg-primary/10 text-primary rounded-2xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {activeMeds.map((med) => (
+                <div key={med.id} className="bg-card border border-border rounded-3xl p-6">
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-[52px] h-[52px] rounded-2xl bg-accent text-primary flex items-center justify-center shrink-0">
                         <Pill size={24} />
                       </div>
-                      {med.nextDoseAt && (
-                        <div className="flex items-center gap-1.5 text-xs font-medium text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
-                          <Clock size={14} />
-                          Next: {format(parseISO(med.nextDoseAt), 'MMM d, h:mm a')}
-                        </div>
-                      )}
-                    </div>
-
-                    <h3 className="text-2xl font-medium text-foreground mb-1 leading-tight">{med.name}</h3>
-
-                    <div className="mt-6 space-y-4">
-                      <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-xl">
-                        <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center shrink-0 border border-border/50 text-muted-foreground">
-                           <span className="font-bold text-lg leading-none">D</span>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Dose</p>
-                          <p className="font-medium">{med.dose}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-xl">
-                        <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center shrink-0 border border-border/50 text-muted-foreground">
-                           <Clock size={20} />
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Frequency</p>
-                          <p className="font-medium">{med.frequency}</p>
-                        </div>
+                      <div>
+                        <div className="font-serif text-[22px] font-extrabold leading-tight">{med.name}</div>
+                        <div className="text-[15px] text-muted-foreground">{med.dose} · {med.frequency}</div>
                       </div>
                     </div>
-
-                    {med.instructions && (
-                      <div className="mt-6 pt-5 border-t border-border/60">
-                        <p className="text-sm text-muted-foreground flex gap-2">
-                          <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                          <span className="leading-relaxed">{med.instructions}</span>
-                        </p>
-                      </div>
+                    {med.nextDoseAt && (
+                      <span className="shrink-0 flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-100 px-3 py-1.5 rounded-full">
+                        <Clock size={13} /> {format(parseISO(med.nextDoseAt), 'MMM d, h:mm a')}
+                      </span>
                     )}
-
-                    <div className="mt-6 pt-5 border-t border-border/60 flex gap-2">
-                      {med.doseIntervalValue && med.doseIntervalUnit ? (
-                        <button
-                          onClick={() => logDose.mutate({ petId: activePetId, medicationId: med.id })}
-                          disabled={logDose.isPending}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 text-primary font-medium text-sm hover:bg-primary/20 transition-colors disabled:opacity-50"
-                        >
-                          {logDose.isPending ? <Loader2 size={16} className="animate-spin" /> : <Syringe size={16} />}
-                          Mark dose given
-                        </button>
-                      ) : (
-                        <span className="flex-1 text-xs text-muted-foreground italic self-center">
-                          Add a structured schedule to enable auto-rescheduling.
-                        </span>
-                      )}
-                      <button
-                        onClick={() => setMedicationActive(med, false)}
-                        disabled={updateMedication.isPending}
-                        title="Stop this medication"
-                        className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border text-muted-foreground font-medium text-sm hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors disabled:opacity-50"
-                      >
-                        <Ban size={16} />
-                      </button>
-                    </div>
                   </div>
-                ))}
-              </div>
+
+                  {med.instructions && (
+                    <div className="mt-4 flex gap-2.5 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3">
+                      <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-700" />
+                      <span className="text-sm leading-relaxed text-amber-900">{med.instructions}</span>
+                    </div>
+                  )}
+
+                  <div className="mt-5 flex gap-2">
+                    {med.doseIntervalValue && med.doseIntervalUnit ? (
+                      <button
+                        onClick={() => logDose.mutate({ petId: activePetId, medicationId: med.id })}
+                        disabled={logDose.isPending}
+                        className="flex-1 h-11 flex items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm shadow-primary/20 hover:bg-primary/90 transition-colors disabled:opacity-50"
+                      >
+                        {logDose.isPending ? <Loader2 size={16} className="animate-spin" /> : <Syringe size={16} />}
+                        I've given this
+                      </button>
+                    ) : (
+                      <span className="flex-1 text-xs text-muted-foreground italic self-center">
+                        Add a schedule to enable one-tap logging.
+                      </span>
+                    )}
+                    <button
+                      onClick={() => setMedicationActive(med, false)}
+                      disabled={updateMedication.isPending}
+                      className="h-11 px-4 flex items-center gap-1.5 rounded-full border border-border text-sm font-bold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                    >
+                      <Ban size={15} /> Stop
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
           {pastMeds.length > 0 && (
             <div>
-              <h2 className="font-serif text-2xl mb-6 text-muted-foreground">Past Medications</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pastMeds.map(med => (
-                  <div key={med.id} className="bg-background border border-border rounded-3xl p-6 opacity-70 hover:opacity-100 transition-opacity">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-4 min-w-0">
-                        <div className="p-2 bg-muted text-muted-foreground rounded-xl shrink-0">
-                          <Pill size={20} />
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="text-lg font-medium text-foreground truncate">{med.name}</h3>
-                          <p className="text-sm text-muted-foreground truncate">{med.dose} • {med.frequency}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setMedicationActive(med, true)}
-                        disabled={updateMedication.isPending}
-                        title="My pet is taking this again"
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 text-primary font-medium text-sm hover:bg-primary/20 transition-colors disabled:opacity-50 shrink-0"
-                      >
-                        <RotateCcw size={14} /> Resume
-                      </button>
+              <div className="font-serif text-xl font-extrabold mb-3">Stopped</div>
+              <div className="bg-card border border-border rounded-3xl overflow-hidden">
+                {pastMeds.map((med, i) => (
+                  <div key={med.id} className={cn('flex items-center gap-4 p-4', i > 0 && 'border-t border-border')}>
+                    <div className="w-[42px] h-[42px] rounded-2xl bg-accent text-muted-foreground flex items-center justify-center shrink-0">
+                      <Pill size={19} />
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[16.5px] font-bold">{med.name}</span>{' '}
+                      <span className="text-[15px] text-muted-foreground">· {med.dose}, {med.frequency}</span>
+                    </div>
+                    <button
+                      onClick={() => setMedicationActive(med, true)}
+                      disabled={updateMedication.isPending}
+                      className="h-10 px-4 flex items-center gap-1.5 rounded-full bg-accent text-primary text-sm font-bold hover:bg-accent/70 transition-colors disabled:opacity-50 shrink-0"
+                    >
+                      <RotateCcw size={14} /> He's taking this again
+                    </button>
                   </div>
                 ))}
               </div>
@@ -402,9 +377,9 @@ export default function Medications() {
       )}
 
       <Dialog open={isNewOpen} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="font-serif text-2xl">Add Medication</DialogTitle>
+            <DialogTitle className="font-serif text-2xl font-extrabold">Add a medicine</DialogTitle>
             <DialogDescription>Track a new prescription or preventative.</DialogDescription>
           </DialogHeader>
 
@@ -412,7 +387,7 @@ export default function Medications() {
             <form onSubmit={form.handleSubmit((data) => {
               const submissionData = { ...data, nextDoseAt: data.nextDoseAt || null };
               createMedication.mutate({ petId: activePetId, data: submissionData });
-            })} className="space-y-5 mt-4">
+            })} className="space-y-5 mt-2">
               <FormField
                 control={form.control}
                 name="name"
@@ -425,7 +400,7 @@ export default function Medications() {
                           <button
                             type="button"
                             className={cn(
-                              "flex items-center justify-between h-10 w-full rounded-md border border-input bg-accent/50 px-3 py-2 text-sm",
+                              "flex items-center justify-between h-11 w-full rounded-2xl border border-input bg-accent/40 px-3.5 py-2 text-sm",
                               !field.value && "text-muted-foreground"
                             )}
                           >
@@ -470,7 +445,7 @@ export default function Medications() {
                     {(() => {
                       const info = COMMON_MEDICATIONS.find((m) => m.name === field.value);
                       return info ? (
-                        <p className="flex items-start gap-1.5 text-xs text-muted-foreground bg-accent/40 rounded-lg px-3 py-2">
+                        <p className="flex items-start gap-1.5 text-xs text-muted-foreground bg-accent/40 rounded-xl px-3 py-2">
                           <Info size={14} className="shrink-0 mt-0.5" />
                           {info.uses}
                         </p>
@@ -489,7 +464,7 @@ export default function Medications() {
                     <FormItem>
                       <FormLabel>Dose</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. 1 chew, 5mg" className="bg-accent/50" {...field} />
+                        <Input placeholder="e.g. 1 chew, 5mg" className="h-11 rounded-2xl bg-accent/40" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -499,7 +474,7 @@ export default function Medications() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium leading-none">Frequency</label>
                   <Select value={frequencyPreset} onValueChange={handlePresetChange}>
-                    <SelectTrigger className="bg-accent/50">
+                    <SelectTrigger className="h-11 rounded-2xl bg-accent/40">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -528,7 +503,7 @@ export default function Medications() {
                               type="number"
                               min={1}
                               placeholder="e.g. 36"
-                              className="bg-accent/50"
+                              className="h-11 rounded-2xl bg-accent/40"
                               value={field.value ?? ''}
                               onChange={(e) => {
                                 const newValue = e.target.value === '' ? null : Number(e.target.value);
@@ -555,7 +530,7 @@ export default function Medications() {
                             value={field.value ?? undefined}
                           >
                             <FormControl>
-                              <SelectTrigger className="bg-accent/50">
+                              <SelectTrigger className="h-11 rounded-2xl bg-accent/40">
                                 <SelectValue placeholder="Select unit" />
                               </SelectTrigger>
                             </FormControl>
@@ -583,7 +558,7 @@ export default function Medications() {
                     <FormControl>
                       <Input
                         type="datetime-local"
-                        className="bg-accent/50"
+                        className="h-11 rounded-2xl bg-accent/40"
                         value={value || ''}
                         onChange={(e) => onChange(e.target.value)}
                         {...field}
@@ -603,7 +578,7 @@ export default function Medications() {
                     <FormControl>
                       <Textarea
                         placeholder="e.g. Give with food, watch for lethargy..."
-                        className="resize-none bg-accent/50"
+                        className="resize-none rounded-2xl bg-accent/40"
                         {...field}
                       />
                     </FormControl>
@@ -616,7 +591,7 @@ export default function Medications() {
                 control={form.control}
                 name="active"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-xl border border-border p-4 bg-background">
+                  <FormItem className="flex flex-row items-center justify-between rounded-2xl border border-border p-4 bg-background">
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">Currently taking</FormLabel>
                       <DialogDescription>
@@ -633,20 +608,20 @@ export default function Medications() {
                 )}
               />
 
-              <div className="flex justify-end gap-3 pt-6 border-t border-border">
+              <div className="flex justify-end gap-3 pt-5 border-t border-border">
                 <button
                   type="button"
                   onClick={closeDialog}
-                  className="px-5 py-2.5 font-medium text-foreground hover:bg-accent rounded-xl transition-colors"
+                  className="h-11 px-5 font-bold text-muted-foreground hover:bg-accent rounded-full transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={createMedication.isPending}
-                  className="px-6 py-2.5 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50"
+                  className="h-11 px-6 bg-primary text-primary-foreground font-bold rounded-full hover:bg-primary/90 transition-colors shadow-md shadow-primary/25 disabled:opacity-50"
                 >
-                  {createMedication.isPending ? 'Saving...' : 'Add Medication'}
+                  {createMedication.isPending ? 'Saving...' : 'Add Medicine'}
                 </button>
               </div>
             </form>

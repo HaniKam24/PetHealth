@@ -8,9 +8,9 @@ import {
   useCreateSymptomLog,
   useGetPetTrends,
   getGetPetTrendsQueryKey,
+  useListPets,
   type Insight,
 } from '@workspace/api-client-react';
-import { PageHeader } from '@/components/page-header';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Sparkles, Send, Bot, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill } from 'lucide-react';
@@ -21,9 +21,15 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 
 const toneConfig = {
-  helpful: { icon: Heart, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-  watch: { icon: Activity, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+  helpful: { icon: Heart, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+  watch: { icon: Activity, color: 'text-amber-700', bg: 'bg-amber-100' },
   urgent: { icon: ShieldAlert, color: 'text-destructive', bg: 'bg-destructive/10' },
+};
+
+const toneLabel = {
+  helpful: 'Helpful to know',
+  watch: 'Worth keeping an eye on',
+  urgent: 'Needs attention',
 };
 
 // Renders **bold** spans as real React nodes instead of injecting HTML, so AI-generated
@@ -72,6 +78,9 @@ export default function Insights() {
   const [question, setQuestion] = useState('');
   const [tab, setTab] = useState<'chat' | 'trends'>('chat');
   const { toast } = useToast();
+
+  const { data: pets } = useListPets();
+  const activePet = pets?.find((p) => p.id === activePetId);
 
   const { data: trends, isLoading: trendsLoading } = useGetPetTrends(activePetId!, {
     query: {
@@ -140,19 +149,18 @@ export default function Insights() {
 
   return (
     <div className="p-6 md:p-10 max-w-4xl mx-auto flex flex-col h-full min-h-[calc(100vh-2rem)]">
-      <div className="shrink-0 mb-8">
-        <PageHeader
-          title="AI Health Assistant"
-          description="Ask questions about symptoms, diet, or behavior. Always consult your vet for real medical advice."
-        />
+      <div className="shrink-0 mb-6">
+        <h1 className="font-serif text-[34px] font-extrabold tracking-tight">Ask about {activePet?.name ?? 'your pet'}</h1>
+        <p className="mt-1 text-[16.5px] text-muted-foreground">Symptoms, food, behaviour — we'll answer using what's in their file.</p>
+
         <div className="mt-4 flex items-center gap-3 flex-wrap">
-          <div className="inline-flex bg-accent/40 border border-border rounded-xl p-1">
+          <div className="inline-flex bg-card border border-border rounded-full p-1">
             <button
               type="button"
               onClick={() => setTab('chat')}
               className={cn(
-                'flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                tab === 'chat' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground',
+                'flex items-center gap-1.5 px-4 h-9 rounded-full text-sm font-bold transition-colors',
+                tab === 'chat' ? 'bg-accent text-primary' : 'text-muted-foreground hover:text-foreground',
               )}
             >
               <Sparkles size={14} /> Chat
@@ -161,17 +169,17 @@ export default function Insights() {
               type="button"
               onClick={() => setTab('trends')}
               className={cn(
-                'flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                tab === 'trends' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground',
+                'flex items-center gap-1.5 px-4 h-9 rounded-full text-sm font-bold transition-colors',
+                tab === 'trends' ? 'bg-accent text-primary' : 'text-muted-foreground hover:text-foreground',
               )}
             >
               <TrendingUp size={14} /> Trends
             </button>
           </div>
           {tab === 'chat' && quota && (
-            <div className="bg-card border border-border rounded-2xl px-4 py-2 inline-flex items-baseline gap-2">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">AI questions this month</span>
-              <span className={cn("text-sm font-serif", quotaExhausted && "text-destructive")}>
+            <div className="bg-card border border-border rounded-full px-4 h-9 inline-flex items-center gap-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">This month</span>
+              <span className={cn("text-sm font-bold", quotaExhausted && "text-destructive")}>
                 {quota.remaining} of {quota.limit} left
               </span>
             </div>
@@ -180,11 +188,11 @@ export default function Insights() {
       </div>
 
       {tab === 'trends' ? (
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-6">
-          <div className="bg-card border border-border rounded-3xl shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Scale size={18} className="text-primary" />
-              <h3 className="font-serif text-xl text-foreground">Weight trend</h3>
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-5">
+          <div className="bg-card border border-border rounded-3xl p-6">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-accent text-primary flex items-center justify-center shrink-0"><Scale size={17} /></div>
+              <h3 className="font-serif text-lg font-extrabold">Weight trend</h3>
             </div>
             {trendsLoading ? (
               <div className="h-64 bg-accent/30 rounded-2xl animate-pulse" />
@@ -210,10 +218,10 @@ export default function Insights() {
             )}
           </div>
 
-          <div className="bg-card border border-border rounded-3xl shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Pill size={18} className="text-primary" />
-              <h3 className="font-serif text-xl text-foreground">Medication adherence</h3>
+          <div className="bg-card border border-border rounded-3xl p-6">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-accent text-primary flex items-center justify-center shrink-0"><Pill size={17} /></div>
+              <h3 className="font-serif text-lg font-extrabold">Medication adherence</h3>
               <span className="text-xs text-muted-foreground">(last 30 days)</span>
             </div>
             {trendsLoading ? (
@@ -227,7 +235,7 @@ export default function Insights() {
                 {trends.medicationAdherence.map((med) => (
                   <div key={med.medicationId}>
                     <div className="flex justify-between items-baseline mb-1.5">
-                      <span className="text-sm font-medium text-foreground">{med.medicationName}</span>
+                      <span className="text-sm font-bold">{med.medicationName}</span>
                       <span className="text-sm text-muted-foreground">
                         {med.adherencePercent}% <span className="text-xs">({med.dosesLogged}/{med.dosesExpected} doses)</span>
                       </span>
@@ -245,162 +253,139 @@ export default function Insights() {
           </div>
         </div>
       ) : (
-      <div className="flex-1 flex flex-col min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent h-32 pointer-events-none"></div>
-        
-        {/* Chat History Area */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 relative z-10 scroll-smooth">
-          {isLoading ? (
-            <div className="space-y-8">
-              {[1, 2].map(i => (
-                <div key={i} className="animate-pulse">
-                   <div className="w-2/3 h-16 bg-accent rounded-2xl rounded-tr-sm ml-auto mb-4"></div>
-                   <div className="w-5/6 h-32 bg-accent rounded-2xl rounded-tl-sm mr-auto"></div>
-                </div>
-              ))}
-            </div>
-          ) : !insights || insights.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto opacity-70">
-               <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 text-primary">
-                 <Bot size={40} />
-               </div>
-               <h3 className="font-serif text-2xl mb-3 text-foreground">How can I help?</h3>
-               <p className="text-muted-foreground">Ask about diet changes, strange behaviors, or preventative care. I'll use your pet's health records to give personalized context.</p>
-               
-               <div className="mt-8 flex flex-wrap justify-center gap-3">
-                 <button onClick={() => setQuestion("What are the signs of arthritis?")} className="text-sm bg-background border border-border px-4 py-2 rounded-full hover:border-primary transition-colors">Signs of arthritis?</button>
-                 <button onClick={() => setQuestion("How much water should they drink?")} className="text-sm bg-background border border-border px-4 py-2 rounded-full hover:border-primary transition-colors">Water intake?</button>
-                 <button onClick={() => setQuestion("Should I worry about bad breath?")} className="text-sm bg-background border border-border px-4 py-2 rounded-full hover:border-primary transition-colors">Bad breath causes?</button>
-               </div>
-            </div>
-          ) : (
-            <div className="space-y-12">
-              <div className="bg-primary/10 border border-primary/20 text-primary-foreground/90 p-4 rounded-xl text-sm flex gap-3 shadow-inner">
-                 <ShieldAlert className="shrink-0 text-primary" size={20} />
-                 <p className="text-foreground/80">
-                   <strong>Disclaimer:</strong> This AI assistant provides educational information based on general veterinary knowledge and your provided records. It cannot diagnose conditions or prescribe treatments. If your pet is in distress, contact an emergency vet immediately.
-                 </p>
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="shrink-0 mb-4 flex gap-2.5 items-start bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3.5">
+            <ShieldAlert size={19} className="shrink-0 mt-0.5 text-amber-700" />
+            <p className="text-sm leading-relaxed text-amber-900">
+              <strong>This isn't a diagnosis.</strong> It's general information, plus context from {activePet?.name ?? 'your pet'}'s records. If they're in distress, ring an emergency vet now — don't wait for an answer here.
+            </p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-8 py-1">
+            {isLoading ? (
+              <div className="space-y-8">
+                {[1, 2].map(i => (
+                  <div key={i} className="animate-pulse">
+                    <div className="w-2/3 h-16 bg-accent rounded-3xl ml-auto mb-4" />
+                    <div className="w-5/6 h-32 bg-accent rounded-3xl mr-auto" />
+                  </div>
+                ))}
               </div>
-
-              {insights.map((insight) => {
-                const ToneIcon = toneConfig[insight.tone].icon;
-                
-                return (
-                  <div key={insight.id} className="space-y-6">
-                    {/* User Question — omitted for insights with no real question attached (e.g. orphaned rows predating the question field) */}
-                    {insight.question.trim().length > 0 && (
-                      <div className="flex justify-end">
-                        <div className="bg-primary text-primary-foreground px-6 py-4 rounded-3xl rounded-tr-sm max-w-[85%] shadow-sm">
-                          <p className="text-lg leading-relaxed">{insight.question}</p>
-                          <span className="text-[10px] uppercase tracking-wider opacity-70 mt-2 block">
-                            {format(new Date(insight.createdAt), 'h:mm a • MMM d')}
-                          </span>
+            ) : !insights || insights.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto py-10">
+                <div className="w-20 h-20 bg-accent rounded-full flex items-center justify-center mb-6 text-primary">
+                  <Bot size={40} />
+                </div>
+                <h3 className="font-serif text-2xl font-extrabold mb-2.5">How can I help?</h3>
+                <p className="text-muted-foreground">Ask about diet changes, strange behaviors, or preventative care — I'll use their health records to give personalized context.</p>
+                <div className="mt-7 flex flex-wrap justify-center gap-2.5">
+                  <button onClick={() => setQuestion("What are the signs of arthritis?")} className="h-9 px-4 text-sm font-semibold bg-card border border-border rounded-full hover:border-primary transition-colors">Signs of arthritis?</button>
+                  <button onClick={() => setQuestion("How much water should they drink?")} className="h-9 px-4 text-sm font-semibold bg-card border border-border rounded-full hover:border-primary transition-colors">Water intake?</button>
+                  <button onClick={() => setQuestion("Should I worry about bad breath?")} className="h-9 px-4 text-sm font-semibold bg-card border border-border rounded-full hover:border-primary transition-colors">Bad breath causes?</button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-10">
+                {insights.map((insight) => {
+                  const ToneIcon = toneConfig[insight.tone].icon;
+                  return (
+                    <div key={insight.id} className="space-y-4">
+                      {insight.question.trim().length > 0 && (
+                        <div className="flex justify-end">
+                          <div className="bg-foreground text-background px-5 py-4 rounded-3xl rounded-br-md max-w-[78%]">
+                            <p className="text-[16.5px] leading-relaxed">{insight.question}</p>
+                            <span className="block mt-1.5 text-xs opacity-60">{format(new Date(insight.createdAt), 'h:mm a · MMM d')}</span>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* AI Response */}
-                    <div className="flex justify-start">
-                      <div className="bg-background border border-border px-6 py-6 rounded-3xl rounded-tl-sm max-w-[90%] shadow-sm flex gap-5">
-                        <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0 border", toneConfig[insight.tone].bg, toneConfig[insight.tone].color, "border-current/20")}>
-                          <ToneIcon size={20} />
+                      <div className="bg-card border border-border rounded-3xl rounded-bl-md p-6">
+                        <div className="flex items-center gap-3 mb-3.5">
+                          <div className={cn('w-[42px] h-[42px] rounded-full flex items-center justify-center shrink-0', toneConfig[insight.tone].bg, toneConfig[insight.tone].color)}>
+                            <ToneIcon size={19} />
+                          </div>
+                          <div>
+                            <div className="font-serif text-[17px] font-extrabold">{toneLabel[insight.tone]}</div>
+                            {insight.kind === 'escalation' && (
+                              <div className="text-xs font-bold text-destructive">Escalated — contact your vet</div>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                           {insight.kind === 'escalation' && (
-                             <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-destructive/10 border border-destructive/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-destructive">
-                               <ShieldAlert size={12} />
-                               Escalated — contact your vet
-                             </div>
-                           )}
-                           <div className="prose prose-sm md:prose-base prose-p:leading-relaxed prose-p:text-muted-foreground prose-headings:font-serif prose-headings:text-foreground prose-strong:text-foreground max-w-none">
-                             {/* Simple markdown parsing for the AI content — rendered as React nodes, never raw HTML */}
-                             {insight.content.split('\n\n').map((block, i) => renderBlock(block, i))}
-                           </div>
-                           
-                           <div className="mt-6 pt-4 border-t border-border/50 text-xs text-muted-foreground/70 flex justify-between items-center gap-3">
-                             <span>AI Generated • Not medical advice</span>
-                             <div className="flex items-center gap-3 shrink-0">
-                               {loggedInsightIds.has(insight.id) ? (
-                                 <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
-                                   <CheckCircle2 size={14} /> Logged
-                                 </span>
-                               ) : insight.question.trim().length > 0 ? (
-                                 <button
-                                   type="button"
-                                   onClick={() => handleAddToSymptomLog(insight)}
-                                   disabled={addToSymptomLog.isPending}
-                                   className="flex items-center gap-1.5 font-medium text-primary hover:underline disabled:opacity-50"
-                                 >
-                                   <ClipboardPlus size={14} /> Add to symptom log
-                                 </button>
-                               ) : null}
-                               <span className="capitalize">{insight.tone} priority</span>
-                             </div>
-                           </div>
+                        <div className="prose prose-sm md:prose-base prose-p:leading-relaxed prose-p:text-foreground/90 prose-headings:font-serif prose-strong:text-foreground max-w-none">
+                          {insight.content.split('\n\n').map((block, i) => renderBlock(block, i))}
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-border flex justify-between items-center gap-3">
+                          <span className="text-sm text-muted-foreground">Written by AI · not medical advice</span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {loggedInsightIds.has(insight.id) ? (
+                              <span className="flex items-center gap-1.5 text-sm text-primary font-bold">
+                                <CheckCircle2 size={14} /> Logged
+                              </span>
+                            ) : insight.question.trim().length > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => handleAddToSymptomLog(insight)}
+                                disabled={addToSymptomLog.isPending}
+                                className="h-9 px-3.5 flex items-center gap-1.5 rounded-full border border-border text-sm font-bold hover:bg-accent disabled:opacity-50 transition-colors"
+                              >
+                                <ClipboardPlus size={14} /> Save this to their file
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-              
-              {askInsight.isPending && (
-                <div className="flex justify-end">
-                  <div className="bg-primary/70 text-primary-foreground px-6 py-4 rounded-3xl rounded-tr-sm shadow-sm">
-                    <p className="text-lg">{question}</p>
-                  </div>
-                </div>
-              )}
-              {askInsight.isPending && (
-                <div className="flex justify-start items-center gap-3">
-                   <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center shrink-0 animate-pulse">
-                     <Bot size={20} className="text-primary" />
-                   </div>
-                   <div className="bg-background border border-border px-6 py-4 rounded-3xl rounded-tl-sm flex gap-1">
-                     <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                     <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                     <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                   </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                  );
+                })}
 
-        {/* Input Area */}
-        <div className="p-4 bg-background border-t border-border z-20">
-          {quotaExhausted ? (
-            <div className="text-center text-sm text-muted-foreground py-4">
-              You've used all {quota!.limit} AI questions for this month. Your allowance resets next month.
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="relative flex items-end">
-              <textarea
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                placeholder="Describe symptoms or ask a health question..."
-                className="w-full bg-accent/30 border border-border rounded-2xl pl-6 pr-16 py-4 min-h-[60px] max-h-[160px] resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground/70 shadow-inner"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit(e);
-                  }
-                }}
-              />
-              <button
-                type="submit"
-                disabled={!question.trim() || askInsight.isPending}
-                className="absolute right-2 bottom-2 w-11 h-11 bg-primary text-primary-foreground rounded-xl flex items-center justify-center hover:bg-primary/90 transition-all disabled:opacity-50 disabled:hover:bg-primary shadow-sm"
-              >
-                <Send size={18} className="ml-1" />
-              </button>
-            </form>
-          )}
-          <div className="text-center mt-3 text-[11px] text-muted-foreground uppercase tracking-widest font-bold">
-            Powered by Veterinary AI context
+                {askInsight.isPending && (
+                  <>
+                    <div className="flex justify-end">
+                      <div className="bg-foreground/70 text-background px-5 py-4 rounded-3xl rounded-br-md">
+                        <p className="text-[16.5px]">{question}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 bg-card border border-border rounded-3xl rounded-bl-md px-5 py-4 w-fit">
+                      <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="shrink-0 mt-4 bg-card border border-border rounded-3xl p-5">
+            {quotaExhausted ? (
+              <div className="text-center text-sm text-muted-foreground py-2">
+                You've used all {quota!.limit} AI questions for this month. Your allowance resets next month.
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="flex items-end gap-3">
+                <textarea
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="Tell us what you've noticed…"
+                  className="flex-1 bg-accent/40 border border-border rounded-2xl px-4 py-3 min-h-[56px] max-h-[160px] resize-none focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground text-[15.5px]"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit(e);
+                    }
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!question.trim() || askInsight.isPending}
+                  className="h-[46px] px-5 shrink-0 flex items-center gap-2 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-md shadow-primary/25 hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  <Send size={16} /> Ask
+                </button>
+              </form>
+            )}
           </div>
         </div>
-      </div>
       )}
     </div>
   );

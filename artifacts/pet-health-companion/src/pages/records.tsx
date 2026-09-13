@@ -9,9 +9,9 @@ import {
   getHealthRecordDocumentUrl,
   useListSymptomLogs,
   getListSymptomLogsQueryKey,
+  useListPets,
   type HealthRecord,
 } from '@workspace/api-client-react';
-import { PageHeader } from '@/components/page-header';
 import { cn } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
@@ -35,7 +35,6 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
 const recordSchema = z.object({
@@ -65,11 +64,11 @@ const iconMap = {
 };
 
 const TYPE_LABELS: Record<RecordFormValues['type'], string> = {
-  visit: 'Vet Visit',
-  vaccine: 'Vaccine',
-  lab: 'Lab Results',
+  visit: 'Visit',
+  vaccine: 'Jab',
+  lab: 'Test',
   procedure: 'Procedure',
-  note: 'Observation Note',
+  note: 'My note',
 };
 
 const RECORD_TYPES = Object.keys(TYPE_LABELS) as RecordFormValues['type'][];
@@ -100,6 +99,9 @@ export default function Records() {
   const [openingDocumentId, setOpeningDocumentId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const { data: pets } = useListPets();
+  const activePet = pets?.find((p) => p.id === activePetId);
 
   const { data: records, isLoading } = useListHealthRecords(
     activePetId!,
@@ -242,6 +244,16 @@ export default function Records() {
   // off-by-one day shift when compared against other timezone-aware values.
   }).sort((a, b) => b.date.localeCompare(a.date)) || [];
 
+  // Group already-sorted (desc) records by calendar year, for the mockup's
+  // year-header treatment — a pure display grouping, filtering/sort untouched.
+  const recordsByYear: { year: string; records: HealthRecord[] }[] = [];
+  for (const record of filteredRecords) {
+    const year = record.date.slice(0, 4);
+    const bucket = recordsByYear[recordsByYear.length - 1];
+    if (bucket && bucket.year === year) bucket.records.push(record);
+    else recordsByYear.push({ year, records: [record] });
+  }
+
   const isDialogOpen = isNewOpen || !!editingRecord;
   const isSaving = createRecord.isPending || updateRecord.isPending;
 
@@ -303,92 +315,97 @@ export default function Records() {
   };
 
   return (
-    <div className="p-6 md:p-10 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
-      <PageHeader
-        title="Health Records"
-        description="A complete history of care, visits, and notes."
-        action={
-          <button
-            onClick={() => setIsNewOpen(true)}
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-xl font-medium shadow-sm hover:shadow-md hover:bg-primary/90 transition-all active:scale-95"
-          >
-            <Plus size={20} /> Add Record
-          </button>
-        }
-      />
+    <div className="p-6 md:p-10 max-w-4xl mx-auto pb-16">
+      <div className="flex items-end justify-between gap-6 mb-6">
+        <div>
+          <h1 className="font-serif text-[34px] font-extrabold tracking-tight">{activePet ? `${activePet.name}'s file` : 'Health records'}</h1>
+          <p className="mt-1 text-[16.5px] text-muted-foreground">
+            Every visit, jab, test and note you've saved{records ? ` — ${records.length} in total` : ''}.
+          </p>
+        </div>
+        <button
+          onClick={() => setIsNewOpen(true)}
+          className="h-[46px] shrink-0 flex items-center gap-2 px-5 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-md shadow-primary/25 hover:bg-primary/90 transition-colors"
+        >
+          <Plus size={17} /> Add a record
+        </button>
+      </div>
 
       <div className="mb-4 relative">
-        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground">
-          <Search size={20} />
+        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-muted-foreground">
+          <Search size={18} />
         </div>
         <input
           type="search"
-          placeholder="Search records by title, clinic, or notes..."
+          placeholder={`Search ${activePet?.name ?? "your pet"}'s file`}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-12 pr-4 py-4 bg-card border border-border rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent shadow-sm text-foreground transition-all"
+          className="w-full h-12 pl-11 pr-4 bg-card border border-border rounded-full focus:outline-none focus:ring-2 focus:ring-primary text-[15px] text-foreground"
         />
       </div>
 
-      <div className="mb-8 flex flex-wrap items-center gap-3">
-        <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as RecordFormValues['type'] | 'all')}>
-          <SelectTrigger className="h-11 w-full sm:w-48 bg-card border-border">
-            <SelectValue placeholder="All types" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            {RECORD_TYPES.map((type) => (
-              <SelectItem key={type} value={type}>{TYPE_LABELS[type]}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setTypeFilter('all')}
+          className={cn(
+            'h-11 px-4 rounded-full text-sm font-bold transition-colors',
+            typeFilter === 'all' ? 'bg-foreground text-background' : 'bg-card border border-border text-foreground hover:bg-accent',
+          )}
+        >
+          Everything
+        </button>
+        {RECORD_TYPES.map((type) => (
+          <button
+            key={type}
+            onClick={() => setTypeFilter(type)}
+            className={cn(
+              'h-11 px-4 rounded-full text-sm font-semibold transition-colors',
+              typeFilter === type ? 'bg-foreground text-background' : 'bg-card border border-border text-foreground hover:bg-accent',
+            )}
+          >
+            {TYPE_LABELS[type]}
+          </button>
+        ))}
 
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-muted-foreground shrink-0">From</label>
+        <div className="flex items-center gap-1.5 ml-auto text-sm">
           <input
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="h-11 px-3 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className="h-9 px-2.5 bg-card border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-muted-foreground shrink-0">To</label>
+          <span className="text-muted-foreground">–</span>
           <input
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="h-11 px-3 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className="h-9 px-2.5 bg-card border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
-
         {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors ml-auto"
-          >
-            <X size={16} /> Clear filters
+          <button onClick={clearFilters} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <X size={14} /> Clear
           </button>
         )}
       </div>
 
       {symptomLogs && symptomLogs.length > 0 && (
-        <div className="mb-8 bg-card border border-border rounded-3xl p-6 md:p-8 shadow-sm">
+        <div className="mb-6 bg-card border border-border rounded-3xl p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-accent text-primary flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-accent text-primary flex items-center justify-center shrink-0">
               <ClipboardList size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-medium text-foreground">Symptom Log</h3>
-              <p className="text-sm text-muted-foreground">Symptoms noted from AI Health Assistant conversations.</p>
+              <h3 className="font-serif text-lg font-extrabold">Symptom log</h3>
+              <p className="text-sm text-muted-foreground">Noted from AI chat conversations.</p>
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {[...symptomLogs]
               .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
               .map((log) => (
-                <div key={log.id} className="flex items-start justify-between gap-4 bg-background border border-border/50 rounded-2xl px-4 py-3">
-                  <p className="text-foreground/90 leading-relaxed">{log.description}</p>
+                <div key={log.id} className="flex items-start justify-between gap-4 bg-background border border-border/60 rounded-2xl px-4 py-3">
+                  <p className="text-foreground/90 leading-relaxed text-sm">{log.description}</p>
                   <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap pt-0.5">
                     {format(new Date(log.loggedAt), 'MMM d, yyyy')}
                   </span>
@@ -399,168 +416,166 @@ export default function Records() {
       )}
 
       {isLoading ? (
-        <div className="space-y-4">
-          {[1,2,3].map(i => (
-            <div key={i} className="h-32 bg-card/50 border border-border rounded-2xl animate-pulse"></div>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-20 bg-card/50 border border-border rounded-2xl animate-pulse" />
           ))}
         </div>
       ) : filteredRecords.length === 0 ? (
-        <div className="text-center py-20 bg-card border-2 border-dashed border-border rounded-3xl">
+        <div className="text-center py-16 bg-card border-2 border-dashed border-border rounded-3xl">
           <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center mx-auto mb-4 text-primary">
             <FileText size={28} />
           </div>
-          <h3 className="text-xl font-serif mb-2">No records found</h3>
+          <h3 className="font-serif text-xl font-extrabold mb-2">No records found</h3>
           <p className="text-muted-foreground">
-            {hasActiveFilters ? "No records match your search or filters." : "Start building a health history for your pet."}
+            {hasActiveFilters ? "No records match your search or filters." : "Start building a health history."}
           </p>
-          {hasActiveFilters ? (
-            <button
-              onClick={clearFilters}
-              className="mt-6 text-primary font-medium hover:underline"
-            >
-              Clear filters
-            </button>
-          ) : (
-            <button
-              onClick={() => setIsNewOpen(true)}
-              className="mt-6 text-primary font-medium hover:underline"
-            >
-              Add their first record
-            </button>
-          )}
+          <button
+            onClick={() => (hasActiveFilters ? clearFilters() : setIsNewOpen(true))}
+            className="mt-5 text-primary font-bold hover:underline"
+          >
+            {hasActiveFilters ? 'Clear filters' : 'Add their first record'}
+          </button>
         </div>
       ) : (
-        <div className="space-y-6 relative before:absolute before:inset-0 before:ml-[2.25rem] md:before:ml-[2.75rem] before:-translate-x-px md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-border before:via-border/80 before:to-transparent">
-          {filteredRecords.map(record => {
-            const Icon = iconMap[record.type] || FileText;
-            return (
-              <div key={record.id} className="relative flex items-start gap-6 group">
-                <div className="absolute left-[2.25rem] md:left-[2.75rem] top-8 -ml-2 w-4 h-4 rounded-full bg-background border-2 border-primary z-10 group-hover:scale-125 transition-transform duration-300 shadow-sm" />
-
-                <div className="w-16 md:w-20 pt-7 text-right shrink-0 relative z-10">
-                  <span className="text-sm font-medium text-muted-foreground block">{format(parseISO(record.date), 'MMM d')}</span>
-                  <span className="text-xs text-muted-foreground opacity-70 block">{format(parseISO(record.date), 'yyyy')}</span>
-                </div>
-
-                <div className="flex-1 bg-card border border-border rounded-3xl p-6 md:p-8 shadow-sm hover:shadow-md transition-all group-hover:border-primary/30">
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
-                    <div className="flex gap-4">
-                      <div className="mt-1 w-12 h-12 rounded-xl bg-accent text-primary flex items-center justify-center shrink-0">
-                        <Icon size={24} />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-medium text-foreground mb-1 group-hover:text-primary transition-colors">{record.title}</h3>
-                        <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-                          <span className="font-medium text-foreground/80 bg-accent px-2 py-0.5 rounded-md">{TYPE_LABELS[record.type]}</span>
-                          {record.clinic && (
-                            <span className="flex items-center gap-1">
-                              <span className="w-1 h-1 rounded-full bg-border inline-block"></span>
-                              {record.clinic}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button
-                        onClick={() => setEditingRecord(record)}
-                        aria-label="Edit record"
-                        className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => setDeletingRecord(record)}
-                        aria-label="Delete record"
-                        className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {record.summary && (
-                    <p className="text-muted-foreground mt-4 leading-relaxed bg-background p-4 rounded-2xl border border-border/50">
-                      {record.summary}
-                    </p>
-                  )}
-
-                  {(record.documentType === 'upload' || (record.documentType === 'link' && record.documentUrl)) && (
-                    <button
-                      type="button"
-                      onClick={() => handleViewDocument(record)}
-                      disabled={openingDocumentId === record.id}
-                      className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline disabled:opacity-60"
+        <div className="flex flex-col gap-6">
+          {recordsByYear.map(({ year, records: yearRecords }) => (
+            <div key={year}>
+              <div className="font-serif text-sm font-extrabold tracking-wide text-muted-foreground mb-2.5">{year}</div>
+              <div className="bg-card border border-border rounded-3xl overflow-hidden">
+                {yearRecords.map((record, i) => {
+                  const Icon = iconMap[record.type] || FileText;
+                  return (
+                    <div
+                      key={record.id}
+                      className={cn('flex items-center gap-4 p-5 group', i > 0 && 'border-t border-border')}
                     >
-                      {openingDocumentId === record.id ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
-                      {record.documentType === 'upload' ? (record.documentName || 'View document') : 'View linked document'}
-                    </button>
-                  )}
-                </div>
+                      <div className="w-11 h-11 rounded-2xl bg-accent text-primary flex items-center justify-center shrink-0">
+                        <Icon size={21} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[16.5px] font-bold truncate">{record.title}</div>
+                        {record.summary && <div className="mt-0.5 text-sm text-muted-foreground line-clamp-1">{record.summary}</div>}
+                      </div>
+                      <span className="hidden sm:inline-block text-xs font-bold px-2.5 py-1 rounded-full bg-background text-muted-foreground shrink-0">
+                        {TYPE_LABELS[record.type]}
+                      </span>
+                      <span className="hidden md:block w-36 shrink-0 text-sm text-muted-foreground text-right">
+                        {format(parseISO(record.date), 'MMM d')}{record.clinic ? ` · ${record.clinic}` : ''}
+                      </span>
+                      {(record.documentType === 'upload' || (record.documentType === 'link' && record.documentUrl)) && (
+                        <button
+                          type="button"
+                          onClick={() => handleViewDocument(record)}
+                          disabled={openingDocumentId === record.id}
+                          className="hidden lg:flex items-center gap-1.5 text-sm font-bold text-primary shrink-0 disabled:opacity-60"
+                        >
+                          {openingDocumentId === record.id ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
+                          {record.documentType === 'upload' ? (record.documentName || 'File') : 'Link'}
+                        </button>
+                      )}
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button
+                          onClick={() => setEditingRecord(record)}
+                          aria-label="Edit record"
+                          className="w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          onClick={() => setDeletingRecord(record)}
+                          aria-label="Delete record"
+                          className="w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="font-serif text-2xl">{editingRecord ? 'Edit Health Record' : 'Add Health Record'}</DialogTitle>
+            <DialogTitle className="font-serif text-2xl font-extrabold">{editingRecord ? 'Edit this record' : `Add to ${activePet?.name ?? "their"} file`}</DialogTitle>
             <DialogDescription>
-              {editingRecord ? 'Update the details of this record.' : 'Log a new visit, vaccine, or observation.'}
+              {editingRecord ? 'Update the details of this record.' : 'A visit, a jab, a test result, or just something you noticed.'}
             </DialogDescription>
           </DialogHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 mt-2">
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>What kind of thing is it?</FormLabel>
+                    <div className="grid grid-cols-5 gap-2">
+                      {RECORD_TYPES.map((type) => {
+                        const Icon = iconMap[type];
+                        const selected = field.value === type;
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => field.onChange(type)}
+                            className={cn(
+                              'flex flex-col items-center gap-1.5 rounded-2xl border p-3 text-center transition-colors',
+                              selected ? 'border-primary bg-accent text-primary' : 'border-border text-muted-foreground hover:bg-accent/50',
+                            )}
+                          >
+                            <Icon size={19} />
+                            <span className="text-xs font-bold">{TYPE_LABELS[type]}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Title</FormLabel>
+                    <FormLabel>Give it a title</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. Annual Checkup, Rabies Vaccine..." className="h-12 bg-accent/50" {...field} />
+                      <Input placeholder="e.g. Annual checkup, rabies vaccine…" className="h-12 rounded-2xl bg-accent/40" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Record Type</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="h-12 bg-accent/50">
-                            <SelectValue placeholder="Select a type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {RECORD_TYPES.map((type) => (
-                            <SelectItem key={type} value={type}>{TYPE_LABELS[type]}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <FormField
                   control={form.control}
                   name="date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Date</FormLabel>
+                      <FormLabel>When was it?</FormLabel>
                       <FormControl>
-                        <Input type="date" className="h-12 bg-accent/50" {...field} />
+                        <Input type="date" className="h-12 rounded-2xl bg-accent/40" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="clinic"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Where? (optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Harbor Veterinary Clinic" className="h-12 rounded-2xl bg-accent/40" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -570,28 +585,14 @@ export default function Records() {
 
               <FormField
                 control={form.control}
-                name="clinic"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Clinic / Vet (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Main Street Animal Hospital" className="h-12 bg-accent/50" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
                 name="summary"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Notes / Summary (Optional)</FormLabel>
+                    <FormLabel>What happened? (optional)</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Any details about the visit, recommendations, or how they're feeling..."
-                        className="min-h-[120px] resize-none bg-accent/50"
+                        placeholder="Any details about the visit, recommendations, or how they're feeling…"
+                        className="min-h-[110px] resize-none rounded-2xl bg-accent/40"
                         {...field}
                       />
                     </FormControl>
@@ -600,15 +601,15 @@ export default function Records() {
                 )}
               />
 
-              <div className="space-y-3">
-                <label className="text-sm font-medium leading-none">Attach a Document (Optional)</label>
+              <div className="space-y-2.5">
+                <label className="text-sm font-bold leading-none">Attach the paperwork (optional)</label>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => setAttachMode('link')}
                     className={cn(
-                      'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors',
-                      attachMode === 'link' ? 'bg-primary/10 border-primary text-primary' : 'border-border text-muted-foreground hover:bg-accent'
+                      'flex items-center gap-2 px-4 h-10 rounded-full text-sm font-semibold border transition-colors',
+                      attachMode === 'link' ? 'bg-accent border-primary text-primary' : 'border-border text-muted-foreground hover:bg-accent'
                     )}
                   >
                     <Link2 size={14} /> Paste a link
@@ -617,8 +618,8 @@ export default function Records() {
                     type="button"
                     onClick={() => setAttachMode('upload')}
                     className={cn(
-                      'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors',
-                      attachMode === 'upload' ? 'bg-primary/10 border-primary text-primary' : 'border-border text-muted-foreground hover:bg-accent'
+                      'flex items-center gap-2 px-4 h-10 rounded-full text-sm font-semibold border transition-colors',
+                      attachMode === 'upload' ? 'bg-accent border-primary text-primary' : 'border-border text-muted-foreground hover:bg-accent'
                     )}
                   >
                     <Upload size={14} /> Upload a file
@@ -634,7 +635,7 @@ export default function Records() {
                       setDocumentUrl(e.target.value);
                       setDocumentChanged(true);
                     }}
-                    className="h-12 bg-accent/50"
+                    className="h-12 rounded-2xl bg-accent/40"
                   />
                 ) : (
                   <div className="flex items-center gap-3">
@@ -648,10 +649,10 @@ export default function Records() {
                     />
                     <label
                       htmlFor="record-document-upload"
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-border text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                      className="flex items-center gap-2 px-4 h-10 rounded-full border border-dashed border-border text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
                     >
                       {uploadDocument.isPending ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                      {uploadDocument.isPending ? 'Uploading...' : 'Choose file'}
+                      {uploadDocument.isPending ? 'Uploading…' : 'Choose file'}
                     </label>
                     {documentName && !uploadDocument.isPending && (
                       <span className="flex items-center gap-1.5 text-sm text-foreground">
@@ -673,23 +674,23 @@ export default function Records() {
                     )}
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground">PDF or image, up to 10MB.</p>
+                <p className="text-xs text-muted-foreground">A PDF or a photo, up to 10MB. Only you can open it.</p>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-border">
                 <button
                   type="button"
                   onClick={closeDialog}
-                  className="px-6 py-3 font-medium text-foreground hover:bg-accent rounded-xl transition-colors"
+                  className="h-12 px-6 font-bold text-muted-foreground hover:bg-accent rounded-full transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-8 py-3 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50"
+                  className="h-12 px-7 bg-primary text-primary-foreground font-bold rounded-full hover:bg-primary/90 transition-colors shadow-md shadow-primary/25 disabled:opacity-50"
                 >
-                  {isSaving ? 'Saving...' : editingRecord ? 'Save Changes' : 'Save Record'}
+                  {isSaving ? 'Saving…' : editingRecord ? 'Save changes' : 'Save to their file'}
                 </button>
               </div>
             </form>
@@ -698,7 +699,7 @@ export default function Records() {
       </Dialog>
 
       <AlertDialog open={!!deletingRecord} onOpenChange={(open) => !open && setDeletingRecord(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-3xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this record?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -706,9 +707,9 @@ export default function Records() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-full">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={deleteRecord.isPending}
               onClick={() => {
                 if (deletingRecord) {
@@ -716,7 +717,7 @@ export default function Records() {
                 }
               }}
             >
-              {deleteRecord.isPending ? 'Deleting...' : 'Delete'}
+              {deleteRecord.isPending ? 'Deleting…' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
