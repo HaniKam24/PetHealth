@@ -1,0 +1,77 @@
+# Render Blueprint — defines the two services that make up the always-on
+# preview: the Express API and the React (Vite) frontend. Render redeploys
+# both automatically on every push to main.
+#
+# One-time setup (do this in the Render dashboard, not in code):
+#   1. New -> Blueprint -> connect this GitHub repo -> Render finds this file.
+#   2. Render creates both services below. For each "sync: false" env var,
+#      Render will prompt you to paste in the real value (these are secrets
+#      and are never committed to git).
+#   3. After the first deploy, note the frontend's URL (e.g.
+#      https://pethealth-frontend.onrender.com) — that's the link to bookmark.
+#
+# See docs/deploying-to-render.md for the full walkthrough.
+
+services:
+  # Express API (artifacts/api-server) — talks to Supabase, Clerk, Anthropic.
+  - type: web
+    name: pethealth-api
+    runtime: node
+    plan: free
+    branch: main
+    autoDeploy: true
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@12.3.4 --activate &&
+      pnpm install --frozen-lockfile &&
+      pnpm -r --filter "@workspace/api-server..." run build
+    startCommand: node artifacts/api-server/dist/index.mjs
+    envVars:
+      - key: NODE_VERSION
+        value: 24.18.0
+      # PORT is provided automatically by Render — the app already reads it.
+      - key: DATABASE_URL
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Filled in with the frontend's Render URL once it's known, so the
+      # API accepts direct cross-origin requests from it too (the static
+      # site's rewrite rule below is the primary path, this is a fallback).
+      - key: WEB_ORIGIN
+        sync: false
+
+  # Vite/React frontend (artifacts/pet-health-companion) — this is the link
+  # you bookmark and click to see the latest pushed version.
+  - type: web
+    runtime: static
+    name: pethealth-frontend
+    branch: main
+    autoDeploy: true
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@12.3.4 --activate &&
+      pnpm install --frozen-lockfile &&
+      pnpm -r --filter "@workspace/pet-health-companion..." run build
+    staticPublishPath: artifacts/pet-health-companion/dist/public
+    envVars:
+      # Clerk's publishable key is safe to expose to the browser (it's not
+      # a secret), but it's still entered per-environment in the dashboard.
+      - key: VITE_CLERK_PUBLISHABLE_KEY
+        sync: false
+    routes:
+      # Same-origin API calls: the app's code calls relative /api/... paths.
+      # This proxies those through to the API service above so the browser
+      # never has to deal with cross-origin requests.
+      - type: rewrite
+        source: /api/*
+        destination: https://pethealth-api.onrender.com/api/*
+      # Client-side routing (wouter) — unmatched paths fall back to index.html.
+      - type: rewrite
+        source: /*
+        destination: /index.html
