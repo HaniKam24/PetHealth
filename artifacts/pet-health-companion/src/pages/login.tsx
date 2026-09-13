@@ -3,7 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { HeartPulse, LogIn } from 'lucide-react';
+import { HeartPulse, LogIn, ShieldCheck } from 'lucide-react';
 import { useSignIn } from '@clerk/react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,12 @@ const loginSchema = z.object({
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
+
+const codeSchema = z.object({
+  code: z.string().min(1, 'Enter the code from your email'),
+});
+
+type CodeFormValues = z.infer<typeof codeSchema>;
 
 // Clerk's returned `error` is either a ClerkAPIResponseError-shaped object
 // (an `errors` array of { message, longMessage }) or something else entirely
@@ -36,10 +42,20 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const { signIn } = useSignIn();
   const [formError, setFormError] = useState<string | null>(null);
+  // Clerk sends new devices/locations through a one-time email code before
+  // trusting them (`status === 'needs_client_trust'`) — see the Device Trust
+  // guide linked from SignInFuture's `status` docs. The password itself is
+  // already verified at this point; this is a second, separate factor.
+  const [awaitingDeviceTrust, setAwaitingDeviceTrust] = useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '' },
+  });
+
+  const codeForm = useForm<CodeFormValues>({
+    resolver: zodResolver(codeSchema),
+    defaultValues: { code: '' },
   });
 
   const onSubmit = async (values: LoginFormValues) => {
@@ -56,10 +72,93 @@ export default function Login() {
 
     if (signIn.status === 'complete') {
       await signIn.finalize({ navigate: () => setLocation('/') });
+      return;
+    }
+
+    if (signIn.status === 'needs_client_trust') {
+      const { error: sendError } = await signIn.mfa.sendEmailCode();
+      if (sendError) {
+        setFormError(extractErrorMessage(sendError));
+        return;
+      }
+      setAwaitingDeviceTrust(true);
+      return;
+    }
+
+    setFormError('Sign-in needs an extra step this app does not support yet — contact support.');
+  };
+
+  const onSubmitCode = async (values: CodeFormValues) => {
+    setFormError(null);
+    const { error } = await signIn.mfa.verifyEmailCode({ code: values.code });
+
+    if (error) {
+      setFormError(extractErrorMessage(error));
+      return;
+    }
+
+    if (signIn.status === 'complete') {
+      await signIn.finalize({ navigate: () => setLocation('/') });
     } else {
       setFormError('Sign-in needs an extra step this app does not support yet — contact support.');
     }
   };
+
+  if (awaitingDeviceTrust) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background p-6">
+        <div className="w-full max-w-md">
+          <div className="flex items-center gap-3 mb-8 justify-center">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              <ShieldCheck size={24} strokeWidth={2.5} />
+            </div>
+            <span className="font-serif text-2xl font-medium text-foreground tracking-tight">Health Hub</span>
+          </div>
+
+          <Card className="rounded-3xl shadow-sm">
+            <CardHeader className="text-center pb-2">
+              <h1 className="text-2xl font-serif font-medium text-foreground">Verify it's you</h1>
+              <p className="text-muted-foreground text-sm mt-1">
+                We don't recognize this device — enter the code we just emailed to {signIn.identifier ?? 'your email'}.
+              </p>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <Form {...codeForm}>
+                <form onSubmit={codeForm.handleSubmit(onSubmitCode)} className="space-y-5">
+                  <FormField
+                    control={codeForm.control}
+                    name="code"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Verification code</FormLabel>
+                        <FormControl>
+                          <Input inputMode="numeric" autoComplete="one-time-code" className="h-11" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {formError && (
+                    <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{formError}</p>
+                  )}
+
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full"
+                    disabled={codeForm.formState.isSubmitting}
+                  >
+                    Verify and sign in
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] flex items-center justify-center bg-background p-6">
