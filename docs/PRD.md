@@ -1,12 +1,14 @@
 # Pet Health Companion — Product Requirements
 
-**Status:** Draft v1.3 (MVP scope confirmed via stakeholder Q&A)
+**Status:** Draft v1.4 (MVP scope confirmed via stakeholder Q&A)
 **Prepared:** 2026-09-06
-**Stage:** Phase 0 → 1
+**Stage:** Phase 1 done; Phase 2 in progress (Bolt 12 shipped, Bolt 11 remaining)
 **Live version:** https://claude.ai/code/artifact/6e021d93-7e21-4b48-81a4-f36196d44962
 
 An owner-first hub for pet medical history, reminders, and cautious AI-assisted insight — built the way a family keeps a paper vet folder, made searchable, shared, and a little smarter.
 
+> **v1.4 changelog:** Fixed two more stale roadmap points: Bolt 12 (trend insights) was still listed under Phase 2 "next" — it's actually built and shipped (weight/adherence trends, `GET /pets/:petId/trends`, the Trends tab in `insights.tsx`); moved it to Phase 1's completed list. Also corrected §9's AI provider — the app calls Anthropic Claude, not OpenAI (the OpenAI integration package is unused dead code, not the live path). No scope change otherwise.
+>
 > **v1.3 changelog:** Fixed a roadmap inconsistency — Bolt 13 (co-owner invites) had been listed under Phase 2, contradicting the Phase 3 "designed for, not built" status already given to the co-owner persona (section 2) and its P3 tag (section 5). Moved it to Phase 3 to match; no scope change otherwise.
 >
 > **v1.2 changelog:** Added **Smart Document Upload** — upload a vet visit report and the AI proposes health records, medications, and reminders to add, which the owner reviews and confirms rather than the app writing them automatically. Introduced a two-lane usage quota (one-time onboarding-import allowance + smaller ongoing monthly allowance) so backfilling years of history doesn't compete with steady-state usage. Unit economics were checked (~$0.10–0.15/month even at full quota usage on a low-cost model tier) — the quota is an abuse/storage guardrail, not a margin necessity.
@@ -179,7 +181,7 @@ The repo already has a scaffold — the call here is **keep it**, not replace it
 - **Database:** PostgreSQL + Drizzle ORM.
 - **Validation:** Zod v4, shared with `drizzle-zod`.
 - **API contract:** OpenAPI spec + Orval codegen.
-- **AI:** OpenAI SDK (Replit-provisioned) — low-cost model tier for both chat and document extraction; the Care Recommendations Engine calls no AI provider at all.
+- **AI:** Anthropic Claude (Haiku tier) — low-cost model tier for both chat and document extraction; the Care Recommendations Engine calls no AI provider at all. (An earlier OpenAI integration package exists in the repo but is unused dead code — see `docs/PROJECT.md` gotchas.)
 
 **Backend — add for MVP**
 - **Auth:** better-auth, email + password, Drizzle adapter — Postgres-native and portable off Replit.
@@ -229,10 +231,10 @@ flowchart LR
 - Bolt 8 — Symptom chat v1: grounding, escalation with vet-contact reference, visible escalation flag, disclaimer
 - Bolt 9 — Symptom log: "add to symptom log" action, `symptom_logs` table, surfaced in pet history
 - Bolt 10 — AI usage quotas: `ai_usage_monthly` (chat + ongoing document lane), `pets.import_docs_used` (onboarding lane), low-cost model wiring, usage indicators, hard-stop UX
+- Bolt 12 — Trend insights (weight, adherence) with Recharts — built out of order, ahead of Bolt 11; `weight_logs`/`medication_dose_logs` tables, `GET /pets/:petId/trends`, Trends tab in `insights.tsx`
 
 **Phase 2 — Depth** *(next)*
-- Bolt 11 — Email digest + recurring reminders
-- Bolt 12 — Trend insights (weight, adherence) with Recharts
+- Bolt 11 — Email digest + recurring reminders — the one Phase 1/2 item still unbuilt: no email provider wired up, no scheduler, no recurrence field on `reminders`
 
 **Phase 3 — Platform** *(later)*
 - Bolt 13 — Co-owner invites on `pet_owners` — matches the "designed for, not built" status already given to the co-owner persona in section 2 and the P3 tag in section 5; kept here rather than Phase 2 despite the schema already being multi-owner-shaped

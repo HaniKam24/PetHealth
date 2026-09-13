@@ -74,7 +74,7 @@ This file replaces the old `replit.md` (Replit Agent's own memory file — no lo
 
 ## Roadmap status
 
-Per `docs/PRD.md`'s Bolt numbering: Phase 1 (Bolts 1–10, the MVP) is fully done. Phase 2 (Bolts 11–13 — email digest, trend insights, co-owner invites) hasn't been started. Phase 3 (14–18) is explicitly deferred in the PRD.
+Per `docs/PRD.md`'s Bolt numbering: Phase 1 (Bolts 1–10, the MVP) plus Bolt 12 (trend insights, built ahead of schedule) are done. Bolt 11 (email digest + recurring reminders) is the one remaining Phase 2 item — no email provider, scheduler, or reminder-recurrence logic exists yet. Bolt 13 (co-owner invites) is Phase 3, explicitly deferred. Phase 3 more broadly (14–18) is also deferred in the PRD.
 
 ## Gotchas
 
