@@ -13,16 +13,22 @@
 # See docs/deploying-to-render.md for the full walkthrough.
 
 services:
-  # Express API (artifacts/api-server) — talks to Supabase, Clerk, Anthropic.
+  # Express API (artifacts/api-server) — talks to Supabase and Anthropic,
+  # and handles auth itself via better-auth (session cookies, no external
+  # auth provider).
   - type: web
     name: pethealth-api
     runtime: node
     plan: free
     branch: main
     autoDeploy: true
+    # No manual `corepack enable`/`prepare` here — Render's build image
+    # ships Corepack already enabled, and it reads the pinned pnpm version
+    # from the "packageManager" field in the root package.json. Manually
+    # running `corepack enable` on the static site's build image fails
+    # (EROFS: read-only file system, unlink '/usr/bin/pnpm') because that
+    # image already has pnpm linked at a path Corepack can't rewrite.
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@12.3.4 --activate &&
       pnpm install --frozen-lockfile &&
       pnpm -r --filter "@workspace/api-server..." run build
     startCommand: node artifacts/api-server/dist/index.mjs
@@ -32,12 +38,12 @@ services:
       # PORT is provided automatically by Render — the app already reads it.
       - key: DATABASE_URL
         sync: false
-      - key: CLERK_SECRET_KEY
+      - key: BETTER_AUTH_SECRET
         sync: false
-      # @clerk/express's clerkMiddleware() needs this too, not just the
-      # secret key — it 500s on every request without it.
-      - key: CLERK_PUBLISHABLE_KEY
-        sync: false
+      # better-auth needs its own public URL for cookies/CSRF — this is
+      # this same service's Render URL, not localhost.
+      - key: BETTER_AUTH_URL
+        value: https://pethealth-api-68wo.onrender.com
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
@@ -58,16 +64,9 @@ services:
     branch: main
     autoDeploy: true
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@12.3.4 --activate &&
       pnpm install --frozen-lockfile &&
       pnpm -r --filter "@workspace/pet-health-companion..." run build
     staticPublishPath: artifacts/pet-health-companion/dist/public
-    envVars:
-      # Clerk's publishable key is safe to expose to the browser (it's not
-      # a secret), but it's still entered per-environment in the dashboard.
-      - key: VITE_CLERK_PUBLISHABLE_KEY
-        sync: false
     routes:
       # Same-origin API calls: the app's code calls relative /api/... paths.
       # This proxies those through to the API service above so the browser
