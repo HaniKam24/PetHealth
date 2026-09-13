@@ -11,11 +11,9 @@ import {
   getListSymptomLogsQueryKey,
   type HealthRecord,
 } from '@workspace/api-client-react';
-import { PageHeader } from '@/components/page-header';
 import { cn } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'wouter';
 import { format, parseISO } from 'date-fns';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -47,6 +45,7 @@ const recordSchema = z.object({
 });
 
 type RecordFormValues = z.infer<typeof recordSchema>;
+type RecordType = RecordFormValues['type'];
 
 const EMPTY_RECORD: RecordFormValues = {
   title: '',
@@ -56,7 +55,7 @@ const EMPTY_RECORD: RecordFormValues = {
   summary: '',
 };
 
-const iconMap = {
+const ICON_MAP: Record<RecordType, typeof Stethoscope> = {
   visit: Stethoscope,
   vaccine: Syringe,
   lab: TestTube,
@@ -64,38 +63,38 @@ const iconMap = {
   note: FileText,
 };
 
-const TYPE_LABELS: Record<RecordFormValues['type'], string> = {
-  visit: 'Vet Visit',
-  vaccine: 'Vaccine',
-  lab: 'Lab Results',
+const TYPE_LABELS: Record<RecordType, string> = {
+  visit: 'Visit',
+  vaccine: 'Jab',
+  lab: 'Test',
   procedure: 'Procedure',
-  note: 'Observation Note',
+  note: 'My note',
 };
 
-const RECORD_TYPES = Object.keys(TYPE_LABELS) as RecordFormValues['type'][];
+const RECORD_TYPES = Object.keys(TYPE_LABELS) as RecordType[];
+
+const FILTER_CHIPS: { value: RecordType | 'all'; label: string }[] = [
+  { value: 'all', label: 'Everything' },
+  { value: 'visit', label: 'Visits' },
+  { value: 'vaccine', label: 'Jabs' },
+  { value: 'lab', label: 'Tests' },
+  { value: 'procedure', label: 'Procedures' },
+  { value: 'note', label: 'My notes' },
+];
 
 export default function Records() {
   const { activePetId } = usePetContext();
   const queryClient = useQueryClient();
-  const [, setLocation] = useLocation();
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<RecordFormValues['type'] | 'all'>('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [typeFilter, setTypeFilter] = useState<RecordType | 'all'>('all');
+  const [showEarlierYears, setShowEarlierYears] = useState(false);
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<HealthRecord | null>(null);
   const [deletingRecord, setDeletingRecord] = useState<HealthRecord | null>(null);
   const [attachMode, setAttachMode] = useState<'link' | 'upload'>('link');
   const [documentUrl, setDocumentUrl] = useState('');
-  // Storage path from an upload this session — never the record's existing
-  // path, which isn't exposed to the client (only a fresh signed URL is,
-  // fetched on demand via handleViewDocument).
   const [documentPath, setDocumentPath] = useState('');
   const [documentName, setDocumentName] = useState('');
-  // Only true once the owner actually touches the attachment control this
-  // edit session — lets onSubmit omit document* fields entirely when
-  // untouched, so an unrelated edit (e.g. fixing a typo in notes) never
-  // clears an existing attachment whose real value isn't loaded into state.
   const [documentChanged, setDocumentChanged] = useState(false);
   const [openingDocumentId, setOpeningDocumentId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -106,9 +105,9 @@ export default function Records() {
     {
       query: {
         enabled: !!activePetId,
-        queryKey: activePetId ? getListHealthRecordsQueryKey(activePetId) : ['no-pet', 'records']
-      }
-    }
+        queryKey: activePetId ? getListHealthRecordsQueryKey(activePetId) : ['no-pet', 'records'],
+      },
+    },
   );
 
   const { data: symptomLogs } = useListSymptomLogs(
@@ -116,9 +115,9 @@ export default function Records() {
     {
       query: {
         enabled: !!activePetId,
-        queryKey: activePetId ? getListSymptomLogsQueryKey(activePetId) : ['no-pet', 'symptom-logs']
-      }
-    }
+        queryKey: activePetId ? getListSymptomLogsQueryKey(activePetId) : ['no-pet', 'symptom-logs'],
+      },
+    },
   );
 
   const invalidateRecords = () => {
@@ -143,12 +142,12 @@ export default function Records() {
       onSuccess: () => {
         invalidateRecords();
         closeDialog();
-        toast({ title: "Record added", description: "Health record has been saved successfully." });
+        toast({ title: 'Record added', description: 'Health record has been saved successfully.' });
       },
       onError: () => {
-        toast({ title: "Error", description: "Failed to save record.", variant: "destructive" });
-      }
-    }
+        toast({ title: 'Error', description: 'Failed to save record.', variant: 'destructive' });
+      },
+    },
   });
 
   const updateRecord = useUpdateHealthRecord({
@@ -156,12 +155,12 @@ export default function Records() {
       onSuccess: () => {
         invalidateRecords();
         closeDialog();
-        toast({ title: "Record updated", description: "Your changes have been saved." });
+        toast({ title: 'Record updated', description: 'Your changes have been saved.' });
       },
       onError: () => {
-        toast({ title: "Error", description: "Failed to update record.", variant: "destructive" });
-      }
-    }
+        toast({ title: 'Error', description: 'Failed to update record.', variant: 'destructive' });
+      },
+    },
   });
 
   const deleteRecord = useDeleteHealthRecord({
@@ -169,12 +168,12 @@ export default function Records() {
       onSuccess: () => {
         invalidateRecords();
         setDeletingRecord(null);
-        toast({ title: "Record deleted" });
+        toast({ title: 'Record deleted' });
       },
       onError: () => {
-        toast({ title: "Error", description: "Failed to delete record.", variant: "destructive" });
-      }
-    }
+        toast({ title: 'Error', description: 'Failed to delete record.', variant: 'destructive' });
+      },
+    },
   });
 
   const uploadDocument = useUploadHealthRecordDocument({
@@ -185,10 +184,10 @@ export default function Records() {
         setDocumentChanged(true);
       },
       onError: () => {
-        toast({ title: "Error", description: "Failed to upload the file.", variant: "destructive" });
+        toast({ title: 'Error', description: 'Failed to upload the file.', variant: 'destructive' });
         if (fileInputRef.current) fileInputRef.current.value = '';
-      }
-    }
+      },
+    },
   });
 
   const form = useForm<RecordFormValues>({
@@ -217,39 +216,35 @@ export default function Records() {
     return <div className="p-10 text-center text-muted-foreground mt-20">Please select or add a pet first.</div>;
   }
 
-  const hasActiveFilters = Boolean(search || typeFilter !== 'all' || dateFrom || dateTo);
+  const hasActiveFilters = Boolean(search || typeFilter !== 'all');
   const clearFilters = () => {
     setSearch('');
     setTypeFilter('all');
-    setDateFrom('');
-    setDateTo('');
   };
 
-  const filteredRecords = records?.filter(r => {
-    const query = search.toLowerCase();
-    const matchesSearch =
-      !query ||
-      r.title.toLowerCase().includes(query) ||
-      r.summary?.toLowerCase().includes(query) ||
-      r.clinic?.toLowerCase().includes(query);
-    const matchesType = typeFilter === 'all' || r.type === typeFilter;
-    // r.date is an ISO "YYYY-MM-DD" string — lexicographic comparison works directly.
-    const matchesDateFrom = !dateFrom || r.date >= dateFrom;
-    const matchesDateTo = !dateTo || r.date <= dateTo;
-    return matchesSearch && matchesType && matchesDateFrom && matchesDateTo;
-  // r.date is an ISO "YYYY-MM-DD" string — lexicographic comparison sorts it correctly
-  // without going through Date at all, which would parse it as UTC midnight and risk an
-  // off-by-one day shift when compared against other timezone-aware values.
-  }).sort((a, b) => b.date.localeCompare(a.date)) || [];
+  const filteredRecords = (records ?? [])
+    .filter((r) => {
+      const query = search.toLowerCase();
+      const matchesSearch =
+        !query ||
+        r.title.toLowerCase().includes(query) ||
+        r.summary?.toLowerCase().includes(query) ||
+        r.clinic?.toLowerCase().includes(query);
+      const matchesType = typeFilter === 'all' || r.type === typeFilter;
+      return matchesSearch && matchesType;
+    })
+    // r.date is an ISO "YYYY-MM-DD" string — lexicographic comparison sorts it correctly
+    // without going through Date at all, which would parse it as UTC midnight and risk an
+    // off-by-one day shift when compared against other timezone-aware values.
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  const years = Array.from(new Set(filteredRecords.map((r) => r.date.slice(0, 4)))).sort((a, b) => b.localeCompare(a));
+  const visibleYears = showEarlierYears ? years : years.slice(0, 1);
 
   const isDialogOpen = isNewOpen || !!editingRecord;
   const isSaving = createRecord.isPending || updateRecord.isPending;
 
   const onSubmit = (data: RecordFormValues) => {
-    // Omit document* fields entirely when the attachment wasn't touched this
-    // session (edit only) — a PATCH with these keys absent leaves the
-    // existing attachment untouched, rather than clearing it using empty
-    // client-side state that was never loaded with the real value.
     const documentFields =
       !editingRecord || documentChanged
         ? attachMode === 'link'
@@ -278,7 +273,7 @@ export default function Records() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
-      toast({ title: "File is too large", description: "Maximum size is 10MB.", variant: "destructive" });
+      toast({ title: 'File is too large', description: 'Maximum size is 10MB.', variant: 'destructive' });
       e.target.value = '';
       return;
     }
@@ -287,8 +282,6 @@ export default function Records() {
 
   const handleViewDocument = async (record: HealthRecord) => {
     if (openingDocumentId) return;
-    // Open the tab synchronously within the click gesture so browsers don't
-    // treat the post-await redirect as a blocked popup.
     const tab = window.open('', '_blank', 'noopener,noreferrer');
     setOpeningDocumentId(record.id);
     try {
@@ -296,90 +289,70 @@ export default function Records() {
       if (tab) tab.location.href = url;
     } catch {
       tab?.close();
-      toast({ title: "Error", description: "Failed to open the document.", variant: "destructive" });
+      toast({ title: 'Error', description: 'Failed to open the document.', variant: 'destructive' });
     } finally {
       setOpeningDocumentId(null);
     }
   };
 
   return (
-    <div className="p-6 md:p-10 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
-      <PageHeader
-        title="Health Records"
-        description="A complete history of care, visits, and notes."
-        action={
-          <button
-            onClick={() => setIsNewOpen(true)}
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-xl font-medium shadow-sm hover:shadow-md hover:bg-primary/90 transition-all active:scale-95"
-          >
-            <Plus size={20} /> Add Record
-          </button>
-        }
-      />
-
-      <div className="mb-4 relative">
-        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground">
-          <Search size={20} />
+    <div className="px-6 md:px-10 py-9 pb-16 max-w-[1020px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
+      <div className="flex items-end justify-between gap-6 flex-wrap mb-6">
+        <div>
+          <h1 className="font-serif text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">The file</h1>
+          <p className="mt-2 text-base text-muted-foreground">
+            {records ? `Every visit, jab, test and note you've saved — ${records.length} in total.` : 'A complete history of care, visits, and notes.'}
+          </p>
         </div>
-        <input
-          type="search"
-          placeholder="Search records by title, clinic, or notes..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-12 pr-4 py-4 bg-card border border-border rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent shadow-sm text-foreground transition-all"
-        />
+        <button
+          onClick={() => setIsNewOpen(true)}
+          className="h-[46px] shrink-0 flex items-center gap-2 px-5 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm shadow-primary/30 hover:bg-primary/90 transition-colors"
+        >
+          <Plus size={17} /> Add a record
+        </button>
       </div>
 
-      <div className="mb-8 flex flex-wrap items-center gap-3">
-        <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as RecordFormValues['type'] | 'all')}>
-          <SelectTrigger className="h-11 w-full sm:w-48 bg-card border-border">
-            <SelectValue placeholder="All types" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            {RECORD_TYPES.map((type) => (
-              <SelectItem key={type} value={type}>{TYPE_LABELS[type]}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-muted-foreground shrink-0">From</label>
+      <div className="mb-6 flex items-center gap-2.5 flex-wrap">
+        <div className="relative flex-1 min-w-[220px]">
+          <div className="absolute inset-y-0 left-0 pl-[18px] flex items-center pointer-events-none text-muted-foreground">
+            <Search size={17} />
+          </div>
           <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="h-11 px-3 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            type="search"
+            placeholder="Search the file"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full h-12 pl-11 pr-4 bg-card border border-border rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-[15px] text-foreground transition-all"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-muted-foreground shrink-0">To</label>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="h-11 px-3 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-
-        {hasActiveFilters && (
+        {FILTER_CHIPS.map((chip) => (
           <button
-            onClick={clearFilters}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors ml-auto"
+            key={chip.value}
+            type="button"
+            onClick={() => setTypeFilter(chip.value)}
+            className={cn(
+              'h-12 flex items-center px-[18px] rounded-full text-sm font-semibold whitespace-nowrap transition-colors',
+              typeFilter === chip.value ? 'bg-foreground text-background' : 'bg-card border border-border text-foreground hover:border-primary/30',
+            )}
           >
-            <X size={16} /> Clear filters
+            {chip.label}
+          </button>
+        ))}
+        {hasActiveFilters && (
+          <button onClick={clearFilters} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            <X size={16} /> Clear
           </button>
         )}
       </div>
 
       {symptomLogs && symptomLogs.length > 0 && (
-        <div className="mb-8 bg-card border border-border rounded-3xl p-6 md:p-8 shadow-sm">
+        <div className="mb-6 bg-card border border-border rounded-[20px] p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-accent text-primary flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-muted text-primary flex items-center justify-center shrink-0">
               <ClipboardList size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-medium text-foreground">Symptom Log</h3>
+              <h3 className="font-serif text-lg font-extrabold text-foreground">Symptom log</h3>
               <p className="text-sm text-muted-foreground">Symptoms noted from AI Health Assistant conversations.</p>
             </div>
           </div>
@@ -400,114 +373,109 @@ export default function Records() {
 
       {isLoading ? (
         <div className="space-y-4">
-          {[1,2,3].map(i => (
-            <div key={i} className="h-32 bg-card/50 border border-border rounded-2xl animate-pulse"></div>
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-20 bg-card/50 border border-border rounded-2xl animate-pulse" />
           ))}
         </div>
       ) : filteredRecords.length === 0 ? (
-        <div className="text-center py-20 bg-card border-2 border-dashed border-border rounded-3xl">
-          <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center mx-auto mb-4 text-primary">
+        <div className="text-center py-20 bg-card border-2 border-dashed border-border rounded-[20px]">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4 text-primary">
             <FileText size={28} />
           </div>
-          <h3 className="text-xl font-serif mb-2">No records found</h3>
+          <h3 className="font-serif text-xl font-extrabold mb-2">No records found</h3>
           <p className="text-muted-foreground">
-            {hasActiveFilters ? "No records match your search or filters." : "Start building a health history for your pet."}
+            {hasActiveFilters ? 'No records match your search or filters.' : 'Start building a health history for your pet.'}
           </p>
           {hasActiveFilters ? (
-            <button
-              onClick={clearFilters}
-              className="mt-6 text-primary font-medium hover:underline"
-            >
+            <button onClick={clearFilters} className="mt-6 text-primary font-bold hover:underline">
               Clear filters
             </button>
           ) : (
-            <button
-              onClick={() => setIsNewOpen(true)}
-              className="mt-6 text-primary font-medium hover:underline"
-            >
+            <button onClick={() => setIsNewOpen(true)} className="mt-6 text-primary font-bold hover:underline">
               Add their first record
             </button>
           )}
         </div>
       ) : (
-        <div className="space-y-6 relative before:absolute before:inset-0 before:ml-[2.25rem] md:before:ml-[2.75rem] before:-translate-x-px md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-border before:via-border/80 before:to-transparent">
-          {filteredRecords.map(record => {
-            const Icon = iconMap[record.type] || FileText;
+        <div className="flex flex-col gap-8">
+          {visibleYears.map((year) => {
+            const yearRecords = filteredRecords.filter((r) => r.date.startsWith(year));
             return (
-              <div key={record.id} className="relative flex items-start gap-6 group">
-                <div className="absolute left-[2.25rem] md:left-[2.75rem] top-8 -ml-2 w-4 h-4 rounded-full bg-background border-2 border-primary z-10 group-hover:scale-125 transition-transform duration-300 shadow-sm" />
-
-                <div className="w-16 md:w-20 pt-7 text-right shrink-0 relative z-10">
-                  <span className="text-sm font-medium text-muted-foreground block">{format(parseISO(record.date), 'MMM d')}</span>
-                  <span className="text-xs text-muted-foreground opacity-70 block">{format(parseISO(record.date), 'yyyy')}</span>
-                </div>
-
-                <div className="flex-1 bg-card border border-border rounded-3xl p-6 md:p-8 shadow-sm hover:shadow-md transition-all group-hover:border-primary/30">
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
-                    <div className="flex gap-4">
-                      <div className="mt-1 w-12 h-12 rounded-xl bg-accent text-primary flex items-center justify-center shrink-0">
-                        <Icon size={24} />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-medium text-foreground mb-1 group-hover:text-primary transition-colors">{record.title}</h3>
-                        <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-                          <span className="font-medium text-foreground/80 bg-accent px-2 py-0.5 rounded-md">{TYPE_LABELS[record.type]}</span>
-                          {record.clinic && (
-                            <span className="flex items-center gap-1">
-                              <span className="w-1 h-1 rounded-full bg-border inline-block"></span>
-                              {record.clinic}
-                            </span>
+              <div key={year}>
+                <div className="font-serif text-sm font-extrabold tracking-widest text-muted-foreground mb-3">{year}</div>
+                <div className="bg-card border border-border rounded-[20px] overflow-hidden">
+                  {yearRecords.map((record, i) => {
+                    const Icon = ICON_MAP[record.type] || FileText;
+                    return (
+                      <div
+                        key={record.id}
+                        className={cn('group flex items-center gap-[18px] px-5 py-[18px] flex-wrap md:flex-nowrap', i > 0 && 'border-t border-border/60')}
+                      >
+                        <div className="w-[46px] h-[46px] rounded-2xl bg-muted text-primary flex items-center justify-center shrink-0">
+                          <Icon size={22} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[17px] font-bold text-foreground">{record.title}</div>
+                          {record.summary && <div className="mt-0.5 text-sm text-muted-foreground line-clamp-1">{record.summary}</div>}
+                        </div>
+                        <span className="text-[13.5px] font-bold px-3 py-[5px] rounded-2xl bg-muted text-muted-foreground shrink-0">
+                          {TYPE_LABELS[record.type]}
+                        </span>
+                        <span className="w-[150px] shrink-0 text-sm text-muted-foreground text-right">
+                          {format(parseISO(record.date), 'MMM d')}{record.clinic ? ` · ${record.clinic}` : ''}
+                        </span>
+                        <div className="w-[130px] shrink-0 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {(record.documentType === 'upload' || (record.documentType === 'link' && record.documentUrl)) && (
+                            <button
+                              type="button"
+                              onClick={() => handleViewDocument(record)}
+                              disabled={openingDocumentId === record.id}
+                              aria-label="View document"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-primary transition-colors disabled:opacity-60"
+                            >
+                              {openingDocumentId === record.id ? <Loader2 size={15} className="animate-spin" /> : <Paperclip size={15} />}
+                            </button>
                           )}
+                          <button
+                            onClick={() => setEditingRecord(record)}
+                            aria-label="Edit record"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                          >
+                            <Pencil size={15} />
+                          </button>
+                          <button
+                            onClick={() => setDeletingRecord(record)}
+                            aria-label="Delete record"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
                       </div>
-                    </div>
-
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button
-                        onClick={() => setEditingRecord(record)}
-                        aria-label="Edit record"
-                        className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => setDeletingRecord(record)}
-                        aria-label="Delete record"
-                        className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {record.summary && (
-                    <p className="text-muted-foreground mt-4 leading-relaxed bg-background p-4 rounded-2xl border border-border/50">
-                      {record.summary}
-                    </p>
-                  )}
-
-                  {(record.documentType === 'upload' || (record.documentType === 'link' && record.documentUrl)) && (
-                    <button
-                      type="button"
-                      onClick={() => handleViewDocument(record)}
-                      disabled={openingDocumentId === record.id}
-                      className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline disabled:opacity-60"
-                    >
-                      {openingDocumentId === record.id ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
-                      {record.documentType === 'upload' ? (record.documentName || 'View document') : 'View linked document'}
-                    </button>
-                  )}
+                    );
+                  })}
                 </div>
               </div>
             );
           })}
+
+          {!showEarlierYears && years.length > 1 && (
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowEarlierYears(true)}
+                className="h-11 flex items-center px-[22px] rounded-full bg-card border border-border text-sm font-bold hover:border-primary/30 transition-colors"
+              >
+                Show {years[1]} and earlier
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-serif text-2xl">{editingRecord ? 'Edit Health Record' : 'Add Health Record'}</DialogTitle>
+            <DialogTitle className="font-serif text-2xl">{editingRecord ? 'Edit record' : 'Add a record'}</DialogTitle>
             <DialogDescription>
               {editingRecord ? 'Update the details of this record.' : 'Log a new visit, vaccine, or observation.'}
             </DialogDescription>
@@ -607,8 +575,8 @@ export default function Records() {
                     type="button"
                     onClick={() => setAttachMode('link')}
                     className={cn(
-                      'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors',
-                      attachMode === 'link' ? 'bg-primary/10 border-primary text-primary' : 'border-border text-muted-foreground hover:bg-accent'
+                      'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-colors',
+                      attachMode === 'link' ? 'bg-primary/10 border-primary text-primary' : 'border-border text-muted-foreground hover:bg-accent',
                     )}
                   >
                     <Link2 size={14} /> Paste a link
@@ -617,8 +585,8 @@ export default function Records() {
                     type="button"
                     onClick={() => setAttachMode('upload')}
                     className={cn(
-                      'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors',
-                      attachMode === 'upload' ? 'bg-primary/10 border-primary text-primary' : 'border-border text-muted-foreground hover:bg-accent'
+                      'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-colors',
+                      attachMode === 'upload' ? 'bg-primary/10 border-primary text-primary' : 'border-border text-muted-foreground hover:bg-accent',
                     )}
                   >
                     <Upload size={14} /> Upload a file
@@ -648,7 +616,7 @@ export default function Records() {
                     />
                     <label
                       htmlFor="record-document-upload"
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-border text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-dashed border-border text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
                     >
                       {uploadDocument.isPending ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
                       {uploadDocument.isPending ? 'Uploading...' : 'Choose file'}
@@ -680,14 +648,14 @@ export default function Records() {
                 <button
                   type="button"
                   onClick={closeDialog}
-                  className="px-6 py-3 font-medium text-foreground hover:bg-accent rounded-xl transition-colors"
+                  className="px-6 py-3 font-bold text-foreground hover:bg-accent rounded-full transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-8 py-3 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50"
+                  className="px-8 py-3 bg-primary text-primary-foreground font-bold rounded-full hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50"
                 >
                   {isSaving ? 'Saving...' : editingRecord ? 'Save Changes' : 'Save Record'}
                 </button>
