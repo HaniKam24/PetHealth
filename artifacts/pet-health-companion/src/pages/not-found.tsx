@@ -9,18 +9,18 @@ export default function NotFound() {
           <AlertCircle size={32} />
         </div>
         <div>
-          <h1 className="text-3xl font-serif font-bold text-foreground mb-2">
-            Page not found
+          <h1 className="text-3xl font-serif font-extrabold text-foreground mb-2">
+            We can't find that page
           </h1>
           <p className="text-muted-foreground text-lg">
-            The page you're looking for doesn't exist or has been moved.
+            It may have moved, or the link might be out of date.
           </p>
         </div>
-        <Link 
-          href="/" 
-          className="inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground px-8 py-3 font-medium hover:bg-primary/90 transition-colors w-full"
+        <Link
+          href="/"
+          className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground px-8 py-3 font-bold hover:bg-primary/90 transition-colors w-full"
         >
-          Return Home
+          Back to Today
         </Link>
       </div>
     </div>

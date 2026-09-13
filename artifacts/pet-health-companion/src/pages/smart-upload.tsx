@@ -11,7 +11,6 @@ import {
   type DocumentImport,
   type DocumentImportItem,
 } from '@workspace/api-client-react';
-import { PageHeader } from '@/components/page-header';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import {
@@ -25,6 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   Upload,
+  UploadCloud,
   Loader2,
   FileText,
   Pill,
@@ -62,10 +62,10 @@ const REMINDER_CATEGORY_LABELS: Record<string, string> = {
 };
 
 const ITEM_TYPE_META: Record<string, { label: string; icon: typeof FileText }> = {
-  health_record: { label: 'Health Record', icon: FileText },
-  medication: { label: 'Medication', icon: Pill },
-  reminder: { label: 'Reminder', icon: Bell },
-  vet_info: { label: 'Vet Contact Update', icon: Stethoscope },
+  health_record: { label: 'A visit to add', icon: FileText },
+  medication: { label: 'A medicine to add', icon: Pill },
+  reminder: { label: 'A reminder to add', icon: Bell },
+  vet_info: { label: 'Vet contact update', icon: Stethoscope },
 };
 
 const VET_FIELD_LABELS: Record<string, string> = {
@@ -88,13 +88,13 @@ function ItemSummary({ item }: { item: DocumentImportItem }) {
   const d = item.proposedData as Record<string, unknown>;
   if (item.itemType === 'health_record') {
     return (
-      <div>
-        <div className="font-medium">{str(d.title)}</div>
-        <div className="text-sm text-muted-foreground">
+      <div className="bg-accent/40 rounded-2xl p-4">
+        <div className="font-serif text-lg font-extrabold">{str(d.title)}</div>
+        <div className="text-sm text-muted-foreground mt-0.5">
           {RECORD_TYPE_LABELS[str(d.type)] ?? str(d.type)} · {str(d.date).slice(0, 10)}
           {d.clinic ? ` · ${str(d.clinic)}` : ''}
         </div>
-        {d.summary ? <p className="text-sm text-muted-foreground mt-1">{str(d.summary)}</p> : null}
+        {d.summary ? <p className="text-sm text-muted-foreground mt-2">{str(d.summary)}</p> : null}
       </div>
     );
   }
@@ -106,10 +106,10 @@ function ItemSummary({ item }: { item: DocumentImportItem }) {
     // logging is offered. Appending them here too just repeated the same
     // wording a second time (e.g. "150mg · every 12 hours · every 12 hours").
     return (
-      <div>
-        <div className="font-medium">{str(d.name)}</div>
-        <div className="text-sm text-muted-foreground">{str(d.dose)} · {str(d.frequency)}</div>
-        {d.instructions ? <p className="text-sm text-muted-foreground mt-1">{str(d.instructions)}</p> : null}
+      <div className="bg-accent/40 rounded-2xl p-4">
+        <div className="font-serif text-lg font-extrabold">{str(d.name)}</div>
+        <div className="text-sm text-muted-foreground mt-0.5">{str(d.dose)} · {str(d.frequency)}</div>
+        {d.instructions ? <p className="text-sm text-muted-foreground mt-2">{str(d.instructions)}</p> : null}
       </div>
     );
   }
@@ -120,22 +120,22 @@ function ItemSummary({ item }: { item: DocumentImportItem }) {
     // natural title (could be just a phone number update).
     const entries = Object.entries(VET_FIELD_LABELS).filter(([key]) => d[key]);
     return (
-      <div className="space-y-0.5">
+      <div className="bg-accent/40 rounded-2xl p-4 space-y-1">
         {entries.map(([key, label]) => (
           <div key={key} className="text-sm">
-            <span className="text-muted-foreground">{label}:</span> <span className="font-medium">{str(d[key])}</span>
+            <span className="text-muted-foreground">{label}:</span> <span className="font-bold">{str(d[key])}</span>
           </div>
         ))}
       </div>
     );
   }
   return (
-    <div>
-      <div className="font-medium">{str(d.title)}</div>
-      <div className="text-sm text-muted-foreground">
+    <div className="bg-accent/40 rounded-2xl p-4">
+      <div className="font-serif text-lg font-extrabold">{str(d.title)}</div>
+      <div className="text-sm text-muted-foreground mt-0.5">
         {REMINDER_CATEGORY_LABELS[str(d.category)] ?? str(d.category)} · due {str(d.dueDate).slice(0, 10)}
       </div>
-      {d.note ? <p className="text-sm text-muted-foreground mt-1">{str(d.note)}</p> : null}
+      {d.note ? <p className="text-sm text-muted-foreground mt-2">{str(d.note)}</p> : null}
     </div>
   );
 }
@@ -143,14 +143,14 @@ function ItemSummary({ item }: { item: DocumentImportItem }) {
 function FormActions({ onCancel, onSave, saving }: { onCancel: () => void; onSave: () => void; saving: boolean }) {
   return (
     <div className="flex justify-end gap-2 pt-1">
-      <button type="button" onClick={onCancel} className="px-3 py-1.5 text-sm rounded-lg text-muted-foreground hover:bg-accent transition-colors">
+      <button type="button" onClick={onCancel} className="h-9 px-3.5 text-sm font-bold rounded-full text-muted-foreground hover:bg-accent transition-colors">
         Cancel
       </button>
       <button
         type="button"
         onClick={onSave}
         disabled={saving}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+        className="h-9 flex items-center gap-1.5 px-4 text-sm font-bold rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
       >
         {saving && <Loader2 size={14} className="animate-spin" />} Save &amp; Accept
       </button>
@@ -476,35 +476,20 @@ export default function SmartUpload() {
 
   return (
     <>
-    <div className="p-6 md:p-10 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
-      <PageHeader
-        title="Smart Document Upload"
-        description="Upload a vet report and let AI propose records, medications, and reminders for you to review."
-      />
+    <div className="p-6 md:p-10 max-w-4xl mx-auto pb-16">
+      <div className="mb-6">
+        <h1 className="font-serif text-[34px] font-extrabold tracking-tight">Vet reports you've sent us</h1>
+        <p className="mt-1 text-[16.5px] text-muted-foreground">
+          Drop in a PDF or photo and we'll pull out the records, medicines and reminders for you to check.
+        </p>
+      </div>
 
-      {quota && (
-        <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-card border border-border rounded-2xl p-4">
-            <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Onboarding imports</div>
-            {quota.onboardingRemaining === null ? (
-              <div className="text-sm text-muted-foreground pt-1">Window expired — ongoing quota applies</div>
-            ) : (
-              <div className="text-2xl font-serif">
-                {quota.onboardingRemaining}{' '}
-                <span className="text-sm text-muted-foreground font-sans">of {quota.onboardingLimit} left (first 30 days)</span>
-              </div>
-            )}
-          </div>
-          <div className="bg-card border border-border rounded-2xl p-4">
-            <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Ongoing imports (this month)</div>
-            <div className="text-2xl font-serif">
-              {quota.ongoingRemaining} <span className="text-sm text-muted-foreground font-sans">of {quota.ongoingLimit} left</span>
-            </div>
-          </div>
+      <div className="mb-6 bg-card border-2 border-dashed border-border rounded-3xl p-8 text-center">
+        <div className="w-16 h-16 rounded-full bg-accent text-primary flex items-center justify-center mx-auto mb-4">
+          <UploadCloud size={28} />
         </div>
-      )}
-
-      <div className="mb-8 bg-card border-2 border-dashed border-border rounded-3xl p-8 text-center">
+        <div className="font-serif text-xl font-extrabold">Drop a vet report here</div>
+        <p className="text-sm text-muted-foreground mt-1.5 mb-4">PDF or photo, up to 10MB and 20 pages. Scans without text won't work.</p>
         <input
           ref={fileInputRef}
           type="file"
@@ -516,107 +501,138 @@ export default function SmartUpload() {
         <label
           htmlFor="smart-upload-file"
           className={cn(
-            'inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-xl font-medium shadow-sm hover:shadow-md hover:bg-primary/90 transition-all active:scale-95 cursor-pointer',
+            'inline-flex items-center gap-2 h-12 px-6 rounded-full bg-primary text-primary-foreground font-bold shadow-md shadow-primary/25 hover:bg-primary/90 transition-colors cursor-pointer',
             uploadMutation.isPending && 'pointer-events-none opacity-70',
           )}
         >
-          {uploadMutation.isPending ? <Loader2 size={20} className="animate-spin" /> : <Upload size={20} />}
-          {uploadMutation.isPending ? 'Analyzing…' : 'Upload a vet report'}
+          {uploadMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+          {uploadMutation.isPending ? 'Analyzing…' : 'Choose a file'}
         </label>
-        <p className="text-sm text-muted-foreground mt-3">PDF or image, up to 10MB and 20 pages.</p>
+
+        {quota && (
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
+            {quota.onboardingRemaining === null ? (
+              <span>Onboarding window expired — monthly quota applies</span>
+            ) : (
+              <span><strong className="text-foreground">{quota.onboardingRemaining} of {quota.onboardingLimit}</strong> free reads left (first 30 days)</span>
+            )}
+            <span><strong className="text-foreground">{quota.ongoingRemaining} of {quota.ongoingLimit}</strong> left this month</span>
+          </div>
+        )}
       </div>
 
       {isLoading ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {[1, 2].map((i) => (
             <div key={i} className="h-24 bg-card/50 border border-border rounded-2xl animate-pulse" />
           ))}
         </div>
       ) : imports.length === 0 ? (
-        <div className="text-center py-20 bg-card border-2 border-dashed border-border rounded-3xl">
+        <div className="text-center py-16 bg-card border-2 border-dashed border-border rounded-3xl">
           <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center mx-auto mb-4 text-primary">
             <Sparkles size={28} />
           </div>
-          <h3 className="text-xl font-serif mb-2">No uploads yet</h3>
+          <h3 className="font-serif text-xl font-extrabold mb-2">No uploads yet</h3>
           <p className="text-muted-foreground">Upload a vet report above to get started.</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {imports.map((imp) => {
             const pendingItems = imp.items.filter((i) => i.status === 'pending');
             const decidedItems = imp.items.filter((i) => i.status !== 'pending');
+            const acceptedCount = decidedItems.filter((i) => i.status === 'accepted').length;
+            const rejectedCount = decidedItems.filter((i) => i.status === 'rejected').length;
+            const duplicateCount = pendingItems.filter((i) => i.duplicateOfType).length;
             const defaultCollapsed = imp.status === 'reviewed';
             const collapsed = collapsedOverrides[imp.id] ?? defaultCollapsed;
+            const failed = pendingItems.length === 0 && decidedItems.length === 0 && imp.status !== 'reviewed';
 
             return (
-              <div key={imp.id} className="bg-card border border-border rounded-3xl p-6 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <FileText size={18} className="text-primary shrink-0" />
-                      <span className="font-medium truncate">{imp.documentName}</span>
-                      <span
-                        className={cn(
-                          'text-xs px-2 py-0.5 rounded-full font-medium shrink-0',
-                          imp.status === 'reviewed' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600',
-                        )}
-                      >
-                        {imp.status === 'reviewed' ? 'Reviewed' : `${pendingItems.length} to review`}
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Analyzed {format(new Date(imp.analyzedAt), 'MMM d, yyyy · h:mm a')} ·{' '}
-                      {imp.lane === 'onboarding' ? 'Onboarding' : 'Ongoing'} lane
+              <div key={imp.id} className={cn('bg-card border rounded-3xl p-5', failed ? 'border-destructive/30' : 'border-border')}>
+                <div className="flex items-start gap-4">
+                  <div
+                    className={cn(
+                      'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0',
+                      failed ? 'bg-destructive/10 text-destructive' : imp.status === 'reviewed' ? 'bg-accent text-primary' : 'bg-amber-100 text-amber-700',
+                    )}
+                  >
+                    {failed ? <AlertTriangle size={20} /> : imp.status === 'reviewed' ? <Check size={20} /> : <FileText size={20} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[16.5px] font-bold truncate">{imp.documentName}</div>
+                    <div className="mt-0.5 text-sm text-muted-foreground">
+                      {failed ? (
+                        "We couldn't read this one — it may be a photo of a page rather than a text PDF. This didn't use up one of your reads."
+                      ) : imp.status === 'reviewed' ? (
+                        `All done · ${acceptedCount} saved to their file${rejectedCount ? `, ${rejectedCount} you said no to` : ''}`
+                      ) : (
+                        <>
+                          Read {format(new Date(imp.analyzedAt), 'MMM d')} at {format(new Date(imp.analyzedAt), 'h:mm a')} · {pendingItems.length} thing{pendingItems.length === 1 ? '' : 's'} still to check
+                          {duplicateCount > 0 ? ` · ${duplicateCount} might be a duplicate` : ''}
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => handleViewSource(imp)}
-                      disabled={openingDocId === imp.id}
-                      className="text-sm font-medium text-primary hover:underline flex items-center gap-1.5 disabled:opacity-60"
-                    >
-                      {openingDocId === imp.id ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />} Source
-                    </button>
+                    {!failed && (
+                      <button
+                        onClick={() => handleViewSource(imp)}
+                        disabled={openingDocId === imp.id}
+                        className="h-9 px-3 text-sm font-bold text-primary flex items-center gap-1.5 disabled:opacity-60"
+                      >
+                        {openingDocId === imp.id ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />} Source
+                      </button>
+                    )}
                     {pendingItems.length > 1 && (
                       <button
                         onClick={() => handleAcceptAll(imp)}
-                        className="text-sm font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                        className="h-9 px-4 text-sm font-bold rounded-full bg-accent text-primary hover:bg-accent/70 transition-colors"
                       >
                         Accept all
                       </button>
                     )}
-                    <button
-                      onClick={() => setCollapsedOverrides((o) => ({ ...o, [imp.id]: !collapsed }))}
-                      aria-label={collapsed ? 'Expand' : 'Collapse'}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent transition-colors"
-                    >
-                      {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                    </button>
+                    {failed ? (
+                      <button className="h-9 px-4 text-sm font-bold rounded-full border border-border hover:bg-accent transition-colors">Try again</button>
+                    ) : (
+                      pendingItems.length > 0 && (
+                        <button
+                          onClick={() => setCollapsedOverrides((o) => ({ ...o, [imp.id]: !collapsed }))}
+                          aria-label={collapsed ? 'Expand' : 'Collapse'}
+                          className="w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:bg-accent transition-colors"
+                        >
+                          {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                        </button>
+                      )
+                    )}
                   </div>
                 </div>
 
-                {!collapsed && (
-                  <div className="space-y-3">
-                    {pendingItems.map((item) => {
+                {!collapsed && (pendingItems.length > 0 || decidedItems.length > 0) && (
+                  <div className="mt-4 space-y-3">
+                    {pendingItems.map((item, idx) => {
                       const Icon = ITEM_TYPE_META[item.itemType].icon;
                       const isEditing = editingItemId === item.id;
                       const isBusy = busyItemId === item.id;
                       return (
-                        <div key={item.id} className="border border-border rounded-2xl p-4 bg-background">
+                        <div key={item.id} className="border border-border rounded-2xl p-4">
+                          {pendingItems.length > 1 && (
+                            <div className="text-xs font-bold text-muted-foreground mb-2">Step {idx + 1} of {pendingItems.length}</div>
+                          )}
                           <div className="flex items-start gap-3">
-                            <div className="w-9 h-9 rounded-lg bg-accent text-primary flex items-center justify-center shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-accent text-primary flex items-center justify-center shrink-0">
                               <Icon size={16} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                                {ITEM_TYPE_META[item.itemType].label}
+                              <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                                  {ITEM_TYPE_META[item.itemType].label}
+                                </span>
+                                {item.duplicateOfType && (
+                                  <span className="flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-100 rounded-full px-2.5 py-1">
+                                    <AlertTriangle size={11} /> Might already be in the file
+                                  </span>
+                                )}
                               </div>
-                              {item.duplicateOfType && (
-                                <div className="flex items-center gap-1.5 text-xs font-medium text-amber-600 bg-amber-500/10 rounded-lg px-2 py-1 mb-2 w-fit">
-                                  <AlertTriangle size={12} /> Possible duplicate of an existing{' '}
-                                  {ITEM_TYPE_META[item.duplicateOfType].label.toLowerCase()}
-                                </div>
-                              )}
                               {isEditing ? (
                                 <ItemEditForm
                                   item={item}
@@ -627,27 +643,30 @@ export default function SmartUpload() {
                               ) : (
                                 <>
                                   <ItemSummary item={item} />
+                                  {item.duplicateOfType && (
+                                    <p className="mt-2 text-xs text-muted-foreground">You already have one saved — compare them in their file.</p>
+                                  )}
                                   <div className="flex gap-2 mt-3">
                                     <button
                                       onClick={() => handleAccept(imp, item)}
                                       disabled={isBusy}
-                                      className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+                                      className="h-10 flex items-center gap-1.5 px-4 text-sm font-bold rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
                                     >
-                                      {isBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Accept
+                                      {isBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Yes, save it
                                     </button>
                                     <button
                                       onClick={() => setEditingItemId(item.id)}
                                       disabled={isBusy}
-                                      className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg border border-border hover:bg-accent disabled:opacity-60 transition-colors"
+                                      className="h-10 flex items-center gap-1.5 px-4 text-sm font-bold rounded-full border border-border hover:bg-accent disabled:opacity-60 transition-colors"
                                     >
-                                      <Pencil size={14} /> Edit
+                                      <Pencil size={14} /> Change something
                                     </button>
                                     <button
                                       onClick={() => handleReject(imp, item)}
                                       disabled={isBusy}
-                                      className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-60 transition-colors"
+                                      className="h-10 flex items-center gap-1.5 px-4 text-sm font-bold rounded-full border border-border text-destructive hover:bg-destructive/10 disabled:opacity-60 transition-colors"
                                     >
-                                      <X size={14} /> Reject
+                                      <X size={14} /> No thanks
                                     </button>
                                   </div>
                                 </>
@@ -663,12 +682,12 @@ export default function SmartUpload() {
                         {decidedItems.map((item) => {
                           const Icon = ITEM_TYPE_META[item.itemType].icon;
                           return (
-                            <div key={item.id} className="flex items-center gap-3 px-4 py-2 rounded-xl bg-accent/40 text-sm text-muted-foreground">
+                            <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-accent/40 text-sm text-muted-foreground">
                               <Icon size={14} className="shrink-0" />
                               <span className="flex-1 truncate">{ITEM_TYPE_META[item.itemType].label}</span>
                               <span
                                 className={cn(
-                                  'text-xs font-medium px-2 py-0.5 rounded-full shrink-0',
+                                  'text-xs font-bold px-2.5 py-0.5 rounded-full shrink-0',
                                   item.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground',
                                 )}
                               >
@@ -678,10 +697,6 @@ export default function SmartUpload() {
                           );
                         })}
                       </div>
-                    )}
-
-                    {pendingItems.length === 0 && decidedItems.length === 0 && (
-                      <p className="text-sm text-muted-foreground">No items were proposed from this document.</p>
                     )}
                   </div>
                 )}
@@ -693,7 +708,7 @@ export default function SmartUpload() {
     </div>
 
     <AlertDialog open={!!nameMismatchMessage} onOpenChange={(open) => !open && setNameMismatchMessage(null)}>
-      <AlertDialogContent>
+      <AlertDialogContent className="rounded-3xl">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle size={20} className="text-amber-500 shrink-0" />
@@ -702,7 +717,7 @@ export default function SmartUpload() {
           <AlertDialogDescription>{nameMismatchMessage}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogAction onClick={() => setNameMismatchMessage(null)}>Got it</AlertDialogAction>
+          <AlertDialogAction className="rounded-full" onClick={() => setNameMismatchMessage(null)}>Got it</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

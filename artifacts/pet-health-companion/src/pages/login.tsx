@@ -66,7 +66,7 @@ export default function Login() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" autoComplete="email" placeholder="you@example.com" className="h-11" {...field} />
+                        <Input type="email" autoComplete="email" placeholder="you@example.com" className="h-11 rounded-full" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -79,7 +79,7 @@ export default function Login() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" autoComplete="current-password" className="h-11" {...field} />
+                        <Input type="password" autoComplete="current-password" className="h-11 rounded-full" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -93,7 +93,7 @@ export default function Login() {
                 <Button
                   type="submit"
                   size="lg"
-                  className="w-full"
+                  className="w-full rounded-full"
                   disabled={form.formState.isSubmitting}
                 >
                   <LogIn size={18} />
