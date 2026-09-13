@@ -35,6 +35,8 @@ Two services, both free tier, both auto-deploying from `main`:
    `.env` file):
    - `DATABASE_URL`
    - `CLERK_SECRET_KEY`
+   - `CLERK_PUBLISHABLE_KEY` (same publishable key as below — the backend's
+     `@clerk/express` middleware needs it too, or it 500s on every request)
    - `SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `ANTHROPIC_API_KEY`
