@@ -69,7 +69,11 @@ export default function Signup() {
     // Default Clerk behavior: email must be verified before the account is
     // usable. If email verification is turned off for this Clerk instance,
     // signUp.status will already be 'complete' above and this is skipped.
-    await signUp.verifications.sendEmailCode();
+    const { error: sendCodeError } = await signUp.verifications.sendEmailCode();
+    if (sendCodeError) {
+      setFormError(extractErrorMessage(sendCodeError, 'Could not send a verification code.'));
+      return;
+    }
     setVerifying(true);
   };
 
@@ -77,7 +81,11 @@ export default function Signup() {
     setVerifyError(null);
     setIsVerifying(true);
     try {
-      await signUp.verifications.verifyEmailCode({ code });
+      const { error } = await signUp.verifications.verifyEmailCode({ code });
+      if (error) {
+        setVerifyError(extractErrorMessage(error, "That code wasn't right. Try again."));
+        return;
+      }
       if (signUp.status === 'complete') {
         await signUp.finalize({ navigate: () => setLocation('/') });
       } else {
@@ -129,7 +137,15 @@ export default function Signup() {
 
               <button
                 type="button"
-                onClick={() => void signUp.verifications.sendEmailCode()}
+                onClick={() => {
+                  void (async () => {
+                    setVerifyError(null);
+                    const { error } = await signUp.verifications.sendEmailCode();
+                    if (error) {
+                      setVerifyError(extractErrorMessage(error, 'Could not send a new code.'));
+                    }
+                  })();
+                }}
                 className="text-sm text-primary font-medium hover:underline w-full text-center"
               >
                 Send a new code
