@@ -1,12 +1,13 @@
 import { pgTable, integer, text, timestamp, primaryKey } from "drizzle-orm/pg-core";
 import { pets } from "./care";
+import { users } from "./auth";
 
 export const petOwners = pgTable(
   "pet_owners",
   {
-    // Clerk's user id (e.g. "user_2abc...") — Clerk is the source of truth
-    // for accounts, so there's no local `users` table to foreign-key into.
-    userId: text("user_id").notNull(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     petId: integer("pet_id")
       .notNull()
       .references(() => pets.id, { onDelete: "cascade" }),
