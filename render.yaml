@@ -20,9 +20,13 @@ services:
     plan: free
     branch: main
     autoDeploy: true
+    # No manual `corepack enable`/`prepare` here — Render's build image
+    # ships Corepack already enabled, and it reads the pinned pnpm version
+    # from the "packageManager" field in the root package.json. Manually
+    # running `corepack enable` on the static site's build image fails
+    # (EROFS: read-only file system, unlink '/usr/bin/pnpm') because that
+    # image already has pnpm linked at a path Corepack can't rewrite.
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@12.3.4 --activate &&
       pnpm install --frozen-lockfile &&
       pnpm -r --filter "@workspace/api-server..." run build
     startCommand: node artifacts/api-server/dist/index.mjs
@@ -58,8 +62,6 @@ services:
     branch: main
     autoDeploy: true
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@12.3.4 --activate &&
       pnpm install --frozen-lockfile &&
       pnpm -r --filter "@workspace/pet-health-companion..." run build
     staticPublishPath: artifacts/pet-health-companion/dist/public
