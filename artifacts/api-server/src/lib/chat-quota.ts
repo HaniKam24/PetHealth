@@ -26,7 +26,7 @@ function currentPeriodMonth(): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-async function getChatUsed(userId: number): Promise<number> {
+async function getChatUsed(userId: string): Promise<number> {
   const [row] = await db
     .select()
     .from(aiUsageMonthly)
@@ -34,7 +34,7 @@ async function getChatUsed(userId: number): Promise<number> {
   return row?.chatQuestionsUsed ?? 0;
 }
 
-export async function getChatQuota(userId: number): Promise<ChatQuota> {
+export async function getChatQuota(userId: string): Promise<ChatQuota> {
   const used = await getChatUsed(userId);
   return { used, limit: CHAT_LIMIT, remaining: Math.max(0, CHAT_LIMIT - used) };
 }
@@ -47,14 +47,14 @@ export async function getChatQuota(userId: number): Promise<ChatQuota> {
  * they're a deterministic, zero-AI-cost short-circuit (see
  * symptom-escalation.ts) and must never be blocked by a maxed-out quota.
  */
-export async function assertChatQuotaAvailable(userId: number): Promise<void> {
+export async function assertChatQuotaAvailable(userId: string): Promise<void> {
   const quota = await getChatQuota(userId);
   if (quota.remaining <= 0) {
     throw new ChatQuotaExceededError();
   }
 }
 
-export async function recordChatUsage(userId: number): Promise<void> {
+export async function recordChatUsage(userId: string): Promise<void> {
   const period = currentPeriodMonth();
   const [existing] = await db
     .select()

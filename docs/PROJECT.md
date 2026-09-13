@@ -19,9 +19,9 @@ This file replaces the old `replit.md` (Replit Agent's own memory file — no lo
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
-- Required env: `BETTER_AUTH_SECRET` — session/token signing secret (any long random string)
-- Required env: `BETTER_AUTH_URL` — the api-server's own public base URL (used by better-auth for cookies/CSRF)
-- Optional env: `WEB_ORIGIN` — comma-separated frontend origin(s), for CORS + better-auth trusted origins when the web app isn't served same-origin
+- Required env: `CLERK_SECRET_KEY` — Clerk's server-side API key, verifies session tokens (Clerk Dashboard -> API Keys)
+- Required env (frontend, in `artifacts/pet-health-companion/.env` — Vite doesn't read the repo-root `.env`): `VITE_CLERK_PUBLISHABLE_KEY` — Clerk's browser-side key
+- Optional env: `WEB_ORIGIN` — comma-separated frontend origin(s), for CORS when the web app isn't served same-origin
 - Required env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` — for health-record document uploads (Supabase Storage, server-side only)
 - Required env: `ANTHROPIC_API_KEY` — powers symptom chat and Smart Document Upload extraction (Claude Haiku 4.5, `lib/integrations-anthropic-ai-server`)
 - `scripts/post-merge.sh` (`pnpm install --frozen-lockfile && pnpm --filter db push`) is no longer auto-run on merge (that was wired through Replit's `.replit` config, now removed) — run it manually after pulling a branch with schema changes.
@@ -30,7 +30,7 @@ This file replaces the old `replit.md` (Replit Agent's own memory file — no lo
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
-- Auth: better-auth (email/password), Drizzle adapter — `lib/auth`
+- Auth: Clerk (email/password) — accounts and sessions are hosted by Clerk, not this app's own DB; `lib/auth` wraps Clerk's Express middleware
 - File storage: Supabase Storage (private bucket, signed URLs) — `artifacts/api-server/src/lib/storage.ts`
 - DB: PostgreSQL + Drizzle ORM
 - AI: Anthropic Claude (Haiku 4.5) — `lib/integrations-anthropic-ai-server`
@@ -42,12 +42,11 @@ This file replaces the old `replit.md` (Replit Agent's own memory file — no lo
 ## Where things live
 
 - `artifacts/pet-health-companion/` — owner web app
-- `artifacts/pet-health-companion/src/pages/login.tsx`, `signup.tsx` — auth pages; `src/lib/auth-client.ts` — better-auth React client
+- `artifacts/pet-health-companion/src/pages/login.tsx`, `signup.tsx` — auth pages, built on Clerk's `useSignIn`/`useSignUp` custom-flow hooks (not Clerk's prebuilt `<SignIn/>`/`<SignUp/>` components, to keep the app's own styling)
 - `artifacts/api-server/src/routes/care.ts` — pet-care and AI API behavior
-- `lib/auth/src/auth.ts` — better-auth server config (email/password, Drizzle adapter, plural table names, serial ids)
+- `lib/auth/src/index.ts` — wraps `@clerk/express`'s `clerkMiddleware()` / `getAuth()` as `requireAuth`, attaching `req.userId` (a Clerk id, e.g. `"user_2abc..."`)
 - `lib/api-spec/openapi.yaml` — API source of truth
 - `lib/db/src/schema/care.ts` — persistent pet-care data model
-- `lib/db/src/schema/auth.ts` — `users`/`sessions`/`accounts`/`verifications` tables required by better-auth
 - `lib/db/src/schema/pet-owners.ts` — owner↔pet join table, multi-owner shaped and enforced in every route via `getOwnedPetIds`/`isPetOwnedByUser` (`care.ts`); there's just no invite flow yet to add a second owner (PRD Bolt 13)
 - `lib/db/src/schema/document-imports.ts` — Smart Document Upload's review-queue tables (`documentImports`, `documentImportItems`)
 - `lib/db/src/schema/ai-usage.ts` — per-account monthly AI usage tracking (`aiUsageMonthly`)
@@ -80,8 +79,8 @@ Per `docs/PRD.md`'s Bolt numbering: Phase 1 (Bolts 1–10, the MVP) is fully don
 
 - Re-run API codegen after every OpenAPI change before editing server or client callers.
 - AI responses must keep the educational disclaimer and urgent-care escalation behavior.
-- The better-auth Express handler (`app.all("/api/auth/*splat", authHandler)`) must be mounted **before** `express.json()` in `app.ts` — better-auth parses the raw request body itself, and a body-parser upstream would consume the stream first.
-- `lib/db/src/schema/auth.ts` mirrors better-auth's own generated schema for the config in `lib/auth/src/auth.ts` (plural table names, serial ids via `advanced.database.generateId: "serial"`). If that config changes (new fields, a plugin), regenerate with `npx @better-auth/cli generate` and reconcile — don't hand-edit column shapes from guesswork.
+- Clerk hosts accounts and sessions itself — there's no local `users` table. `pet_owners.user_id` and `ai_usage_monthly.user_id` are Clerk's string ids (`text`, e.g. `"user_2abc..."`) rather than an integer FK.
+- Sign-up/sign-in happen client-side, directly against Clerk's own API — the api-server never sees a password. Every other request carries the Clerk session as an `Authorization: Bearer <token>` header (see `setAuthTokenGetter` in `App.tsx`), which `requireAuth` (`lib/auth`) verifies via `@clerk/express`.
 - Every route in `routes/care.ts` sits behind `requireAuth` and is scoped by owner via `pet_owners` (`getOwnedPetIds`/`isPetOwnedByUser` in `care.ts`) — a pet not owned by the caller 404s rather than leaking existence.
 - Pets are capped at `MAX_PETS_PER_ACCOUNT` (3) in `routes/care.ts`; `POST /pets` 400s past that with a message, and the "Add another pet" link hides client-side at the cap.
 - `asDateString`/`asWeightString` in `care.ts` pass `undefined` through as-is (don't coalesce to `null`) — an omitted field on a PATCH must leave that column untouched, not clear it. Only an explicit `null` clears a field.

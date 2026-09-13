@@ -7,8 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@workspace/db": "workspace:*",
-    "better-auth": "^1.7.2"
+    "@clerk/express": "^2.1.67"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

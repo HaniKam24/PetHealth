@@ -31,7 +31,7 @@ function currentPeriodMonth(): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-async function getOngoingUsed(userId: number): Promise<number> {
+async function getOngoingUsed(userId: string): Promise<number> {
   const [row] = await db
     .select()
     .from(aiUsageMonthly)
@@ -40,7 +40,7 @@ async function getOngoingUsed(userId: number): Promise<number> {
 }
 
 export async function getDocumentImportQuota(
-  userId: number,
+  userId: string,
   pet: typeof pets.$inferSelect,
 ): Promise<DocumentImportQuota> {
   const onboardingActive = pet.importWindowEndsAt !== null && pet.importWindowEndsAt.getTime() > Date.now();
@@ -61,7 +61,7 @@ export async function getDocumentImportQuota(
  * so a failed call doesn't consume the owner's allowance.
  */
 export async function pickImportLane(
-  userId: number,
+  userId: string,
   pet: typeof pets.$inferSelect,
 ): Promise<{ quota: DocumentImportQuota; lane: ImportLane }> {
   const quota = await getDocumentImportQuota(userId, pet);
@@ -75,7 +75,7 @@ export async function pickImportLane(
 }
 
 export async function recordDocumentImportUsage(
-  userId: number,
+  userId: string,
   pet: typeof pets.$inferSelect,
   lane: ImportLane,
 ): Promise<void> {

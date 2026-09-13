@@ -44,11 +44,11 @@ const router: IRouter = Router();
 // Duplicated from care.ts rather than shared: both files need "is this
 // petId owned by this user", and importing across route files for two
 // three-line helpers isn't worth the coupling.
-function requireUserId(req: Request): number {
-  return Number(req.user!.id);
+function requireUserId(req: Request): string {
+  return req.userId!;
 }
 
-async function isPetOwnedByUser(userId: number, petId: number): Promise<boolean> {
+async function isPetOwnedByUser(userId: string, petId: number): Promise<boolean> {
   const [row] = await db
     .select({ petId: petOwners.petId })
     .from(petOwners)

@@ -1,5 +1,4 @@
 import { integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
-import { users } from "./auth";
 
 // One row per account per calendar month ("2026-09"). chatQuestionsUsed is
 // unused until the symptom-chat bolt lands — both counters live on one row
@@ -8,9 +7,8 @@ export const aiUsageMonthly = pgTable(
   "ai_usage_monthly",
   {
     id: serial("id").primaryKey(),
-    userId: integer("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    // Clerk's user id (e.g. "user_2abc...") — see pet-owners.ts.
+    userId: text("user_id").notNull(),
     periodMonth: text("period_month").notNull(),
     chatQuestionsUsed: integer("chat_questions_used").notNull().default(0),
     documentUploadsUsed: integer("document_uploads_used").notNull().default(0),
