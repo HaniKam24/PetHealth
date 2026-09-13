@@ -34,16 +34,17 @@ Two services, both free tier, both auto-deploying from `main`:
    know on its own (these are your secrets — same ones from your local
    `.env` file):
    - `DATABASE_URL`
-   - `CLERK_SECRET_KEY`
-   - `CLERK_PUBLISHABLE_KEY` (same publishable key as below — the backend's
-     `@clerk/express` middleware needs it too, or it 500s on every request)
+   - `BETTER_AUTH_SECRET` (any long random string, e.g. `openssl rand -base64 32`
+     — same value used locally)
    - `SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `ANTHROPIC_API_KEY`
-   - `VITE_CLERK_PUBLISHABLE_KEY` (from Clerk's dashboard — this one is *not*
-     secret, it's the public key, but Render still asks for it explicitly)
    - `WEB_ORIGIN` — leave this blank for now; come back and fill it in after
      step 5 below.
+
+   `BETTER_AUTH_URL` is already set to the backend's own Render URL directly
+   in `render.yaml` — nothing to enter for it here, unless the service ends
+   up with a different auto-generated URL (see the section below).
 5. Wait for both services to finish their first deploy (a few minutes).
    Render will show you the frontend's URL, something like
    `https://pethealth-frontend.onrender.com` — **that's your link.**
@@ -60,9 +61,10 @@ pushed version.
 ## If the service name `pethealth-api` or `pethealth-frontend` is taken
 
 Render appends a random suffix to your service's URL if the name is already
-used by someone else. If that happens to `pethealth-api`, update the
-`destination` in the `/api/*` rewrite rule inside `render.yaml` (repo root)
-to match the actual URL Render gave it, then push that change to `main`.
+used by someone else. If that happens to `pethealth-api`, update two spots
+in `render.yaml` (repo root) to match the actual URL Render gave it: the
+`destination` in the `/api/*` rewrite rule, and the `BETTER_AUTH_URL` value
+— then push that change to `main`.
 
 ## Checking a deploy
 
