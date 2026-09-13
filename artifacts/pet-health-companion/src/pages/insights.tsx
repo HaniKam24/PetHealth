@@ -36,6 +36,32 @@ function renderFormattedText(text: string) {
   });
 }
 
+// Renders a `\n\n`-delimited block as a heading when its first line starts with
+// #/##/###, otherwise as a paragraph — same "React nodes only" rule as
+// renderFormattedText. Only the first line is checked (not matched end-to-end)
+// since a heading block often has further lines, e.g. a list, underneath it.
+function renderBlock(block: string, key: number) {
+  const newlineIndex = block.indexOf('\n');
+  const firstLine = newlineIndex === -1 ? block : block.slice(0, newlineIndex);
+  const heading = firstLine.match(/^(#{1,3})\s+(.*)$/);
+  if (!heading) {
+    return <p key={key}>{renderFormattedText(block)}</p>;
+  }
+
+  const headingContent = renderFormattedText(heading[2]);
+  const headingNode =
+    heading[1].length === 1 ? <h1>{headingContent}</h1> :
+    heading[1].length === 2 ? <h2>{headingContent}</h2> :
+    <h3>{headingContent}</h3>;
+  const rest = newlineIndex === -1 ? '' : block.slice(newlineIndex + 1).trim();
+  return (
+    <div key={key}>
+      {headingNode}
+      {rest && <p>{renderFormattedText(rest)}</p>}
+    </div>
+  );
+}
+
 const weightChartConfig: ChartConfig = {
   weight: { label: 'Weight', color: 'hsl(var(--primary))' },
 };
@@ -288,9 +314,7 @@ export default function Insights() {
                            )}
                            <div className="prose prose-sm md:prose-base prose-p:leading-relaxed prose-p:text-muted-foreground prose-headings:font-serif prose-headings:text-foreground prose-strong:text-foreground max-w-none">
                              {/* Simple markdown parsing for the AI content — rendered as React nodes, never raw HTML */}
-                             {insight.content.split('\n\n').map((paragraph, i) => (
-                               <p key={i}>{renderFormattedText(paragraph)}</p>
-                             ))}
+                             {insight.content.split('\n\n').map((block, i) => renderBlock(block, i))}
                            </div>
                            
                            <div className="mt-6 pt-4 border-t border-border/50 text-xs text-muted-foreground/70 flex justify-between items-center gap-3">
