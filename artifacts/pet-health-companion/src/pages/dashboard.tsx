@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { usePetContext } from '@/context/pet-context';
+import { OnboardingTutorial } from '@/components/onboarding-tutorial';
+import { consumePendingTutorial } from '@/lib/onboarding-tutorial-flag';
 import {
   useGetDashboardSummary,
   getGetDashboardSummaryQueryKey,
@@ -51,6 +54,8 @@ function formatAge(birthDate: string) {
 export default function Dashboard() {
   const { activePetId } = usePetContext();
   const queryClient = useQueryClient();
+  const [showTutorial, setShowTutorial] = useState(() => consumePendingTutorial());
+  const tutorial = <OnboardingTutorial open={showTutorial} onOpenChange={setShowTutorial} />;
 
   const { data: summary, isLoading, error } = useGetDashboardSummary(
     activePetId ? { petId: activePetId } : undefined,
@@ -97,45 +102,54 @@ export default function Dashboard() {
 
   if (!activePetId) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <div className="w-24 h-24 rounded-full bg-accent text-primary flex items-center justify-center mx-auto mb-6">
-            <HeartPulse size={44} strokeWidth={2} />
+      <>
+        {tutorial}
+        <div className="min-h-[80vh] flex items-center justify-center p-6">
+          <div className="text-center max-w-md">
+            <div className="w-24 h-24 rounded-full bg-accent text-primary flex items-center justify-center mx-auto mb-6">
+              <HeartPulse size={44} strokeWidth={2} />
+            </div>
+            <h2 className="font-serif text-[32px] font-extrabold tracking-tight mb-3">Let's start with your pet</h2>
+            <p className="text-muted-foreground text-[17px] leading-relaxed mb-7">
+              Add their name and a couple of details. You can bring in past vet reports whenever you like — or never.
+            </p>
+            <Link
+              href="/profile?new=true"
+              className="inline-flex items-center gap-2.5 h-[54px] px-7 rounded-full bg-primary text-primary-foreground text-[17px] font-extrabold shadow-lg shadow-primary/30 hover:bg-primary/90 transition-colors"
+            >
+              Add your pet <ArrowRight size={19} />
+            </Link>
           </div>
-          <h2 className="font-serif text-[32px] font-extrabold tracking-tight mb-3">Let's start with your pet</h2>
-          <p className="text-muted-foreground text-[17px] leading-relaxed mb-7">
-            Add their name and a couple of details. You can bring in past vet reports whenever you like — or never.
-          </p>
-          <Link
-            href="/profile?new=true"
-            className="inline-flex items-center gap-2.5 h-[54px] px-7 rounded-full bg-primary text-primary-foreground text-[17px] font-extrabold shadow-lg shadow-primary/30 hover:bg-primary/90 transition-colors"
-          >
-            Add your pet <ArrowRight size={19} />
-          </Link>
         </div>
-      </div>
+      </>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="p-8 max-w-6xl mx-auto animate-pulse space-y-6">
-        <div className="h-10 bg-muted rounded-lg w-1/3" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <div className="lg:col-span-2 h-96 bg-muted rounded-3xl" />
-          <div className="h-96 bg-muted rounded-3xl" />
+      <>
+        {tutorial}
+        <div className="p-8 max-w-6xl mx-auto animate-pulse space-y-6">
+          <div className="h-10 bg-muted rounded-lg w-1/3" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <div className="lg:col-span-2 h-96 bg-muted rounded-3xl" />
+            <div className="h-96 bg-muted rounded-3xl" />
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (error || !summary) {
     return (
-      <div className="p-8 max-w-6xl mx-auto">
-        <div className="text-destructive bg-destructive/10 rounded-2xl border border-destructive/20 text-center py-12">
-          Failed to load dashboard. Please try again.
+      <>
+        {tutorial}
+        <div className="p-8 max-w-6xl mx-auto">
+          <div className="text-destructive bg-destructive/10 rounded-2xl border border-destructive/20 text-center py-12">
+            Failed to load dashboard. Please try again.
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -257,6 +271,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto pb-16">
+      {tutorial}
       <div className="flex flex-wrap items-end justify-between gap-5 mb-7">
         <div>
           <div className="text-sm font-bold text-muted-foreground">{format(new Date(), 'EEEE, d MMMM')}</div>
