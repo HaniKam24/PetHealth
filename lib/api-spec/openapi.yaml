@@ -595,6 +595,52 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /pets/{petId}/ai-actions/{actionId}/confirm:
+    post:
+      operationId: confirmAiAction
+      tags: [insights]
+      summary: Confirm a Pawlie-proposed action — writes it to the pet's real records
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/AiActionId"
+      responses:
+        "200":
+          description: Updated action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAction"
+        "400":
+          description: The action is no longer pending, or its stored data no longer matches the expected shape
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /pets/{petId}/ai-actions/{actionId}/cancel:
+    post:
+      operationId: cancelAiAction
+      tags: [insights]
+      summary: Cancel a Pawlie-proposed action — nothing is written
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/AiActionId"
+      responses:
+        "200":
+          description: Updated action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAction"
+        "400":
+          description: The action is no longer pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   parameters:
     PetId:
@@ -641,6 +687,13 @@ components:
         minimum: 1
     DocumentImportItemId:
       name: itemId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    AiActionId:
+      name: actionId
       in: path
       required: true
       schema:
@@ -933,7 +986,27 @@ components:
         createdAt: { type: string, format: date-time }
         disclaimer: { type: string }
         kind: { type: string, enum: [chat, escalation], description: "Whether a red flag short-circuited this to an escalation response." }
-      required: [id, petId, title, content, question, tone, source, createdAt, disclaimer, kind]
+        action:
+          description: Set when Pawlie proposed a conversational action alongside this reply (e.g. "add a reminder for..."). Null for a plain answer with nothing to confirm.
+          oneOf:
+            - $ref: "#/components/schemas/AiAction"
+            - type: "null"
+      required: [id, petId, title, content, question, tone, source, createdAt, disclaimer, kind, action]
+    AiAction:
+      type: object
+      description: A conversational edit Pawlie proposed — deliberately parallel to DocumentImportItem's review-gated shape. Nothing is written until the owner confirms.
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        insightId: { type: ["integer", "null"] }
+        actionType: { type: string, enum: [create_reminder, complete_reminder, update_pet_profile, log_symptom] }
+        proposedData:
+          type: object
+          description: Shape depends on actionType — a ReminderInput-shaped object for create_reminder, {reminderId} for complete_reminder, a partial profile-update object (same shape as Smart Upload's vet_info item — any of vetName/vetClinic/vetPhone/vetAddress/breed/weight/weightUnit/sex) for update_pet_profile, or {description} for log_symptom.
+        status: { type: string, enum: [pending, confirmed, cancelled] }
+        appliedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+      required: [id, petId, insightId, actionType, proposedData, status, appliedAt, createdAt]
     ChatQuota:
       type: object
       description: A single account-wide monthly allowance for symptom-chat AI questions (50/month), separate from the document-import lanes in DocumentImportQuota. A red-flag escalation never draws on this.

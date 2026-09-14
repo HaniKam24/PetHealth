@@ -22,3 +22,4 @@ export * from "./auth";
 export * from "./pet-owners";
 export * from "./document-imports";
 export * from "./ai-usage";
+export * from "./ai-actions";

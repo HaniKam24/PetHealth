@@ -8,6 +8,10 @@
 
 export * from './acceptDocumentImportItemBody';
 export * from './acceptDocumentImportItemBodyProposedData';
+export * from './aiAction';
+export * from './aiActionActionType';
+export * from './aiActionProposedData';
+export * from './aiActionStatus';
 export * from './chatQuota';
 export * from './createDocumentImportBody';
 export * from './dashboardSummary';
