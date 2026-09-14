@@ -34,12 +34,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
+import { SPECIES_VALUES, SPECIES_OPTIONS, BREEDS_BY_SPECIES } from '@/lib/pet-species';
 
 const ALLOWED_PHOTO_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 
 const profileSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  species: z.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  species: z.enum(SPECIES_VALUES),
   breed: z.string().optional().nullable(),
   sex: z.enum(['female', 'male', 'unknown']),
   birthDate: z.string().optional().nullable(),
@@ -54,161 +55,6 @@ const profileSchema = z.object({
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
-
-type BreedOption = {
-  value: string;
-  label: string;
-};
-
-const BREEDS_BY_SPECIES: Record<ProfileFormValues['species'], readonly BreedOption[]> = {
-  dog: [
-    'Mixed breed',
-    'Labrador Retriever',
-    'Golden Retriever',
-    'German Shepherd',
-    'French Bulldog',
-    'Bulldog',
-    'Poodle',
-    'Beagle',
-    'Rottweiler',
-    'Dachshund',
-    'Yorkshire Terrier',
-    'Boxer',
-    'Australian Shepherd',
-    'Siberian Husky',
-    'Great Dane',
-    'Cavalier King Charles Spaniel',
-    'Doberman Pinscher',
-    'Cane Corso',
-    'Miniature Schnauzer',
-    'Shih Tzu',
-    'Boston Terrier',
-    'Pomeranian',
-    'Havanese',
-    'Bernese Mountain Dog',
-    'Chihuahua',
-    'Pug',
-    'Cocker Spaniel',
-    'Border Collie',
-    'Maltese',
-    'Akita',
-    'Newfoundland',
-    'Basset Hound',
-    'Rhodesian Ridgeback',
-    'Weimaraner',
-    'Vizsla',
-    'Australian Cattle Dog',
-    'Jack Russell Terrier',
-    'West Highland White Terrier',
-    'Bichon Frise',
-    'Mastiff',
-    'Saint Bernard',
-    'English Springer Spaniel',
-    'Irish Setter',
-    'Whippet',
-    'Greyhound',
-    'Papillon',
-    'Shetland Sheepdog',
-    'Collie',
-    'Staffordshire Bull Terrier',
-    'Other / Not listed',
-  ].map((breed) => ({ value: breed, label: breed })),
-  cat: [
-    'Domestic Shorthair',
-    'Domestic Longhair',
-    'Domestic Medium Hair',
-    'Mixed breed',
-    'Abyssinian',
-    'American Shorthair',
-    'Bengal',
-    'Birman',
-    'British Shorthair',
-    'Burmese',
-    'Burmilla',
-    'Chartreux',
-    'Cornish Rex',
-    'Devon Rex',
-    'Egyptian Mau',
-    'Himalayan',
-    'Maine Coon',
-    'Manx',
-    'Norwegian Forest Cat',
-    'Ocicat',
-    'Oriental Shorthair',
-    'Persian',
-    'Ragdoll',
-    'Russian Blue',
-    'Savannah',
-    'Scottish Fold',
-    'Siamese',
-    'Siberian',
-    'Singapura',
-    'Snowshoe',
-    'Somali',
-    'Sphynx',
-    'Tonkinese',
-    'Toyger',
-    'Turkish Angora',
-    'Other / Not listed',
-  ].map((breed) => ({ value: breed, label: breed })),
-  bird: [
-    'Budgerigar / Parakeet',
-    'Cockatiel',
-    'African Grey Parrot',
-    'Amazon Parrot',
-    'Blue-and-Gold Macaw',
-    'Scarlet Macaw',
-    'Cockatoo',
-    'Conure',
-    'Eclectus Parrot',
-    'Lovebird',
-    'Finch',
-    'Canary',
-    'Dove',
-    'Pigeon',
-    'Quaker Parrot',
-    'Parrotlet',
-    'Mynah',
-    'Chicken',
-    'Duck',
-    'Goose',
-    'Other / Not listed',
-  ].map((breed) => ({ value: breed, label: breed })),
-  rabbit: [
-    'Mixed breed',
-    'American',
-    'Angora',
-    'Belgian Hare',
-    'Beveren',
-    'Britannia Petite',
-    'Californian',
-    'Champagne d’Argent',
-    'Checkered Giant',
-    'Chinchilla',
-    'Dutch',
-    'Dwarf Hotot',
-    'English Lop',
-    'English Spot',
-    'Flemish Giant',
-    'Holland Lop',
-    'Jersey Wooly',
-    'Lionhead',
-    'Mini Lop',
-    'Mini Rex',
-    'Netherland Dwarf',
-    'New Zealand',
-    'Polish',
-    'Rex',
-    'Satin',
-    'Silver Fox',
-    'Other / Not listed',
-  ].map((breed) => ({ value: breed, label: breed })),
-  other: [
-    'Mixed breed',
-    'Unknown',
-    'Other / Not listed',
-  ].map((breed) => ({ value: breed, label: breed })),
-};
 
 export default function Profile() {
   const { activePetId, setActivePetId } = usePetContext();
@@ -541,11 +387,11 @@ export default function Profile() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="dog">Dog</SelectItem>
-                          <SelectItem value="cat">Cat</SelectItem>
-                          <SelectItem value="bird">Bird</SelectItem>
-                          <SelectItem value="rabbit">Rabbit</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          {SPECIES_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />

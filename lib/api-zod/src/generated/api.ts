@@ -23,7 +23,7 @@ export const HealthCheckResponse = zod.object({
 export const ListPetsResponseItem = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "species": zod.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  "species": zod.enum(['dog', 'cat', 'rabbit', 'bird', 'fish', 'hamster', 'pig', 'horse', 'reptile', 'ferret', 'other']),
   "breed": zod.string().nullable(),
   "sex": zod.enum(['female', 'male', 'unknown']),
   "birthDate": zod.coerce.date().nullable(),
@@ -47,7 +47,7 @@ export const ListPetsResponse = zod.array(ListPetsResponseItem)
 
 export const CreatePetBody = zod.object({
   "name": zod.string().min(1),
-  "species": zod.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  "species": zod.enum(['dog', 'cat', 'rabbit', 'bird', 'fish', 'hamster', 'pig', 'horse', 'reptile', 'ferret', 'other']),
   "breed": zod.string().nullish(),
   "sex": zod.enum(['female', 'male', 'unknown']),
   "birthDate": zod.coerce.date().nullish(),
@@ -64,7 +64,7 @@ export const CreatePetBody = zod.object({
 export const CreatePetResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "species": zod.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  "species": zod.enum(['dog', 'cat', 'rabbit', 'bird', 'fish', 'hamster', 'pig', 'horse', 'reptile', 'ferret', 'other']),
   "breed": zod.string().nullable(),
   "sex": zod.enum(['female', 'male', 'unknown']),
   "birthDate": zod.coerce.date().nullable(),
@@ -92,7 +92,7 @@ export const GetPetParams = zod.object({
 export const GetPetResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "species": zod.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  "species": zod.enum(['dog', 'cat', 'rabbit', 'bird', 'fish', 'hamster', 'pig', 'horse', 'reptile', 'ferret', 'other']),
   "breed": zod.string().nullable(),
   "sex": zod.enum(['female', 'male', 'unknown']),
   "birthDate": zod.coerce.date().nullable(),
@@ -122,7 +122,7 @@ export const UpdatePetParams = zod.object({
 
 export const UpdatePetBody = zod.object({
   "name": zod.string().min(1),
-  "species": zod.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  "species": zod.enum(['dog', 'cat', 'rabbit', 'bird', 'fish', 'hamster', 'pig', 'horse', 'reptile', 'ferret', 'other']),
   "breed": zod.string().nullish(),
   "sex": zod.enum(['female', 'male', 'unknown']),
   "birthDate": zod.coerce.date().nullish(),
@@ -139,7 +139,7 @@ export const UpdatePetBody = zod.object({
 export const UpdatePetResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "species": zod.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  "species": zod.enum(['dog', 'cat', 'rabbit', 'bird', 'fish', 'hamster', 'pig', 'horse', 'reptile', 'ferret', 'other']),
   "breed": zod.string().nullable(),
   "sex": zod.enum(['female', 'male', 'unknown']),
   "birthDate": zod.coerce.date().nullable(),
@@ -324,7 +324,7 @@ export const UploadPetPhotoBody = zod.object({
 export const UploadPetPhotoResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "species": zod.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  "species": zod.enum(['dog', 'cat', 'rabbit', 'bird', 'fish', 'hamster', 'pig', 'horse', 'reptile', 'ferret', 'other']),
   "breed": zod.string().nullable(),
   "sex": zod.enum(['female', 'male', 'unknown']),
   "birthDate": zod.coerce.date().nullable(),
@@ -352,7 +352,7 @@ export const RemovePetPhotoParams = zod.object({
 export const RemovePetPhotoResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "species": zod.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  "species": zod.enum(['dog', 'cat', 'rabbit', 'bird', 'fish', 'hamster', 'pig', 'horse', 'reptile', 'ferret', 'other']),
   "breed": zod.string().nullable(),
   "sex": zod.enum(['female', 'male', 'unknown']),
   "birthDate": zod.coerce.date().nullable(),
@@ -1052,7 +1052,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "pet": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "species": zod.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  "species": zod.enum(['dog', 'cat', 'rabbit', 'bird', 'fish', 'hamster', 'pig', 'horse', 'reptile', 'ferret', 'other']),
   "breed": zod.string().nullable(),
   "sex": zod.enum(['female', 'male', 'unknown']),
   "birthDate": zod.coerce.date().nullable(),
