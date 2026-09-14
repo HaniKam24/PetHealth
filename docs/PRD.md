@@ -1,12 +1,14 @@
 # Pet Health Companion — Product Requirements
 
-**Status:** Draft v1.4 (MVP scope confirmed via stakeholder Q&A)
+**Status:** Draft v1.5 (MVP scope confirmed via stakeholder Q&A)
 **Prepared:** 2026-09-06
-**Stage:** Phase 1 done; Phase 2 in progress (Bolt 12 shipped, Bolt 11 remaining)
+**Stage:** Phase 1 done; Phase 2 in progress (Bolt 12 shipped; Bolt 11 code-complete pending Resend setup; Bolts 19–21 newly scoped)
 **Live version:** https://claude.ai/code/artifact/6e021d93-7e21-4b48-81a4-f36196d44962
 
 An owner-first hub for pet medical history, reminders, and cautious AI-assisted insight — built the way a family keeps a paper vet folder, made searchable, shared, and a little smarter.
 
+> **v1.5 changelog:** Named and scoped **Pawlie** — the existing Symptom Chat and AI Insights features, unified under one assistant persona with full-context grounding (not just the last 8 records) and, new, the ability to make *confirmed* edits through conversation rather than read-only Q&A only. Extended Smart Document Upload's extraction to also propose weight and breed updates, not just vet contact info. Added three new Bolts (19–21) to Phase 2 — see §7d and §11. No change to already-shipped scope.
+>
 > **v1.4 changelog:** Fixed two more stale roadmap points: Bolt 12 (trend insights) was still listed under Phase 2 "next" — it's actually built and shipped (weight/adherence trends, `GET /pets/:petId/trends`, the Trends tab in `insights.tsx`); moved it to Phase 1's completed list. Also corrected §9's AI provider — the app calls Anthropic Claude, not OpenAI (the OpenAI integration package is unused dead code, not the live path). No scope change otherwise.
 >
 > **v1.3 changelog:** Fixed a roadmap inconsistency — Bolt 13 (co-owner invites) had been listed under Phase 2, contradicting the Phase 3 "designed for, not built" status already given to the co-owner persona (section 2) and its P3 tag (section 5). Moved it to Phase 3 to match; no scope change otherwise.
@@ -92,6 +94,7 @@ Priority: **MVP** ships in Phase 1, **P2** is depth added once MVP is live, **P3
 | Smart document upload | Review screen: accept individually or accept-all; nothing written until confirmed | MVP |
 | Smart document upload | Flag proposed items that look like duplicates of existing records; owner decides | MVP |
 | Smart document upload | One-time 20-document import allowance per pet (first 30 days) + separate 10/month ongoing allowance | MVP |
+| Smart document upload | Propose weight and breed updates when a document states a value differing from the pet's profile, alongside the existing vet-contact-info proposal — same review-gated accept flow | P2 |
 | Symptom chat | Free-form question answered against the selected pet's stored records, with disclaimer | MVP |
 | Symptom chat | Red-flag detection short-circuits to an escalation message (uses saved vet contact if present), visibly flagged in history | MVP |
 | Symptom chat | Monthly usage quota per account (50 questions), cheap-tier model, visible "X of 50 used" indicator | MVP |
@@ -99,6 +102,9 @@ Priority: **MVP** ships in Phase 1, **P2** is depth added once MVP is live, **P3
 | Symptom log | "Add to symptom log" action after a chat answer, saving the description + recommendation to that pet's history | MVP |
 | AI insights | Saved chat history per pet, revisitable from the timeline | MVP |
 | AI insights | Trend summaries (e.g. weight drift, medication adherence) | P2 |
+| Pawlie | Rebrand Symptom Chat + AI Insights as one assistant persona; expand grounding to full record history, symptom logs, trends, and pending Smart Upload items | P2 |
+| Pawlie | Answer general factual questions about a pet's own record, not only symptom-shaped ones | P2 |
+| Pawlie | Propose a structured edit (profile field, reminder, etc.) from a chat request; owner must explicitly confirm before anything is written | P2 |
 | Sharing | Read-only share link or invite for a verified clinic account | P3 |
 | Export | One-click PDF record summary to bring to a vet visit | P3 |
 
@@ -127,6 +133,8 @@ The five original domain tables live in `lib/db/src/schema/care.ts`. MVP scope a
 **`document_import_items`** *(new)* — `id` serial pk · `import_id` → document_imports.id · `item_type` text: health_record\|medication\|reminder · `proposed_data` jsonb · `duplicate_of_type` text, nullable · `duplicate_of_id` integer, nullable · `status` text: pending\|accepted\|rejected · `created_record_id` integer, nullable *(set once accepted and written to its target table)*
 
 **`ai_usage_monthly`** *(new)* — `user_id` → users.id · `period_month` text (`"2026-09"`) · `chat_questions_used` integer default 0 · **`document_uploads_used`** integer default 0 *(new — the 10/month ongoing lane; separate from `pets.import_docs_used`, which tracks the one-time onboarding lane)* · `updated_at` timestamptz
+
+**`ai_actions`** *(new, Bolt 21)* — `id` serial pk · `pet_id` → pets.id · `insight_id` → insights.id, nullable *(the Pawlie chat turn that proposed this)* · `action_type` text (e.g. `update_pet_field`, `create_reminder`, `log_symptom`) · `proposed_data` jsonb · `status` text: pending\|confirmed\|cancelled · `applied_at` timestamptz, nullable · `created_at` timestamptz — deliberately parallel to `document_import_items`: same review-gated shape, same non-negotiable "nothing written until confirmed" principle, just sourced from a chat turn instead of a document.
 
 ## 7. AI features
 
@@ -160,6 +168,18 @@ Every rule is intentionally conservative and every reminder it creates carries t
 - **Symptom log:** a symptom-shaped answer surfaces an "Add to symptom log" action; confirming writes a `symptom_logs` row linked back to the `insights` row via `insight_id`.
 - **Cost governance:** 50 questions/account/month (`ai_usage_monthly.chat_questions_used`), served on the same low-cost model tier. The UI shows usage ("32 of 50 used this month") before it's exhausted, and a friendly hard stop after — no overage billing, since no billing infrastructure exists in MVP.
 - **Framing:** every response carries the stored `disclaimer` field — educational, not diagnostic — regardless of `kind`.
+
+### 7d. Pawlie — unified assistant & conversational actions
+
+**What changes vs. today:** Symptom Chat (§7c) and AI Insights are two names for pieces of the same underlying capability — one AI surface, grounded per-pet, with a disclaimer and a quota. Pawlie is that surface, named and given a consistent voice, with two concrete expansions beyond what's built:
+
+1. **Full-context grounding, not a partial slice.** Today's chat only sees the pet's last 8 health records, active medications, and open (incomplete) reminders (`POST /insights` in `care.ts`) — it has no visibility into the pet's symptom-log history, weight/adherence trends (Bolt 12), pending Smart Upload items, or its own past chat history for that pet. Pawlie's grounding payload expands to reasonably cover all of it, so "what's Milo's weight trend been?" or "did we ever log him limping before?" can be answered directly instead of "I don't have that information."
+2. **General questions, not only symptom-shaped ones.** The current system prompt is scoped to symptom guidance ("Give concise... guidance grounded only in the supplied profile and records"). Pawlie answers plain factual questions about the pet's own record too ("when was his last rabies shot", "what's his current med schedule") using the same grounded data, while keeping the existing red-flag escalation and disclaimer behavior for anything symptom-shaped.
+3. **Conversational actions — new capability.** An owner can ask Pawlie to make a change ("update Milo's weight to 32 lbs", "add a reminder for his grooming appointment next Friday") instead of navigating to the relevant form. Per the same non-negotiable principle already established for Smart Document Upload (§7b) — **nothing is written until the owner confirms.** Pawlie proposes a structured action (which record, which fields, old value → new value) as a card in the chat thread; the owner taps *Confirm* or *Cancel*, exactly like accepting/rejecting a Smart Upload item. No silent writes, ever, regardless of how the request was phrased.
+
+**How proposed actions work:** Claude's tool-use (function-calling) maps the owner's request to one of a small, fixed set of tool schemas — one per mutation the app already exposes (update pet profile field, create/complete a reminder, log a symptom, etc.). The model never executes anything directly; it returns a proposed call, the server validates it against the same Zod schemas every other route already uses, and stores it as a new `ai_actions` row (`status: pending`) exactly parallel to `document_import_items`. Confirming applies it through the existing mutation function for that resource (e.g. the same `updatePetVetInfo`/`insertReminderForPet` helpers Smart Upload already calls) — Pawlie never gets a separate, parallel write path. Every action (proposed, confirmed, cancelled, and what it changed) is retained as an audit trail.
+
+**Cost & scope note:** wider grounding context means larger prompts than today's chat calls — re-check unit economics against the existing ~$0.10–0.15/account/month estimate (§7b, §8) once real payload sizes are measured; if it grows meaningfully, consider capping "full context" to a bounded recent window (e.g. last N of each type) rather than truly everything, and revisit before removing the chat quota's headroom.
 
 ## 8. Non-functional requirements
 
@@ -236,6 +256,11 @@ flowchart LR
 **Phase 2 — Depth** *(next)*
 - Bolt 11 — Daily email digest + recurring owner reminders — **code complete on `feature/bolt-11-digest-and-recurring-reminders`, not yet merged.** Recurrence (`reminders.recurrenceIntervalValue`/`recurrenceIntervalUnit`, applied on `POST /reminders/:reminderId/complete`) and the digest pipeline (`lib/integrations-resend`, `POST /internal/daily-digest`, a Render Cron Job in `render.yaml`) are both built and typechecked, but **never run against a real Resend account** — no `RESEND_API_KEY`/`DIGEST_FROM_EMAIL`/`DIGEST_CRON_SECRET` set anywhere yet.
 - Bolt 11a — Wire up Resend + verify the digest end-to-end — the actual remaining work: get a Resend account + API key + verified sending domain (or use the `onboarding@resend.dev` test address against one's own inbox), set the three env vars locally and on Render, confirm a real digest email arrives, and confirm recurrence produces the right next `dueDate` via the UI. Blocked on the Resend account itself, not on code.
+- Bolt 19 — Pawlie: rebrand + full-context grounding — rename Symptom Chat/AI Insights to the Pawlie persona in the UI and system prompt; expand the grounding query in `POST /insights` beyond the last 8 records + active meds + open reminders to include symptom-log history, weight/adherence trend data (Bolt 12), pending Smart Upload items, and the pet's own past chat turns; broaden the system prompt to answer general factual questions about the pet, not only symptom-shaped ones. See §7d.
+- Bolt 20 — Smart Upload: extend extraction to weight + breed — generalize the existing `buildVetInfoUpdate` (`document-extraction.ts`) into a broader profile-diff proposal covering weight and breed alongside vet contact info; extend the extraction system prompt's schema accordingly. **Depends on fixing the profile-refresh bug first** (see below) — no point proposing more fields the UI still can't reliably reflect once accepted.
+- Bolt 21 — Pawlie conversational actions — tool-use (function-calling) mapping a chat request to one of a small fixed set of mutation tool schemas; every proposed action is stored as a new `ai_actions` row (`status: pending`) and requires an explicit owner confirm/cancel before anything is written, applied through the same mutation helpers every other route already uses (never a separate write path). See §7d and the `ai_actions` table in §6.
+
+> **Bug fixed in passing (2026-09-14):** Smart Upload's "vet contact update" already worked correctly server-side, but the frontend never invalidated the pet-profile/dashboard queries after accepting it — the update was saved but invisible until an unrelated refetch happened to occur. Fixed on `fix/smart-upload-profile-not-refreshing` (PR #31). Called out here since it directly blocks Bolt 20 (more profile fields flowing through the same mechanism) and was found while scoping this epic.
 
 **Phase 3 — Platform** *(later)*
 - Bolt 13 — Co-owner invites on `pet_owners` — matches the "designed for, not built" status already given to the co-owner persona in section 2 and the P3 tag in section 5; kept here rather than Phase 2 despite the schema already being multi-owner-shaped
@@ -267,6 +292,8 @@ flowchart LR
 - **Risk:** Smart Document Upload misreads a dose, date, or diagnosis and it ends up in the record. *Mitigation:* review-and-confirm is non-negotiable — nothing is written without owner approval; duplicate flagging surfaces likely re-reads of the same visit rather than silently merging or dropping them.
 - **Risk:** uploaded document volume (scanned PDFs/photos, especially during onboarding backfills) grows storage cost faster than token cost. *Mitigation:* the 10MB/20-page caps bound worst case; revisit a retention/compression policy if Supabase's free storage tier becomes a real constraint.
 - **Risk:** chat or document-analysis cost exceeds expectations even under quota. *Mitigation:* low-cost model tier + single-call/single-turn design (no compounding context) + per-day rate limiting layered under the monthly caps; current unit-cost estimate is ~$0.10–0.15/account/month at full usage across both features (verify against live pricing before launch).
+- **Risk:** Pawlie's conversational actions (Bolt 21) apply an unintended edit because a request was ambiguous or misread. *Mitigation:* review-and-confirm is non-negotiable here too — identical principle to Smart Document Upload; every proposed action shows exactly what field changes from what to what before the owner confirms, and is logged in `ai_actions` regardless of outcome.
+- **Risk:** full-context grounding (Bolt 19) meaningfully increases prompt size/cost per chat call. *Mitigation:* re-measure against the existing per-account cost estimate once built; cap to a bounded recent window per data type instead of truly unbounded history if the numbers move materially.
 - **Open question:** exact vaccine-interval defaults per species/vaccine for the recommendation engine — needs a short reference list before Bolt 6.
 - **Open question:** email provider for Phase 2 digests — decide alongside Bolt 11.
 
