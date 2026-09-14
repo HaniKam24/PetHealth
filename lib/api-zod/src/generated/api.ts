@@ -348,7 +348,7 @@ export const ListDocumentImportsResponse = zod.object({
   "itemType": zod.enum(['health_record', 'medication', 'reminder', 'vet_info']),
   "proposedData": zod.object({
 
-}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial profile-update object with any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit (only the fields the source document actually stated and that differ from the pet\'s current profile; weight and weightUnit are always present together).'),
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial profile-update object with any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex (only the fields the source document actually stated and that differ from the pet\'s current profile; weight and weightUnit are always present together).'),
   "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
   "duplicateOfId": zod.number().int().nullable(),
   "status": zod.enum(['pending', 'accepted', 'rejected']),
@@ -392,7 +392,7 @@ export const CreateDocumentImportResponse = zod.object({
   "itemType": zod.enum(['health_record', 'medication', 'reminder', 'vet_info']),
   "proposedData": zod.object({
 
-}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial profile-update object with any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit (only the fields the source document actually stated and that differ from the pet\'s current profile; weight and weightUnit are always present together).'),
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial profile-update object with any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex (only the fields the source document actually stated and that differ from the pet\'s current profile; weight and weightUnit are always present together).'),
   "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
   "duplicateOfId": zod.number().int().nullable(),
   "status": zod.enum(['pending', 'accepted', 'rejected']),
@@ -434,7 +434,7 @@ export const GetDocumentImportResponse = zod.object({
   "itemType": zod.enum(['health_record', 'medication', 'reminder', 'vet_info']),
   "proposedData": zod.object({
 
-}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial profile-update object with any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit (only the fields the source document actually stated and that differ from the pet\'s current profile; weight and weightUnit are always present together).'),
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial profile-update object with any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex (only the fields the source document actually stated and that differ from the pet\'s current profile; weight and weightUnit are always present together).'),
   "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
   "duplicateOfId": zod.number().int().nullable(),
   "status": zod.enum(['pending', 'accepted', 'rejected']),
@@ -493,7 +493,7 @@ export const AcceptDocumentImportItemResponse = zod.object({
   "itemType": zod.enum(['health_record', 'medication', 'reminder', 'vet_info']),
   "proposedData": zod.object({
 
-}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial profile-update object with any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit (only the fields the source document actually stated and that differ from the pet\'s current profile; weight and weightUnit are always present together).'),
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial profile-update object with any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex (only the fields the source document actually stated and that differ from the pet\'s current profile; weight and weightUnit are always present together).'),
   "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
   "duplicateOfId": zod.number().int().nullable(),
   "status": zod.enum(['pending', 'accepted', 'rejected']),
@@ -521,7 +521,7 @@ export const RejectDocumentImportItemResponse = zod.object({
   "itemType": zod.enum(['health_record', 'medication', 'reminder', 'vet_info']),
   "proposedData": zod.object({
 
-}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial profile-update object with any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit (only the fields the source document actually stated and that differ from the pet\'s current profile; weight and weightUnit are always present together).'),
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial profile-update object with any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex (only the fields the source document actually stated and that differ from the pet\'s current profile; weight and weightUnit are always present together).'),
   "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
   "duplicateOfId": zod.number().int().nullable(),
   "status": zod.enum(['pending', 'accepted', 'rejected']),

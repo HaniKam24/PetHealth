@@ -82,6 +82,12 @@ const PROFILE_FIELD_LABELS: Record<string, string> = {
   vetAddress: 'Address',
   breed: 'Breed',
   weight: 'Weight',
+  sex: 'Sex',
+};
+
+const SEX_DISPLAY_LABELS: Record<string, string> = {
+  female: 'Female',
+  male: 'Male',
 };
 
 function str(v: unknown): string {
@@ -133,7 +139,13 @@ function ItemSummary({ item }: { item: DocumentImportItem }) {
         {entries.map(([key, label]) => (
           <div key={key} className="text-sm">
             <span className="text-muted-foreground">{label}:</span>{' '}
-            <span className="font-bold">{key === 'weight' ? `${str(d.weight)} ${str(d.weightUnit)}` : str(d[key])}</span>
+            <span className="font-bold">
+              {key === 'weight'
+                ? `${str(d.weight)} ${str(d.weightUnit)}`
+                : key === 'sex'
+                  ? SEX_DISPLAY_LABELS[str(d.sex)] ?? str(d.sex)
+                  : str(d[key])}
+            </span>
           </div>
         ))}
       </div>
@@ -212,6 +224,7 @@ function ItemEditForm({
         breed: str(d.breed),
         weight: num(d.weight),
         weightUnit: str(d.weightUnit) || 'lb',
+        sex: str(d.sex),
       };
     }
     return {
@@ -261,6 +274,7 @@ function ItemEditForm({
         update.weight = Number(fields.weight);
         update.weightUnit = fields.weightUnit || 'lb';
       }
+      if (fields.sex === 'female' || fields.sex === 'male') update.sex = fields.sex;
       onSave(update);
     } else {
       onSave({ title: fields.title, dueDate: fields.dueDate, category: fields.category, note: fields.note || null });
@@ -358,6 +372,15 @@ function ItemEditForm({
             </Select>
           </div>
         </div>
+        <Select value={fields.sex} onValueChange={(v) => setFields((f) => ({ ...f, sex: v }))}>
+          <SelectTrigger className="h-9">
+            <SelectValue placeholder="Sex (optional — leave unset to leave as-is)" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="female">Female</SelectItem>
+            <SelectItem value="male">Male</SelectItem>
+          </SelectContent>
+        </Select>
         <Input placeholder="Vet name (optional)" value={fields.vetName} onChange={set('vetName')} className="h-9" />
         <Input placeholder="Clinic (optional)" value={fields.vetClinic} onChange={set('vetClinic')} className="h-9" />
         <div className="grid grid-cols-2 gap-2">
