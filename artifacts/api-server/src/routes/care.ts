@@ -51,7 +51,7 @@ import {
 } from "@workspace/db";
 import { anthropic } from "@workspace/integrations-anthropic-ai-server";
 import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument } from "../lib/storage";
-import { runCareRecommendationsEngine } from "../lib/care-recommendations";
+import { runCareRecommendationsEngine, suppressRedundantSystemReminder } from "../lib/care-recommendations";
 import { buildEscalationMessage, isRedFlagQuestion } from "../lib/symptom-escalation";
 import { assertChatQuotaAvailable, ChatQuotaExceededError, getChatQuota, recordChatUsage } from "../lib/chat-quota";
 import { ALLOWED_DOCUMENT_MIME_TYPES, handleSingleFileUpload } from "../lib/upload-middleware";
@@ -700,6 +700,7 @@ router.post("/pets/:petId/reminders", async (req, res, next) => {
         source: "owner",
       })
       .returning();
+    await suppressRedundantSystemReminder(petId, created!);
     res.status(201).json(created);
   } catch (error) {
     next(error);

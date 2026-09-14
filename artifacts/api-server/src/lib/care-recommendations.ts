@@ -60,6 +60,58 @@ function ageInYears(birthDateStr: string): number {
   return age;
 }
 
+// A vet record's own stated follow-up ("next rabies booster due March
+// 2027") becomes an owner-sourced reminder when accepted — a real fact
+// from the record, not a guess. The engine's own vaccine-interval math is
+// exactly that: a guess, only useful when the record didn't already state
+// one. Generous window (not exact-day) since a vet's stated follow-up and
+// "date of shot + 12 months" are rarely identical to the day.
+const DUPLICATE_WINDOW_DAYS = 45;
+
+function daysApart(a: string, b: string): number {
+  return Math.abs(new Date(a).getTime() - new Date(b).getTime()) / (24 * 60 * 60 * 1000);
+}
+
+async function findMatchingOwnerReminder(petId: number, keywords: string[], dueDate: string) {
+  const rows = await db
+    .select()
+    .from(reminders)
+    .where(and(eq(reminders.petId, petId), eq(reminders.completed, false), eq(reminders.source, "owner")));
+  return (
+    rows.find(
+      (r) => keywords.some((k) => r.title.toLowerCase().includes(k)) && daysApart(r.dueDate, dueDate) <= DUPLICATE_WINDOW_DAYS,
+    ) ?? null
+  );
+}
+
+// Called right after a new owner reminder is created (manually, or accepted
+// from a Smart Upload proposal) — if a system-suggested reminder already
+// guessed at this same upcoming booster, the owner's own explicit record
+// wins: drop the redundant guess instead of showing both. This is the
+// direction that matters in practice — Smart Upload's "Accept all" always
+// processes the health record (which triggers the engine) before the
+// accompanying reminder, so the system guess exists first every time.
+export async function suppressRedundantSystemReminder(
+  petId: number,
+  ownerReminder: { title: string; dueDate: string },
+): Promise<void> {
+  const matchingRule = VACCINE_RULES.find((rule) => rule.keywords.some((k) => ownerReminder.title.toLowerCase().includes(k)));
+  if (!matchingRule) return;
+  const [systemReminder] = await db
+    .select()
+    .from(reminders)
+    .where(
+      and(
+        eq(reminders.petId, petId),
+        eq(reminders.ruleId, `vaccine:${matchingRule.key}`),
+        eq(reminders.completed, false),
+      ),
+    );
+  if (systemReminder && daysApart(systemReminder.dueDate, ownerReminder.dueDate) <= DUPLICATE_WINDOW_DAYS) {
+    await db.delete(reminders).where(eq(reminders.id, systemReminder.id));
+  }
+}
+
 /**
  * Creates or updates the one reminder for this pet+rule. Only touches
  * `completed` when the computed due date actually changed (a newer source
@@ -116,12 +168,22 @@ export async function runCareRecommendationsEngine(pet: typeof pets.$inferSelect
       .sort((a, b) => (a.date < b.date ? 1 : -1))[0];
     if (!match) continue;
 
+    const dueDate = addMonthsToDateString(match.date, rule.intervalMonths);
+    // The owner's own reminder (typically the vet record's own stated
+    // follow-up date, accepted from a Smart Upload proposal) is a real
+    // fact, not this engine's guess — don't suggest a second one for the
+    // same upcoming booster. The reverse direction (an owner reminder
+    // arriving after this one already exists) is handled by
+    // suppressRedundantSystemReminder instead, since that's the order
+    // Smart Upload's "Accept all" actually produces.
+    if (await findMatchingOwnerReminder(pet.id, rule.keywords, dueDate)) continue;
+
     await upsertSystemReminder({
       petId: pet.id,
       ruleId: `vaccine:${rule.key}`,
       title: `${rule.label} due`,
       category: "vaccine",
-      dueDate: addMonthsToDateString(match.date, rule.intervalMonths),
+      dueDate,
     });
   }
 
