@@ -68,14 +68,20 @@ const ITEM_TYPE_META: Record<string, { label: string; icon: typeof FileText }> =
   health_record: { label: 'A visit to add', icon: FileText },
   medication: { label: 'A medicine to add', icon: Pill },
   reminder: { label: 'A reminder to add', icon: Bell },
-  vet_info: { label: 'Vet contact update', icon: Stethoscope },
+  // Still tagged "vet_info" server-side (item_type is unchanged) even though
+  // it can now also carry weight/breed — kept internal, not user-facing.
+  vet_info: { label: 'Profile update', icon: Stethoscope },
 };
 
-const VET_FIELD_LABELS: Record<string, string> = {
+// breed/weight added alongside the original vet-contact fields — same
+// pattern, just a wider set of profile facts a document can update.
+const PROFILE_FIELD_LABELS: Record<string, string> = {
   vetName: 'Vet',
   vetClinic: 'Clinic',
   vetPhone: 'Phone',
   vetAddress: 'Address',
+  breed: 'Breed',
+  weight: 'Weight',
 };
 
 function str(v: unknown): string {
@@ -117,16 +123,17 @@ function ItemSummary({ item }: { item: DocumentImportItem }) {
     );
   }
   if (item.itemType === 'vet_info') {
-    // Only ever contains the fields that changed — see buildVetInfoUpdate
+    // Only ever contains the fields that changed — see buildProfileUpdate
     // server-side. Shown as a plain "field: new value" list rather than the
     // title/subtitle shape the other types use, since there's no single
-    // natural title (could be just a phone number update).
-    const entries = Object.entries(VET_FIELD_LABELS).filter(([key]) => d[key]);
+    // natural title (could be just a phone number update, or just a weight).
+    const entries = Object.entries(PROFILE_FIELD_LABELS).filter(([key]) => d[key] !== undefined && d[key] !== '');
     return (
       <div className="bg-accent/40 rounded-2xl p-4 space-y-1">
         {entries.map(([key, label]) => (
           <div key={key} className="text-sm">
-            <span className="text-muted-foreground">{label}:</span> <span className="font-bold">{str(d[key])}</span>
+            <span className="text-muted-foreground">{label}:</span>{' '}
+            <span className="font-bold">{key === 'weight' ? `${str(d.weight)} ${str(d.weightUnit)}` : str(d[key])}</span>
           </div>
         ))}
       </div>
@@ -202,6 +209,9 @@ function ItemEditForm({
         vetClinic: str(d.vetClinic),
         vetPhone: str(d.vetPhone),
         vetAddress: str(d.vetAddress),
+        breed: str(d.breed),
+        weight: num(d.weight),
+        weightUnit: str(d.weightUnit) || 'lb',
       };
     }
     return {
@@ -239,11 +249,18 @@ function ItemEditForm({
       // an omitted key as "leave this field alone" (not "clear it"), so a
       // blank input here must be left out of the object entirely, not sent
       // as null/empty-string.
-      const update: Record<string, string> = {};
+      const update: Record<string, string | number> = {};
       if (fields.vetName.trim()) update.vetName = fields.vetName.trim();
       if (fields.vetClinic.trim()) update.vetClinic = fields.vetClinic.trim();
       if (fields.vetPhone.trim()) update.vetPhone = fields.vetPhone.trim();
       if (fields.vetAddress.trim()) update.vetAddress = fields.vetAddress.trim();
+      if (fields.breed.trim()) update.breed = fields.breed.trim();
+      // weight and weightUnit always travel together — see updatePetProfile
+      // (care-mutations.ts), which writes them as a pair.
+      if (fields.weight.trim()) {
+        update.weight = Number(fields.weight);
+        update.weightUnit = fields.weightUnit || 'lb';
+      }
       onSave(update);
     } else {
       onSave({ title: fields.title, dueDate: fields.dueDate, category: fields.category, note: fields.note || null });
@@ -320,6 +337,27 @@ function ItemEditForm({
   if (item.itemType === 'vet_info') {
     return (
       <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <Input placeholder="Breed (optional)" value={fields.breed} onChange={set('breed')} className="h-9" />
+          <div className="flex gap-2">
+            <Input
+              type="number"
+              placeholder="Weight (optional)"
+              value={fields.weight}
+              onChange={set('weight')}
+              className="h-9"
+            />
+            <Select value={fields.weightUnit} onValueChange={(v) => setFields((f) => ({ ...f, weightUnit: v }))}>
+              <SelectTrigger className="h-9 w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="lb">lb</SelectItem>
+                <SelectItem value="kg">kg</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <Input placeholder="Vet name (optional)" value={fields.vetName} onChange={set('vetName')} className="h-9" />
         <Input placeholder="Clinic (optional)" value={fields.vetClinic} onChange={set('vetClinic')} className="h-9" />
         <div className="grid grid-cols-2 gap-2">

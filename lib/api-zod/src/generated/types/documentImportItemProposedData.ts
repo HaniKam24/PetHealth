@@ -7,6 +7,6 @@
  */
 
 /**
- * Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for "vet_info" a partial object with any of vetName/vetClinic/vetPhone/vetAddress (only the fields the source document actually stated).
+ * Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for "vet_info" a partial profile-update object with any of vetName/vetClinic/vetPhone/vetAddress/breed/weight/weightUnit (only the fields the source document actually stated and that differ from the pet's current profile; weight and weightUnit are always present together).
  */
 export type DocumentImportItemProposedData = { [key: string]: unknown };
