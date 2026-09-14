@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
+import { useListPets } from '@workspace/api-client-react';
 
 import { PetProvider } from '@/context/pet-context';
 import { Layout } from '@/components/layout';
@@ -17,8 +18,11 @@ import Reminders from '@/pages/reminders';
 import Insights from '@/pages/insights';
 import SmartUpload from '@/pages/smart-upload';
 import Profile from '@/pages/profile';
+import Onboarding from '@/pages/onboarding';
 import Login from '@/pages/login';
 import Signup from '@/pages/signup';
+
+const ONBOARDING_PATH = '/onboarding';
 
 const queryClient = new QueryClient();
 const AUTH_PAGES = new Set(['/login', '/signup']);
@@ -31,7 +35,41 @@ function FullPageLoader() {
   );
 }
 
+// A brand-new (or newly pet-less) account has nowhere useful to go — every
+// other page either 404s on missing data or shows its own "add a pet first"
+// message. Rather than patching every entry point that links to
+// /profile?new=true, this redirects the zero-pets case to the onboarding
+// wizard from anywhere. Deliberately one-directional: the wizard's upload
+// path creates the pet, then stays on /onboarding for its own review step
+// before the "Let's go" button leaves — a "hasPets => redirect away from
+// /onboarding" rule would fire the instant that pet exists and yank the user
+// out from under their own review step. Someone already onboarded who
+// navigates to /onboarding directly just sees the wizard again, equivalent
+// to "Add another pet" — a harmless edge case, not worth the conflict.
 function AuthedApp() {
+  const { data: pets, isLoading: petsLoading } = useListPets();
+  const [location, setLocation] = useLocation();
+  const hasPets = (pets?.length ?? 0) > 0;
+
+  useEffect(() => {
+    if (petsLoading) return;
+    if (!hasPets && location !== ONBOARDING_PATH) {
+      setLocation(ONBOARDING_PATH);
+    }
+  }, [petsLoading, hasPets, location, setLocation]);
+
+  if (petsLoading) {
+    return <FullPageLoader />;
+  }
+
+  if (location === ONBOARDING_PATH) {
+    return (
+      <PetProvider>
+        <Onboarding />
+      </PetProvider>
+    );
+  }
+
   return (
     <PetProvider>
       <Layout>
