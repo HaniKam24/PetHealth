@@ -54,6 +54,7 @@ export const ProfileUpdateBody = z.object({
   breed: z.string().min(1).optional(),
   weight: z.number().positive().optional(),
   weightUnit: z.enum(["lb", "kg"]).optional(),
+  sex: z.enum(["female", "male"]).optional(),
 });
 
 // previousPet is passed in by the caller (already fetched for the ownership

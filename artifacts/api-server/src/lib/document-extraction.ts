@@ -85,7 +85,7 @@ Return a single JSON object with exactly these fields:
   "medications": [ { "name": string, "dose": string, "frequency": string, "doseIntervalValue": number|null, "doseIntervalUnit": "hours"|"days"|"weeks"|"months"|null, "instructions": string|null } ],
   "reminders": [ { "title": string, "dueDate": "YYYY-MM-DD", "category": "appointment"|"vaccine"|"medication"|"wellness"|"other", "note": string|null } ],
   "vetInfo": { "name": string|null, "clinic": string|null, "phone": string|null, "address": string|null } | null,
-  "petProfile": { "weight": number|null, "weightUnit": "lb"|"kg"|null, "breed": string|null } | null
+  "petProfile": { "weight": number|null, "weightUnit": "lb"|"kg"|null, "breed": string|null, "sex": "female"|"male"|null } | null
 }
 
 Rules:
@@ -94,7 +94,7 @@ Rules:
 - medications: one entry per medication/prescription mentioned, "dose" as written (e.g. "5mg", "1 tablet"). Only set doseIntervalValue/doseIntervalUnit if the document states a clear fixed interval (e.g. "twice daily" -> 12/"hours", "every 30 days" -> 30/"days"); otherwise leave both null and describe the schedule in "frequency" as free text.
 - reminders: only include a follow-up if the document explicitly states one is needed (e.g. "recheck in 2 weeks", "next booster due March 2027"). Compute "dueDate" as an absolute date from the document's own dated context; omit the reminder if no date can be determined.
 - vetInfo: the attending veterinarian and/or clinic's contact info as stated in the document (letterhead, signature block, a "Veterinarian:" field, etc.) — name, clinic, phone, address, each null if that specific piece isn't stated. Return vetInfo itself as null if the document gives no vet/clinic contact info at all.
-- petProfile: the patient's current weight and breed exactly as stated in the document (e.g. a vitals/weight line, a "Breed:" field) — weight as a plain number with its unit separately in weightUnit, breed as a plain string. Each null if that specific piece isn't stated; never estimate or convert units. Return petProfile itself as null if the document states neither.
+- petProfile: the patient's current weight, breed, and sex exactly as stated in the document (e.g. a vitals/weight line, a "Breed:" field, a "Sex:"/"Gender:" field or "M"/"F" notation) — weight as a plain number with its unit separately in weightUnit, breed as a plain string, sex as exactly "female" or "male". Never infer sex from a name or species alone — only from an explicit statement in the document. Each null if that specific piece isn't stated; never estimate or convert units. Return petProfile itself as null if the document states none of these.
 - Dates must be in YYYY-MM-DD format.
 - Output only the JSON object — no commentary, no markdown fences.`;
 
@@ -115,6 +115,7 @@ export interface ExtractionResult {
     breed?: string;
     weight?: number;
     weightUnit?: "lb" | "kg";
+    sex?: "female" | "male";
   } | null;
 }
 
@@ -129,6 +130,7 @@ interface CurrentPetProfile extends CurrentPetVetInfo {
   breed: string | null;
   weight: string | null; // numeric column — comes through as a string, or null
   weightUnit: string;
+  sex: string;
 }
 
 type CurrentPet = CurrentPetProfile & { name: string };
@@ -166,6 +168,11 @@ function buildProfileUpdate(
     const breed = obj.breed;
     if (typeof breed === "string" && breed.trim() && normalizeForCompare(breed) !== normalizeForCompare(currentPet.breed)) {
       update.breed = breed.trim();
+    }
+
+    const sex = obj.sex;
+    if ((sex === "female" || sex === "male") && sex !== currentPet.sex) {
+      update.sex = sex;
     }
 
     const weight = obj.weight;
