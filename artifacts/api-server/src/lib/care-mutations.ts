@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, healthRecords, medications, pets, reminders, symptomLogs, weightLogs } from "@workspace/db";
 import type { CreateHealthRecordBody, CreateMedicationBody, CreateReminderBody } from "@workspace/api-zod";
-import { runCareRecommendationsEngine } from "./care-recommendations";
+import { runCareRecommendationsEngine, suppressRedundantSystemReminder } from "./care-recommendations";
 
 // Shared with the direct-create routes in routes/care.ts conceptually, but
 // kept as a separate module rather than refactoring those already-working
@@ -36,6 +36,7 @@ export async function insertReminderForPet(petId: number, body: z.infer<typeof C
     .insert(reminders)
     .values({ petId, ...body, dueDate: asDateString(body.dueDate)!, completed: false, source: "owner" })
     .returning();
+  await suppressRedundantSystemReminder(petId, created!);
   return created!;
 }
 
