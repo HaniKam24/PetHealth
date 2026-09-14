@@ -93,6 +93,21 @@ const SEX_DISPLAY_LABELS: Record<string, string> = {
   male: 'Male',
 };
 
+// Must match the placeholders document-extraction.ts (api-server) substitutes
+// when a document names a medication without stating its dose/frequency —
+// e.g. a pharmacy line item on an itemized receipt ("Doxycycline Hyclate
+// 100mg Tablet, qty 360") rather than a prescription note. Detecting them
+// here lets the accept flow steer the owner toward filling in the real
+// values instead of silently saving placeholder text as a medication record.
+const MEDICATION_DOSE_PLACEHOLDER = 'Not stated in document';
+const MEDICATION_FREQUENCY_PLACEHOLDER = 'Not stated in document — please confirm';
+
+function medicationNeedsDoseInfo(item: DocumentImportItem): boolean {
+  if (item.itemType !== 'medication') return false;
+  const d = item.proposedData as Record<string, unknown>;
+  return d.dose === MEDICATION_DOSE_PLACEHOLDER || d.frequency === MEDICATION_FREQUENCY_PLACEHOLDER;
+}
+
 function str(v: unknown): string {
   return typeof v === 'string' ? v : v == null ? '' : String(v);
 }
@@ -123,10 +138,15 @@ function ItemSummary({ item }: { item: DocumentImportItem }) {
     // are never rendered as their own text, only used to decide whether dose
     // logging is offered. Appending them here too just repeated the same
     // wording a second time (e.g. "150mg · every 12 hours · every 12 hours").
+    const needsDoseInfo = medicationNeedsDoseInfo(item);
     return (
       <div className="bg-accent/40 rounded-2xl p-4">
         <div className="font-serif text-lg font-extrabold">{str(d.name)}</div>
-        <div className="text-sm text-muted-foreground mt-0.5">{str(d.dose)} · {str(d.frequency)}</div>
+        {needsDoseInfo ? (
+          <div className="text-sm text-amber-700 mt-0.5">Dose &amp; frequency weren't stated in this document</div>
+        ) : (
+          <div className="text-sm text-muted-foreground mt-0.5">{str(d.dose)} · {str(d.frequency)}</div>
+        )}
         {d.instructions ? <p className="text-sm text-muted-foreground mt-2">{str(d.instructions)}</p> : null}
       </div>
     );
@@ -165,7 +185,17 @@ function ItemSummary({ item }: { item: DocumentImportItem }) {
   );
 }
 
-function FormActions({ onCancel, onSave, saving }: { onCancel: () => void; onSave: () => void; saving: boolean }) {
+function FormActions({
+  onCancel,
+  onSave,
+  saving,
+  disabled,
+}: {
+  onCancel: () => void;
+  onSave: () => void;
+  saving: boolean;
+  disabled?: boolean;
+}) {
   return (
     <div className="flex justify-end gap-2 pt-1">
       <button type="button" onClick={onCancel} className="h-9 px-3.5 text-sm font-bold rounded-full text-muted-foreground hover:bg-accent transition-colors">
@@ -174,7 +204,7 @@ function FormActions({ onCancel, onSave, saving }: { onCancel: () => void; onSav
       <button
         type="button"
         onClick={onSave}
-        disabled={saving}
+        disabled={saving || disabled}
         className="h-9 flex items-center gap-1.5 px-4 text-sm font-bold rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
       >
         {saving && <Loader2 size={14} className="animate-spin" />} Save &amp; Accept
@@ -209,10 +239,15 @@ function ItemEditForm({
       };
     }
     if (item.itemType === 'medication') {
+      // Start the dose/frequency inputs blank rather than prefilled with the
+      // server's "not stated" placeholder — the owner should type the real
+      // values, not edit around placeholder text sitting in the field.
+      const dose = str(d.dose);
+      const frequency = str(d.frequency);
       return {
         name: str(d.name),
-        dose: str(d.dose),
-        frequency: str(d.frequency),
+        dose: dose === MEDICATION_DOSE_PLACEHOLDER ? '' : dose,
+        frequency: frequency === MEDICATION_FREQUENCY_PLACEHOLDER ? '' : frequency,
         doseIntervalValue: num(d.doseIntervalValue),
         doseIntervalUnit: str(d.doseIntervalUnit),
         instructions: str(d.instructions),
@@ -346,7 +381,12 @@ function ItemEditForm({
           onChange={set('instructions')}
           className="min-h-[70px] resize-none"
         />
-        <FormActions onCancel={onCancel} onSave={submit} saving={saving} />
+        <FormActions
+          onCancel={onCancel}
+          onSave={submit}
+          saving={saving}
+          disabled={!fields.name.trim() || !fields.dose.trim() || !fields.frequency.trim()}
+        />
       </div>
     );
   }
@@ -539,7 +579,11 @@ export default function SmartUpload() {
   };
 
   const handleAcceptAll = async (imp: DocumentImport) => {
-    for (const item of imp.items.filter((i) => i.status === 'pending')) {
+    // A medication missing its dose/frequency needs the owner to type in the
+    // real values first (see medicationNeedsDoseInfo) — "Accept all" skips
+    // those and leaves them pending for individual review, rather than
+    // quietly saving placeholder text as a medication record.
+    for (const item of imp.items.filter((i) => i.status === 'pending' && !medicationNeedsDoseInfo(i))) {
       setBusyItemId(item.id);
       try {
         await acceptMutation.mutateAsync({ petId: activePetId, importId: imp.id, itemId: item.id });
@@ -711,6 +755,11 @@ export default function SmartUpload() {
                                     <AlertTriangle size={11} /> Might already be in the file
                                   </span>
                                 )}
+                                {medicationNeedsDoseInfo(item) && (
+                                  <span className="flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-100 rounded-full px-2.5 py-1">
+                                    <AlertTriangle size={11} /> Needs dose &amp; frequency
+                                  </span>
+                                )}
                               </div>
                               {isEditing ? (
                                 <ItemEditForm
@@ -726,20 +775,32 @@ export default function SmartUpload() {
                                     <p className="mt-2 text-xs text-muted-foreground">You already have one saved — compare them in their file.</p>
                                   )}
                                   <div className="flex gap-2 mt-3">
-                                    <button
-                                      onClick={() => handleAccept(imp, item)}
-                                      disabled={isBusy}
-                                      className="h-10 flex items-center gap-1.5 px-4 text-sm font-bold rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
-                                    >
-                                      {isBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Yes, save it
-                                    </button>
-                                    <button
-                                      onClick={() => setEditingItemId(item.id)}
-                                      disabled={isBusy}
-                                      className="h-10 flex items-center gap-1.5 px-4 text-sm font-bold rounded-full border border-border hover:bg-accent disabled:opacity-60 transition-colors"
-                                    >
-                                      <Pencil size={14} /> Change something
-                                    </button>
+                                    {medicationNeedsDoseInfo(item) ? (
+                                      <button
+                                        onClick={() => setEditingItemId(item.id)}
+                                        disabled={isBusy}
+                                        className="h-10 flex items-center gap-1.5 px-4 text-sm font-bold rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+                                      >
+                                        <Pencil size={14} /> Add dose &amp; frequency
+                                      </button>
+                                    ) : (
+                                      <>
+                                        <button
+                                          onClick={() => handleAccept(imp, item)}
+                                          disabled={isBusy}
+                                          className="h-10 flex items-center gap-1.5 px-4 text-sm font-bold rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+                                        >
+                                          {isBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Yes, save it
+                                        </button>
+                                        <button
+                                          onClick={() => setEditingItemId(item.id)}
+                                          disabled={isBusy}
+                                          className="h-10 flex items-center gap-1.5 px-4 text-sm font-bold rounded-full border border-border hover:bg-accent disabled:opacity-60 transition-colors"
+                                        >
+                                          <Pencil size={14} /> Change something
+                                        </button>
+                                      </>
+                                    )}
                                     <button
                                       onClick={() => handleReject(imp, item)}
                                       disabled={isBusy}
