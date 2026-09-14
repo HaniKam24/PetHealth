@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AiAction } from './aiAction';
 import type { InsightKind } from './insightKind';
 import type { InsightSource } from './insightSource';
 import type { InsightTone } from './insightTone';
@@ -22,4 +23,6 @@ export interface Insight {
   disclaimer: string;
   /** Whether a red flag short-circuited this to an escalation response. */
   kind: InsightKind;
+  /** Set when Pawlie proposed a conversational action alongside this reply (e.g. "add a reminder for..."). Null for a plain answer with nothing to confirm. */
+  action: AiAction | null;
 }

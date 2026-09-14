@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db, healthRecords, medications, pets, reminders, weightLogs } from "@workspace/db";
+import { db, healthRecords, medications, pets, reminders, symptomLogs, weightLogs } from "@workspace/db";
 import type { CreateHealthRecordBody, CreateMedicationBody, CreateReminderBody } from "@workspace/api-zod";
 import { runCareRecommendationsEngine } from "./care-recommendations";
 
@@ -37,6 +37,25 @@ export async function insertReminderForPet(petId: number, body: z.infer<typeof C
     .values({ petId, ...body, dueDate: asDateString(body.dueDate)!, completed: false, source: "owner" })
     .returning();
   return created!;
+}
+
+export async function insertSymptomLogForPet(petId: number, description: string, insightId: number | null = null) {
+  const [created] = await db
+    .insert(symptomLogs)
+    .values({ petId, description, insightId })
+    .returning();
+  return created!;
+}
+
+// Returns null (not a throw) when the reminder doesn't exist or belongs to
+// a different pet than expected — same "let the caller decide the HTTP
+// response" convention the rest of this file's insert helpers don't need,
+// but this one does since it's a lookup-then-mutate, not a pure insert.
+export async function completeReminderForPet(petId: number, reminderId: number) {
+  const [reminder] = await db.select().from(reminders).where(eq(reminders.id, reminderId));
+  if (!reminder || reminder.petId !== petId) return null;
+  const [updated] = await db.update(reminders).set({ completed: true }).where(eq(reminders.id, reminderId)).returning();
+  return updated!;
 }
 
 // Every field optional and, when present, non-empty (or positive, for
