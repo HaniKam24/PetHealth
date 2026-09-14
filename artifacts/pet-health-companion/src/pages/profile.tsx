@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
 
@@ -238,10 +238,15 @@ export default function Profile() {
     },
   });
 
-  const initializedRef = useRef(false);
-
+  // Guarded by isDirty rather than a one-shot "have we ever synced" flag —
+  // the latter meant that once this page had synced the form once, a pet
+  // update accepted from *elsewhere* (e.g. a Smart Document Upload proposal
+  // accepted from that page) never showed up here even though the
+  // underlying query had genuinely refetched fresh data, because the form
+  // was never told to re-read it. isDirty still protects an in-progress
+  // edit from being clobbered by an unrelated background refetch.
   useEffect(() => {
-    if (pet && !isNew && !initializedRef.current) {
+    if (pet && !isNew && !form.formState.isDirty) {
       form.reset({
         name: pet.name,
         species: pet.species,
@@ -257,7 +262,6 @@ export default function Profile() {
         vetPhone: pet.vetPhone || '',
         vetAddress: pet.vetAddress || '',
       });
-      initializedRef.current = true;
     }
   }, [pet, isNew, form]);
 
@@ -269,7 +273,6 @@ export default function Profile() {
         weight: null, weightUnit: 'lb', photoUrl: '', notes: '',
         vetName: '', vetClinic: '', vetPhone: '', vetAddress: '',
       });
-      initializedRef.current = false;
     }
   }, [isNew, form]);
 
