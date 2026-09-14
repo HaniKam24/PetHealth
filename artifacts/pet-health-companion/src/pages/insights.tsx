@@ -12,7 +12,7 @@ import {
   type Insight,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Sparkles, Send, PawPrint, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -93,7 +93,10 @@ export default function Insights() {
     activePetId ? { petId: activePetId } : undefined,
     { query: { enabled: !!activePetId, queryKey: activePetId ? getListInsightsQueryKey({ petId: activePetId }) : ['no-pet', 'insights'] } }
   );
-  const insights = data?.insights;
+  // The API returns newest-first (so a "recent activity" list elsewhere
+  // could use it as-is) — a chat thread reads top-to-bottom oldest-first,
+  // so flip it for display here rather than changing the API's own order.
+  const insights = data?.insights ? [...data.insights].reverse() : data?.insights;
   const quota = data?.quota;
   const quotaExhausted = quota !== undefined && quota.remaining <= 0;
 
@@ -104,7 +107,10 @@ export default function Insights() {
           queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey({ petId: activePetId }) });
         }
         setQuestion('');
-        toast({ title: "Insight generated", description: "Scroll down to see the AI response." });
+        // No success toast — the answer lands directly in the chat thread
+        // (now auto-scrolled into view), so announcing it separately was
+        // redundant. Still toast on error below, since a failure isn't
+        // otherwise visible in the thread.
       },
       onError: (error) => {
         toast({ title: "Couldn't get AI insight", description: error.message, variant: "destructive" });
@@ -144,6 +150,16 @@ export default function Insights() {
     if (!activePetId) return;
     addToSymptomLog.mutate({ petId: activePetId, data: { description: insight.question, insightId: insight.id } });
   };
+
+  // Keeps the latest message in view — without this, a new answer (or the
+  // "typing" indicator while one's pending) landed at the bottom of the
+  // scrollable list but the viewport itself didn't follow it there, so it
+  // could render off-screen above the fold instead of where the thread
+  // visually continues.
+  const bottomRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: 'end' });
+  }, [insights, askInsight.isPending, tab]);
 
   if (!activePetId) return <div className="p-10 text-center text-muted-foreground mt-20">Please select or add a pet first.</div>;
 
@@ -356,6 +372,7 @@ export default function Insights() {
                 )}
               </div>
             )}
+            <div ref={bottomRef} />
           </div>
 
           <div className="shrink-0 mt-4 bg-card border border-border rounded-3xl p-5">
