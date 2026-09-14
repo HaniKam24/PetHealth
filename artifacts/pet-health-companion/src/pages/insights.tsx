@@ -9,16 +9,25 @@ import {
   useGetPetTrends,
   getGetPetTrendsQueryKey,
   useListPets,
+  useListSymptomEntries,
+  getListSymptomEntriesQueryKey,
+  useCreateSymptomEntry,
+  useDeleteSymptomEntry,
   type Insight,
+  type SymptomEntry,
+  type SymptomEntryAppetite,
+  type SymptomEntryEnergy,
+  type SymptomEntryStoolQuality,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Sparkles, Send, PawPrint, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill } from 'lucide-react';
+import { Sparkles, Send, PawPrint, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill, NotebookPen, Trash2, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+import { Textarea } from '@/components/ui/textarea';
 
 const toneConfig = {
   helpful: { icon: Heart, color: 'text-emerald-600', bg: 'bg-emerald-100' },
@@ -72,11 +81,202 @@ const weightChartConfig: ChartConfig = {
   weight: { label: 'Weight', color: 'hsl(var(--primary))' },
 };
 
+const ENERGY_APPETITE_OPTIONS = ['low', 'normal', 'high'] as const;
+const STOOL_OPTIONS = ['normal', 'soft', 'diarrhea', 'constipated'] as const;
+
+// A tap-target row, not a dropdown or radio group — this needs to be
+// fillable in a few seconds, and tapping the already-selected option
+// clears it (an owner didn't necessarily observe every category today).
+function SegmentedControl<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: readonly T[];
+  value: T | null;
+  onChange: (value: T | null) => void;
+}) {
+  return (
+    <div>
+      <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">{label}</div>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onChange(value === opt ? null : opt)}
+            className={cn(
+              'h-9 px-3.5 rounded-full text-sm font-bold border capitalize transition-colors',
+              value === opt ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-accent',
+            )}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ToggleChip({ label, active, onToggle }: { label: string; active: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={cn(
+        'h-9 px-3.5 rounded-full text-sm font-bold border transition-colors',
+        active ? 'bg-destructive text-destructive-foreground border-destructive' : 'border-border hover:bg-accent',
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function JournalTab({ activePetId, petName }: { activePetId: number; petName: string }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: entries, isLoading } = useListSymptomEntries(activePetId, {
+    query: { queryKey: getListSymptomEntriesQueryKey(activePetId) },
+  });
+
+  const [energy, setEnergy] = useState<SymptomEntryEnergy>(null);
+  const [appetite, setAppetite] = useState<SymptomEntryAppetite>(null);
+  const [stoolQuality, setStoolQuality] = useState<SymptomEntryStoolQuality>(null);
+  const [vomiting, setVomiting] = useState(false);
+  const [limping, setLimping] = useState(false);
+  const [note, setNote] = useState('');
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: getListSymptomEntriesQueryKey(activePetId) });
+
+  const createEntry = useCreateSymptomEntry({
+    mutation: {
+      onSuccess: () => {
+        invalidate();
+        setEnergy(null);
+        setAppetite(null);
+        setStoolQuality(null);
+        setVomiting(false);
+        setLimping(false);
+        setNote('');
+        toast({ title: 'Logged', description: `Saved to ${petName}'s journal.` });
+      },
+      onError: (error) => toast({ title: "Couldn't save that", description: error.message, variant: 'destructive' }),
+    },
+  });
+
+  const deleteEntry = useDeleteSymptomEntry({
+    mutation: {
+      onSuccess: invalidate,
+      onError: (error) => toast({ title: "Couldn't delete that", description: error.message, variant: 'destructive' }),
+    },
+  });
+
+  const hasAnything = Boolean(energy || appetite || stoolQuality || vomiting || limping || note.trim());
+
+  const handleSave = () => {
+    if (!hasAnything) return;
+    createEntry.mutate({
+      petId: activePetId,
+      data: {
+        ...(energy ? { energy } : {}),
+        ...(appetite ? { appetite } : {}),
+        ...(stoolQuality ? { stoolQuality } : {}),
+        ...(vomiting ? { vomiting: true } : {}),
+        ...(limping ? { limping: true } : {}),
+        ...(note.trim() ? { note: note.trim() } : {}),
+      },
+    });
+  };
+
+  return (
+    <div className="flex-1 min-h-0 overflow-y-auto space-y-5">
+      <div className="bg-card border border-border rounded-3xl p-6 space-y-4">
+        <div>
+          <h3 className="font-serif text-lg font-extrabold">How's {petName} doing today?</h3>
+          <p className="text-sm text-muted-foreground mt-0.5">Tap whatever you've noticed — nothing here is required.</p>
+        </div>
+        <SegmentedControl<'low' | 'normal' | 'high'> label="Energy" options={ENERGY_APPETITE_OPTIONS} value={energy} onChange={setEnergy} />
+        <SegmentedControl<'low' | 'normal' | 'high'> label="Appetite" options={ENERGY_APPETITE_OPTIONS} value={appetite} onChange={setAppetite} />
+        <SegmentedControl<'normal' | 'soft' | 'diarrhea' | 'constipated'> label="Stool" options={STOOL_OPTIONS} value={stoolQuality} onChange={setStoolQuality} />
+        <div>
+          <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Also noticed</div>
+          <div className="flex gap-1.5">
+            <ToggleChip label="Vomiting" active={vomiting} onToggle={() => setVomiting((v) => !v)} />
+            <ToggleChip label="Limping" active={limping} onToggle={() => setLimping((v) => !v)} />
+          </div>
+        </div>
+        <Textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Anything else worth noting? (optional)"
+          className="min-h-[70px] resize-none"
+        />
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!hasAnything || createEntry.isPending}
+          className="h-10 px-5 flex items-center gap-2 rounded-full bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50 hover:bg-primary/90 transition-colors"
+        >
+          {createEntry.isPending ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Save entry
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {isLoading ? (
+          <div className="h-24 bg-accent/30 rounded-2xl animate-pulse" />
+        ) : !entries || entries.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">No entries yet — log how {petName}'s doing above.</p>
+        ) : (
+          entries.map((entry: SymptomEntry) => (
+            <div key={entry.id} className="bg-card border border-border rounded-2xl p-4 flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-muted-foreground mb-1.5">
+                  {format(new Date(entry.loggedAt), 'MMM d, h:mm a')}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {entry.energy && (
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-accent capitalize">Energy: {entry.energy}</span>
+                  )}
+                  {entry.appetite && (
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-accent capitalize">Appetite: {entry.appetite}</span>
+                  )}
+                  {entry.stoolQuality && (
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-accent capitalize">Stool: {entry.stoolQuality}</span>
+                  )}
+                  {entry.vomiting && (
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-destructive/10 text-destructive">Vomiting</span>
+                  )}
+                  {entry.limping && (
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-destructive/10 text-destructive">Limping</span>
+                  )}
+                </div>
+                {entry.note && <p className="text-sm text-muted-foreground mt-2">{entry.note}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => deleteEntry.mutate({ petId: activePetId, entryId: entry.id })}
+                className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                aria-label="Delete entry"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Insights() {
   const { activePetId } = usePetContext();
   const queryClient = useQueryClient();
   const [question, setQuestion] = useState('');
-  const [tab, setTab] = useState<'chat' | 'trends'>('chat');
+  const [tab, setTab] = useState<'chat' | 'trends' | 'journal'>('chat');
   const { toast } = useToast();
 
   const { data: pets } = useListPets();
@@ -198,6 +398,16 @@ export default function Insights() {
             >
               <TrendingUp size={14} /> Trends
             </button>
+            <button
+              type="button"
+              onClick={() => setTab('journal')}
+              className={cn(
+                'flex items-center gap-1.5 px-4 h-9 rounded-full text-sm font-bold transition-colors',
+                tab === 'journal' ? 'bg-accent text-primary' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <NotebookPen size={14} /> Journal
+            </button>
           </div>
           {tab === 'chat' && quota && (
             <div className="bg-card border border-border rounded-full px-4 h-9 inline-flex items-center gap-2">
@@ -210,7 +420,9 @@ export default function Insights() {
         </div>
       </div>
 
-      {tab === 'trends' ? (
+      {tab === 'journal' ? (
+        <JournalTab activePetId={activePetId} petName={activePet?.name ?? 'your pet'} />
+      ) : tab === 'trends' ? (
         <div className="flex-1 min-h-0 overflow-y-auto space-y-5">
           <div className="bg-card border border-border rounded-3xl p-6">
             <div className="flex items-center gap-2.5 mb-4">

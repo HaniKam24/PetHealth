@@ -530,6 +530,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SymptomLog"
+  /pets/{petId}/symptom-entries:
+    get:
+      operationId: listSymptomEntries
+      tags: [pets]
+      summary: List Symptom Journal entries for a pet, most recent first
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          description: Symptom journal entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SymptomEntry"
+    post:
+      operationId: createSymptomEntry
+      tags: [pets]
+      summary: Add a Symptom Journal entry — a structured, dated observation (appetite, energy, stool, vomiting, limping, notes), distinct from a symptom log saved from a Pawlie chat answer
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SymptomEntryInput"
+      responses:
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SymptomEntry"
+        "400":
+          description: Every field was empty — log at least one observation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /pets/{petId}/symptom-entries/{entryId}:
+    delete:
+      operationId: deleteSymptomEntry
+      tags: [pets]
+      summary: Delete a Symptom Journal entry (e.g. a mis-tap)
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/SymptomEntryId"
+      responses:
+        "204":
+          description: Entry deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
   /reminders/{reminderId}/complete:
     post:
       operationId: completeReminder
@@ -641,6 +695,13 @@ components:
         minimum: 1
     DocumentImportItemId:
       name: itemId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    SymptomEntryId:
+      name: entryId
       in: path
       required: true
       schema:
@@ -977,6 +1038,32 @@ components:
         description: { type: string, minLength: 1 }
         insightId: { type: ["integer", "null"] }
       required: [description]
+    SymptomEntry:
+      type: object
+      description: A Symptom Journal entry — deliberately separate from SymptomLog (a free-text note saved from a Pawlie chat answer). Every observation field is nullable since an owner logs whatever they actually noticed, not a mandatory checklist.
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        loggedAt: { type: string, format: date-time }
+        appetite: { type: ["string", "null"], enum: [low, normal, high, null] }
+        energy: { type: ["string", "null"], enum: [low, normal, high, null] }
+        stoolQuality: { type: ["string", "null"], enum: [normal, soft, diarrhea, constipated, null] }
+        vomiting: { type: ["boolean", "null"] }
+        limping: { type: ["boolean", "null"] }
+        behaviorNote: { type: ["string", "null"] }
+        note: { type: ["string", "null"] }
+      required: [id, petId, loggedAt, appetite, energy, stoolQuality, vomiting, limping, behaviorNote, note]
+    SymptomEntryInput:
+      type: object
+      description: Every field optional — the server rejects a request where all of them are empty, since a completely blank entry isn't worth saving.
+      properties:
+        appetite: { type: string, enum: [low, normal, high] }
+        energy: { type: string, enum: [low, normal, high] }
+        stoolQuality: { type: string, enum: [normal, soft, diarrhea, constipated] }
+        vomiting: { type: boolean }
+        limping: { type: boolean }
+        behaviorNote: { type: string, minLength: 1 }
+        note: { type: string, minLength: 1 }
     DashboardSummary:
       type: object
       properties:

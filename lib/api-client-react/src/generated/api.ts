@@ -50,6 +50,8 @@ import type {
   PetUpdate,
   Reminder,
   ReminderInput,
+  SymptomEntry,
+  SymptomEntryInput,
   SymptomLog,
   SymptomLogInput,
   UploadHealthRecordDocumentBody
@@ -2115,6 +2117,228 @@ export const useCreateSymptomLog = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateSymptomLogMutationOptions(options));
+    }
+
+export const getListSymptomEntriesUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/symptom-entries`
+}
+
+/**
+ * @summary List Symptom Journal entries for a pet, most recent first
+ */
+export const listSymptomEntries = async (petId: number, options?: Parameters<typeof customFetch>[1]): Promise<SymptomEntry[]> => {
+
+  return customFetch<SymptomEntry[]>(getListSymptomEntriesUrl(petId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSymptomEntriesQueryKey = (petId: number,) => {
+    return [
+    `/api/pets/${petId}/symptom-entries`
+    ] as const;
+    }
+
+
+export const getListSymptomEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listSymptomEntries>>, TError = ErrorType<unknown>>(petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSymptomEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSymptomEntriesQueryKey(petId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSymptomEntries>>> = ({ signal }) => listSymptomEntries(petId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: petId !== null && petId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSymptomEntries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSymptomEntriesQueryResult = NonNullable<Awaited<ReturnType<typeof listSymptomEntries>>>
+export type ListSymptomEntriesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List Symptom Journal entries for a pet, most recent first
+ */
+
+export function useListSymptomEntries<TData = Awaited<ReturnType<typeof listSymptomEntries>>, TError = ErrorType<unknown>>(
+ petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSymptomEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSymptomEntriesQueryOptions(petId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSymptomEntryUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/symptom-entries`
+}
+
+/**
+ * @summary Add a Symptom Journal entry — a structured, dated observation (appetite, energy, stool, vomiting, limping, notes), distinct from a symptom log saved from a Pawlie chat answer
+ */
+export const createSymptomEntry = async (petId: number,
+    symptomEntryInput: SymptomEntryInput, options?: Parameters<typeof customFetch>[1]): Promise<SymptomEntry> => {
+
+  return customFetch<SymptomEntry>(getCreateSymptomEntryUrl(petId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(symptomEntryInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSymptomEntryMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSymptomEntry>>, TError,{petId: number;data: BodyType<SymptomEntryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSymptomEntry>>, TError,{petId: number;data: BodyType<SymptomEntryInput>}, TContext> => {
+
+const mutationKey = ['createSymptomEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSymptomEntry>>, {petId: number;data: BodyType<SymptomEntryInput>}> = (props) => {
+          const {petId,data} = props ?? {};
+
+          return  createSymptomEntry(petId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSymptomEntryMutationResult = NonNullable<Awaited<ReturnType<typeof createSymptomEntry>>>
+    export type CreateSymptomEntryMutationBody = BodyType<SymptomEntryInput>
+    export type CreateSymptomEntryMutationError = ErrorType<Error>
+
+    /**
+ * @summary Add a Symptom Journal entry — a structured, dated observation (appetite, energy, stool, vomiting, limping, notes), distinct from a symptom log saved from a Pawlie chat answer
+ */
+export const useCreateSymptomEntry = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSymptomEntry>>, TError,{petId: number;data: BodyType<SymptomEntryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSymptomEntry>>,
+        TError,
+        {petId: number;data: BodyType<SymptomEntryInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSymptomEntryMutationOptions(options));
+    }
+
+export const getDeleteSymptomEntryUrl = (petId: number,
+    entryId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/symptom-entries/${entryId}`
+}
+
+/**
+ * @summary Delete a Symptom Journal entry (e.g. a mis-tap)
+ */
+export const deleteSymptomEntry = async (petId: number,
+    entryId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteSymptomEntryUrl(petId,entryId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteSymptomEntryMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSymptomEntry>>, TError,{petId: number;entryId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSymptomEntry>>, TError,{petId: number;entryId: number}, TContext> => {
+
+const mutationKey = ['deleteSymptomEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSymptomEntry>>, {petId: number;entryId: number}> = (props) => {
+          const {petId,entryId} = props ?? {};
+
+          return  deleteSymptomEntry(petId,entryId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSymptomEntryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSymptomEntry>>>
+
+    export type DeleteSymptomEntryMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Delete a Symptom Journal entry (e.g. a mis-tap)
+ */
+export const useDeleteSymptomEntry = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSymptomEntry>>, TError,{petId: number;entryId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSymptomEntry>>,
+        TError,
+        {petId: number;entryId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteSymptomEntryMutationOptions(options));
     }
 
 export const getCompleteReminderUrl = (reminderId: number,) => {
