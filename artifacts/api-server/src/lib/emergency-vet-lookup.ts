@@ -17,12 +17,50 @@ export interface EmergencyVetLookupResult {
   script: string;
 }
 
+// Structurally compatible with symptomEntries.$inferSelect (lib/db) without
+// importing the schema directly — this file stays a plain Anthropic-calling
+// lib, same shape as document-extraction.ts's own CurrentPet interface.
+export interface RecentSymptomEntry {
+  loggedAt: Date;
+  appetite: string | null;
+  energy: string | null;
+  stoolQuality: string | null;
+  vomiting: boolean | null;
+  limping: boolean | null;
+  behaviorNote: string | null;
+  note: string | null;
+}
+
+// One line per entry, timestamped, only the fields actually logged — lets
+// the model see real recurrence/frequency (e.g. "vomiting on 3 separate
+// days this week") directly from the raw dated list rather than a
+// pre-aggregated summary that could get the counting wrong.
+function formatSymptomJournal(entries: RecentSymptomEntry[]): string {
+  if (entries.length === 0) return "No Symptom Journal entries logged for this pet.";
+  return entries
+    .map((e) => {
+      const signals = [
+        e.appetite && e.appetite !== "normal" ? `${e.appetite} appetite` : null,
+        e.energy && e.energy !== "normal" ? `${e.energy} energy` : null,
+        e.stoolQuality && e.stoolQuality !== "normal" ? e.stoolQuality : null,
+        e.vomiting ? "vomiting" : null,
+        e.limping ? "limping" : null,
+        e.behaviorNote,
+        e.note,
+      ].filter((s): s is string => !!s);
+      if (signals.length === 0) return null;
+      return `${e.loggedAt.toISOString().replace("T", " ").slice(0, 16)} — ${signals.join(", ")}`;
+    })
+    .filter((line): line is string => line !== null)
+    .join("\n");
+}
+
 const SYSTEM_PROMPT = `You are helping a pet owner in a possible emergency find real, nearby emergency veterinary clinics. Use the web_search tool to search for emergency or 24-hour veterinary clinics near the given zipcode.
 
 Rules — these matter, this is a genuine emergency:
 - Only include clinics you actually found via search. Never invent a name, phone number, or address.
 - Never state or imply a clinic is currently open — web search results don't reliably reflect real-time hours. Every clinic in your list is understood to need a call to confirm they're open and can take the pet before driving over.
-- Write a short script (2-4 sentences) the owner can read when they call: it must mention the specific symptom described below, that they believe it's an emergency, and that they're on their way — grounded in what was actually described, not generic.
+- Write a short script (2-4 sentences) the owner can read when they call: it must mention the specific symptom(s), grounded in what the owner actually described AND the pet's own logged Symptom Journal entries below (timestamps included — reference recency/frequency where it's relevant, e.g. "vomiting again this morning, third time in two days") — say they believe it's an emergency and that they're on their way. Never write a generic placeholder like "please provide symptom details" — you have real data below; use it. If genuinely neither the description nor the journal has anything concrete, use whatever the owner actually said, even if brief, rather than asking a question back.
 - If you can't find any real results for this area, return an empty vets array rather than guessing.
 
 After searching, respond with ONLY a single JSON object in this exact shape, no commentary, no markdown fences:
@@ -61,6 +99,7 @@ export async function lookupEmergencyVets(
   petName: string,
   zipCode: string,
   recentQuestion: string,
+  symptomJournal: RecentSymptomEntry[],
 ): Promise<EmergencyVetLookupResult | null> {
   const completion = await anthropic.messages.create({
     model: MODEL,
@@ -70,7 +109,7 @@ export async function lookupEmergencyVets(
     messages: [
       {
         role: "user",
-        content: `Pet: ${petName}\nZipcode: ${zipCode}\nWhat the owner described: ${recentQuestion}`,
+        content: `Pet: ${petName}\nZipcode: ${zipCode}\nWhat the owner described: ${recentQuestion}\n\nRecent Symptom Journal entries (most recent first):\n${formatSymptomJournal(symptomJournal)}`,
       },
     ],
   });

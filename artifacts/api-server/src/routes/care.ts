@@ -850,7 +850,17 @@ router.post("/insights", async (req, res, next) => {
       .orderBy(desc(insights.createdAt))
       .limit(1);
     if (mostRecentInsight?.kind === "escalation" && looksLikeZipCode(question)) {
-      const result = await lookupEmergencyVets(pet.name, question.trim(), mostRecentInsight.question);
+      // The triggering question alone is often just "emergency" or "nearest
+      // vet" with no real symptom detail — the Symptom Journal (timestamped,
+      // structured) is what actually grounds the call script in what's
+      // really been going on, same data the normal chat path grounds on.
+      const recentSymptomEntries = await db
+        .select()
+        .from(symptomEntries)
+        .where(eq(symptomEntries.petId, petId))
+        .orderBy(desc(symptomEntries.loggedAt))
+        .limit(20);
+      const result = await lookupEmergencyVets(pet.name, question.trim(), mostRecentInsight.question, recentSymptomEntries);
       const [created] = await db
         .insert(insights)
         .values({
