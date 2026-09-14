@@ -34,6 +34,7 @@ import {
 } from "@workspace/api-zod";
 import {
   db,
+  documentImports,
   healthRecords,
   insights,
   medicationDoseLogs,
@@ -56,6 +57,30 @@ const router: IRouter = Router();
 const MAX_PETS_PER_ACCOUNT = 3;
 const DISCLAIMER =
   "AI guidance is educational and is not a diagnosis. Contact a licensed veterinarian for medical advice, and seek urgent care for severe or rapidly worsening symptoms.";
+
+// Pawlie: the app's one AI voice (formerly split across "Symptom Chat" and
+// "AI Insights" naming, same underlying feature). Personality is deliberate
+// here, not decorative — a warm, steady tone is what makes an owner
+// comfortable asking an anxious 11pm question, and it has to hold up
+// whether the question is symptom-shaped or just a plain factual one about
+// the pet's own record (Bolt 19 broadens scope beyond symptom guidance).
+const PAWLIE_SYSTEM_PROMPT = `You are Pawlie, a warm and steady AI companion built into this pet-health app. Owners talk to you about anything related to their pet — symptoms, routines, questions about a past visit, or just how their pet's been doing.
+
+Personality:
+- Warm but not cutesy — talk like a knowledgeable friend, not a mascot. No forced puns, no more than the occasional light touch of warmth.
+- Calm and steady, even when the owner sounds worried. Reassure with substance, not empty comfort.
+- Say "I'm not a vet, but..." at most once, naturally, when it's actually relevant — never as a bolted-on disclaimer on every reply (a separate disclaimer is already shown alongside your answer).
+- Use the pet's name when you have it, not "your pet."
+
+What you answer:
+- Symptom questions ("she's limping, should I worry?") — give concise, practical, plain-language guidance grounded only in the supplied data. Never diagnose, prescribe, or change medication. Explain what to observe, safe supportive steps, and when to contact a vet.
+- Plain factual questions about the pet's own record ("when was her last rabies shot", "what's she currently taking") — answer directly and specifically from the supplied data. If it's not in the data, say so plainly rather than guessing.
+- General pet-care questions unrelated to a specific symptom (diet, behavior, preventive care) — answer helpfully, still grounded in what you know about this particular pet where relevant.
+
+Rules:
+- Ground every answer only in the supplied data — never invent a record, date, or value that isn't there.
+- Never claim certainty about anything requiring an in-person exam, bloodwork, or imaging.
+- Keep answers concise and skimmable — under 170 words unless the question genuinely needs more.`;
 
 // Passes `null`/`undefined` through as-is rather than coalescing to `null` —
 // an omitted field on a partial PATCH must leave the column untouched, not
@@ -543,6 +568,56 @@ router.post("/pets/:petId/medications/:medicationId/log-dose", async (req, res, 
 // "late" vs "on time" against no real basis for a lateness threshold.
 const ADHERENCE_WINDOW_DAYS = 30;
 
+// Shared by GET /trends (the chart data) and Pawlie's grounding query
+// (POST /insights) — same numbers, just one rendered as a chart and the
+// other handed to the model as context.
+async function computePetTrends(petId: number) {
+  const weightRows = await db
+    .select()
+    .from(weightLogs)
+    .where(eq(weightLogs.petId, petId))
+    .orderBy(asc(weightLogs.recordedAt));
+
+  const activeMeds = await db
+    .select()
+    .from(medications)
+    .where(and(eq(medications.petId, petId), eq(medications.active, true)));
+
+  const windowMs = ADHERENCE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const windowStart = new Date(Date.now() - windowMs);
+
+  const medicationAdherence = [];
+  for (const med of activeMeds) {
+    // Only meaningful for a medication with a structured schedule — one
+    // that's purely descriptive (frequency text only) has no interval to
+    // compute an expected dose count from.
+    if (!med.doseIntervalValue || !med.doseIntervalUnit) continue;
+    const intervalMs = med.doseIntervalValue * INTERVAL_MS[med.doseIntervalUnit];
+    const dosesExpected = Math.max(1, Math.round(windowMs / intervalMs));
+    const doseLogs = await db
+      .select()
+      .from(medicationDoseLogs)
+      .where(and(eq(medicationDoseLogs.medicationId, med.id), gte(medicationDoseLogs.loggedAt, windowStart)));
+    const dosesLogged = doseLogs.length;
+    medicationAdherence.push({
+      medicationId: med.id,
+      medicationName: med.name,
+      adherencePercent: Math.min(100, Math.round((dosesLogged / dosesExpected) * 100)),
+      dosesLogged,
+      dosesExpected,
+    });
+  }
+
+  return {
+    weightLogs: weightRows.map((row) => ({
+      ...row,
+      weight: Number(row.weight),
+      recordedAt: row.recordedAt.toISOString(),
+    })),
+    medicationAdherence,
+  };
+}
+
 router.get("/pets/:petId/trends", async (req, res, next) => {
   try {
     const userId = requireUserId(req);
@@ -551,51 +626,7 @@ router.get("/pets/:petId/trends", async (req, res, next) => {
       res.status(404).json({ error: "Pet not found" });
       return;
     }
-
-    const weightRows = await db
-      .select()
-      .from(weightLogs)
-      .where(eq(weightLogs.petId, petId))
-      .orderBy(asc(weightLogs.recordedAt));
-
-    const activeMeds = await db
-      .select()
-      .from(medications)
-      .where(and(eq(medications.petId, petId), eq(medications.active, true)));
-
-    const windowMs = ADHERENCE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-    const windowStart = new Date(Date.now() - windowMs);
-
-    const medicationAdherence = [];
-    for (const med of activeMeds) {
-      // Only meaningful for a medication with a structured schedule — one
-      // that's purely descriptive (frequency text only) has no interval to
-      // compute an expected dose count from.
-      if (!med.doseIntervalValue || !med.doseIntervalUnit) continue;
-      const intervalMs = med.doseIntervalValue * INTERVAL_MS[med.doseIntervalUnit];
-      const dosesExpected = Math.max(1, Math.round(windowMs / intervalMs));
-      const doseLogs = await db
-        .select()
-        .from(medicationDoseLogs)
-        .where(and(eq(medicationDoseLogs.medicationId, med.id), gte(medicationDoseLogs.loggedAt, windowStart)));
-      const dosesLogged = doseLogs.length;
-      medicationAdherence.push({
-        medicationId: med.id,
-        medicationName: med.name,
-        adherencePercent: Math.min(100, Math.round((dosesLogged / dosesExpected) * 100)),
-        dosesLogged,
-        dosesExpected,
-      });
-    }
-
-    res.json({
-      weightLogs: weightRows.map((row) => ({
-        ...row,
-        weight: Number(row.weight),
-        recordedAt: row.recordedAt.toISOString(),
-      })),
-      medicationAdherence,
-    });
+    res.json(await computePetTrends(petId));
   } catch (error) {
     next(error);
   }
@@ -792,35 +823,62 @@ router.post("/insights", async (req, res, next) => {
       throw error;
     }
 
+    // Pawlie's grounding: the pet's full relevant record, not the partial
+    // slice this used to fetch — health history, meds, reminders (open and
+    // recently completed), symptom-log history, weight/adherence trends,
+    // any Smart Upload reports still awaiting review, and its own recent
+    // chat history with this owner. All read-only, all scoped to this pet.
     const records = await db
       .select()
       .from(healthRecords)
       .where(eq(healthRecords.petId, petId))
       .orderBy(desc(healthRecords.date))
-      .limit(8);
+      .limit(20);
     const meds = await db
       .select()
       .from(medications)
       .where(and(eq(medications.petId, petId), eq(medications.active, true)));
-    const upcomingReminders = await db
+    const reminderRows = await db
       .select()
       .from(reminders)
-      .where(and(eq(reminders.petId, petId), eq(reminders.completed, false)))
-      .orderBy(asc(reminders.dueDate));
+      .where(eq(reminders.petId, petId))
+      .orderBy(asc(reminders.dueDate))
+      .limit(20);
+    const symptomHistory = await db
+      .select()
+      .from(symptomLogs)
+      .where(eq(symptomLogs.petId, petId))
+      .orderBy(desc(symptomLogs.loggedAt))
+      .limit(10);
+    const trends = await computePetTrends(petId);
+    const pendingUploadCount = await db
+      .select()
+      .from(documentImports)
+      .where(and(eq(documentImports.petId, petId), eq(documentImports.status, "pending_review")));
+    const pastChatTurns = await db
+      .select()
+      .from(insights)
+      .where(and(eq(insights.petId, petId), eq(insights.kind, "chat")))
+      .orderBy(desc(insights.createdAt))
+      .limit(5);
 
     const completion = await anthropic.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 8192,
-      system:
-        "You are a cautious pet care education assistant for pet owners. Give concise, practical, plain-language guidance grounded only in the supplied profile and records. Never diagnose, prescribe, change medication, or claim certainty. Explain what to observe, low-risk supportive steps, and when to contact a veterinarian. Keep the answer under 170 words.",
+      system: PAWLIE_SYSTEM_PROMPT,
       messages: [
         {
           role: "user",
           content: JSON.stringify({
             pet: asPet(pet),
-            recentRecords: records,
+            healthRecords: records,
             activeMedications: meds.map(asMedication),
-            upcomingReminders,
+            reminders: reminderRows.map((r) => ({ ...r, status: r.completed ? "completed" : "open" })),
+            symptomLogHistory: symptomHistory.map(asSymptomLog),
+            weightTrend: trends.weightLogs,
+            medicationAdherence: trends.medicationAdherence,
+            pendingSmartUploadReports: pendingUploadCount.length,
+            recentConversation: pastChatTurns.reverse().map((turn) => ({ question: turn.question, answer: turn.content })),
             ownerQuestion: question,
           }),
         },

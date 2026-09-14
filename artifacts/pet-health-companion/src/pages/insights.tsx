@@ -13,7 +13,7 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Sparkles, Send, Bot, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill } from 'lucide-react';
+import { Sparkles, Send, PawPrint, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -150,8 +150,10 @@ export default function Insights() {
   return (
     <div className="p-6 md:p-10 max-w-4xl mx-auto flex flex-col h-full min-h-[calc(100vh-2rem)]">
       <div className="shrink-0 mb-6">
-        <h1 className="font-serif text-[34px] font-extrabold tracking-tight">Ask about {activePet?.name ?? 'your pet'}</h1>
-        <p className="mt-1 text-[16.5px] text-muted-foreground">Symptoms, food, behaviour — we'll answer using what's in their file.</p>
+        <h1 className="font-serif text-[34px] font-extrabold tracking-tight">Pawlie</h1>
+        <p className="mt-1 text-[16.5px] text-muted-foreground">
+          Ask anything about {activePet?.name ?? 'your pet'} — symptoms, routines, or just how they're doing. Grounded in their actual file, not generic advice.
+        </p>
 
         <div className="mt-4 flex items-center gap-3 flex-wrap">
           <div className="inline-flex bg-card border border-border rounded-full p-1">
@@ -257,7 +259,7 @@ export default function Insights() {
           <div className="shrink-0 mb-4 flex gap-2.5 items-start bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3.5">
             <ShieldAlert size={19} className="shrink-0 mt-0.5 text-amber-700" />
             <p className="text-sm leading-relaxed text-amber-900">
-              <strong>This isn't a diagnosis.</strong> It's general information, plus context from {activePet?.name ?? 'your pet'}'s records. If they're in distress, ring an emergency vet now — don't wait for an answer here.
+              <strong>Pawlie isn't a vet.</strong> This is general information, plus context from {activePet?.name ?? 'your pet'}'s records. If they're in distress, ring an emergency vet now — don't wait for an answer here.
             </p>
           </div>
 
@@ -274,13 +276,13 @@ export default function Insights() {
             ) : !insights || insights.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto py-10">
                 <div className="w-20 h-20 bg-accent rounded-full flex items-center justify-center mb-6 text-primary">
-                  <Bot size={40} />
+                  <PawPrint size={40} />
                 </div>
-                <h3 className="font-serif text-2xl font-extrabold mb-2.5">How can I help?</h3>
-                <p className="text-muted-foreground">Ask about diet changes, strange behaviors, or preventative care — I'll use their health records to give personalized context.</p>
+                <h3 className="font-serif text-2xl font-extrabold mb-2.5">Hi, I'm Pawlie.</h3>
+                <p className="text-muted-foreground">Ask me about symptoms, routines, or what's already in {activePet?.name ?? 'their'} file — I'll answer using their actual records, not generic advice.</p>
                 <div className="mt-7 flex flex-wrap justify-center gap-2.5">
+                  <button onClick={() => setQuestion("What's their current medication schedule?")} className="h-9 px-4 text-sm font-semibold bg-card border border-border rounded-full hover:border-primary transition-colors">Current med schedule?</button>
                   <button onClick={() => setQuestion("What are the signs of arthritis?")} className="h-9 px-4 text-sm font-semibold bg-card border border-border rounded-full hover:border-primary transition-colors">Signs of arthritis?</button>
-                  <button onClick={() => setQuestion("How much water should they drink?")} className="h-9 px-4 text-sm font-semibold bg-card border border-border rounded-full hover:border-primary transition-colors">Water intake?</button>
                   <button onClick={() => setQuestion("Should I worry about bad breath?")} className="h-9 px-4 text-sm font-semibold bg-card border border-border rounded-full hover:border-primary transition-colors">Bad breath causes?</button>
                 </div>
               </div>
@@ -366,7 +368,7 @@ export default function Insights() {
                 <textarea
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="Tell us what you've noticed…"
+                  placeholder="Ask Pawlie anything…"
                   className="flex-1 bg-accent/40 border border-border rounded-2xl px-4 py-3 min-h-[56px] max-h-[160px] resize-none focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground text-[15.5px]"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
