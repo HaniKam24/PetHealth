@@ -751,6 +751,62 @@ export interface SymptomEntryInput {
   note?: string;
 }
 
+/**
+ * One contributing signal, rendered through a fixed template — never freeform AI text. historicalDataPoint is always null today; kept in the shape for a real historical-fact source later.
+ */
+export interface AlertReasoningItem {
+  signal: string;
+  value: string;
+  /** @nullable */
+  historicalDataPoint: string | null;
+  weight: number;
+}
+
+export type AlertSeverity = typeof AlertSeverity[keyof typeof AlertSeverity];
+
+
+export const AlertSeverity = {
+  yellow: 'yellow',
+  red: 'red',
+} as const;
+
+export type AlertConfidence = typeof AlertConfidence[keyof typeof AlertConfidence];
+
+
+export const AlertConfidence = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+} as const;
+
+export type AlertStatus = typeof AlertStatus[keyof typeof AlertStatus];
+
+
+export const AlertStatus = {
+  active: 'active',
+  dismissed: 'dismissed',
+  resolved: 'resolved',
+} as const;
+
+/**
+ * A pure rule-based flag from Predictive Health Monitoring — one row represents a pet's current assessment; re-evaluation after each new Symptom Journal entry updates it in place rather than piling up duplicates. Never contains a symptom-to-medication or symptom-to-diagnosis guess — see docs/PRD.md §7e for why that line is firm.
+ */
+export interface Alert {
+  id: number;
+  petId: number;
+  /** @nullable */
+  triggeredByEntryId: number | null;
+  severity: AlertSeverity;
+  confidence: AlertConfidence;
+  reasoning: AlertReasoningItem[];
+  status: AlertStatus;
+  /** @nullable */
+  outcomeNote: string | null;
+  createdAt: string;
+  /** @nullable */
+  resolvedAt: string | null;
+}
+
 export type DashboardSummaryStats = {
   recordCount: number;
   activeMedicationCount: number;
