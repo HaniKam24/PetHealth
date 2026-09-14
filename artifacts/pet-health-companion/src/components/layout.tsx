@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   { href: '/records', label: 'Records' },
   { href: '/medications', label: 'Medicines' },
   { href: '/reminders', label: 'Reminders' },
-  { href: '/insights', label: 'Ask a question' },
+  { href: '/insights', label: 'Pawlie' },
   { href: '/smart-upload', label: 'Uploads' },
   { href: '/profile', label: 'Profile' },
 ];
