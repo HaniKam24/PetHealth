@@ -10,6 +10,9 @@ import {
   getGetPetQueryKey,
   getListPetsQueryKey,
   getGetDashboardSummaryQueryKey,
+  getListMedicationsQueryKey,
+  getListHealthRecordsQueryKey,
+  getListRemindersQueryKey,
   ApiError,
   type DocumentImport,
   type DocumentImportItem,
@@ -442,6 +445,12 @@ export default function SmartUpload() {
       queryClient.invalidateQueries({ queryKey: getGetPetQueryKey(activePetId) });
       queryClient.invalidateQueries({ queryKey: getListPetsQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+      // An accepted item can also create a real medication/record/reminder
+      // row — same gap as the profile fields above: the write succeeded,
+      // but the page listing that resource never knew to refetch.
+      queryClient.invalidateQueries({ queryKey: getListMedicationsQueryKey(activePetId) });
+      queryClient.invalidateQueries({ queryKey: getListHealthRecordsQueryKey(activePetId) });
+      queryClient.invalidateQueries({ queryKey: getListRemindersQueryKey(activePetId) });
     }
   };
 
