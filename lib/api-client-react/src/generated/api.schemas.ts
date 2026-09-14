@@ -648,6 +648,109 @@ export interface SymptomLogInput {
   insightId?: number | null;
 }
 
+/**
+ * @nullable
+ */
+export type SymptomEntryAppetite = typeof SymptomEntryAppetite[keyof typeof SymptomEntryAppetite] | null;
+
+
+export const SymptomEntryAppetite = {
+  low: 'low',
+  normal: 'normal',
+  high: 'high',
+} as const;
+
+/**
+ * @nullable
+ */
+export type SymptomEntryEnergy = typeof SymptomEntryEnergy[keyof typeof SymptomEntryEnergy] | null;
+
+
+export const SymptomEntryEnergy = {
+  low: 'low',
+  normal: 'normal',
+  high: 'high',
+} as const;
+
+/**
+ * @nullable
+ */
+export type SymptomEntryStoolQuality = typeof SymptomEntryStoolQuality[keyof typeof SymptomEntryStoolQuality] | null;
+
+
+export const SymptomEntryStoolQuality = {
+  normal: 'normal',
+  soft: 'soft',
+  diarrhea: 'diarrhea',
+  constipated: 'constipated',
+} as const;
+
+/**
+ * A Symptom Journal entry — deliberately separate from SymptomLog (a free-text note saved from a Pawlie chat answer). Every observation field is nullable since an owner logs whatever they actually noticed, not a mandatory checklist.
+ */
+export interface SymptomEntry {
+  id: number;
+  petId: number;
+  loggedAt: string;
+  /** @nullable */
+  appetite: SymptomEntryAppetite;
+  /** @nullable */
+  energy: SymptomEntryEnergy;
+  /** @nullable */
+  stoolQuality: SymptomEntryStoolQuality;
+  /** @nullable */
+  vomiting: boolean | null;
+  /** @nullable */
+  limping: boolean | null;
+  /** @nullable */
+  behaviorNote: string | null;
+  /** @nullable */
+  note: string | null;
+}
+
+export type SymptomEntryInputAppetite = typeof SymptomEntryInputAppetite[keyof typeof SymptomEntryInputAppetite];
+
+
+export const SymptomEntryInputAppetite = {
+  low: 'low',
+  normal: 'normal',
+  high: 'high',
+} as const;
+
+export type SymptomEntryInputEnergy = typeof SymptomEntryInputEnergy[keyof typeof SymptomEntryInputEnergy];
+
+
+export const SymptomEntryInputEnergy = {
+  low: 'low',
+  normal: 'normal',
+  high: 'high',
+} as const;
+
+export type SymptomEntryInputStoolQuality = typeof SymptomEntryInputStoolQuality[keyof typeof SymptomEntryInputStoolQuality];
+
+
+export const SymptomEntryInputStoolQuality = {
+  normal: 'normal',
+  soft: 'soft',
+  diarrhea: 'diarrhea',
+  constipated: 'constipated',
+} as const;
+
+/**
+ * Every field optional — the server rejects a request where all of them are empty, since a completely blank entry isn't worth saving.
+ */
+export interface SymptomEntryInput {
+  appetite?: SymptomEntryInputAppetite;
+  energy?: SymptomEntryInputEnergy;
+  stoolQuality?: SymptomEntryInputStoolQuality;
+  vomiting?: boolean;
+  limping?: boolean;
+  /** @minLength 1 */
+  behaviorNote?: string;
+  /** @minLength 1 */
+  note?: string;
+}
+
 export type DashboardSummaryStats = {
   recordCount: number;
   activeMedicationCount: number;

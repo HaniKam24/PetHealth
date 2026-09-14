@@ -814,6 +814,84 @@ export const CreateSymptomLogResponse = zod.object({
 
 
 /**
+ * @summary List Symptom Journal entries for a pet, most recent first
+ */
+
+
+
+export const ListSymptomEntriesParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+export const ListSymptomEntriesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "loggedAt": zod.coerce.date(),
+  "appetite": zod.union([zod.literal('low'),zod.literal('normal'),zod.literal('high'),zod.literal(null)]).nullable(),
+  "energy": zod.union([zod.literal('low'),zod.literal('normal'),zod.literal('high'),zod.literal(null)]).nullable(),
+  "stoolQuality": zod.union([zod.literal('normal'),zod.literal('soft'),zod.literal('diarrhea'),zod.literal('constipated'),zod.literal(null)]).nullable(),
+  "vomiting": zod.boolean().nullable(),
+  "limping": zod.boolean().nullable(),
+  "behaviorNote": zod.string().nullable(),
+  "note": zod.string().nullable()
+}).describe('A Symptom Journal entry — deliberately separate from SymptomLog (a free-text note saved from a Pawlie chat answer). Every observation field is nullable since an owner logs whatever they actually noticed, not a mandatory checklist.')
+export const ListSymptomEntriesResponse = zod.array(ListSymptomEntriesResponseItem)
+
+
+/**
+ * @summary Add a Symptom Journal entry — a structured, dated observation (appetite, energy, stool, vomiting, limping, notes), distinct from a symptom log saved from a Pawlie chat answer
+ */
+
+
+
+export const CreateSymptomEntryParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+
+export const CreateSymptomEntryBody = zod.object({
+  "appetite": zod.enum(['low', 'normal', 'high']).optional(),
+  "energy": zod.enum(['low', 'normal', 'high']).optional(),
+  "stoolQuality": zod.enum(['normal', 'soft', 'diarrhea', 'constipated']).optional(),
+  "vomiting": zod.boolean().optional(),
+  "limping": zod.boolean().optional(),
+  "behaviorNote": zod.string().min(1).optional(),
+  "note": zod.string().min(1).optional()
+}).describe('Every field optional — the server rejects a request where all of them are empty, since a completely blank entry isn\'t worth saving.')
+
+export const CreateSymptomEntryResponse = zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "loggedAt": zod.coerce.date(),
+  "appetite": zod.union([zod.literal('low'),zod.literal('normal'),zod.literal('high'),zod.literal(null)]).nullable(),
+  "energy": zod.union([zod.literal('low'),zod.literal('normal'),zod.literal('high'),zod.literal(null)]).nullable(),
+  "stoolQuality": zod.union([zod.literal('normal'),zod.literal('soft'),zod.literal('diarrhea'),zod.literal('constipated'),zod.literal(null)]).nullable(),
+  "vomiting": zod.boolean().nullable(),
+  "limping": zod.boolean().nullable(),
+  "behaviorNote": zod.string().nullable(),
+  "note": zod.string().nullable()
+}).describe('A Symptom Journal entry — deliberately separate from SymptomLog (a free-text note saved from a Pawlie chat answer). Every observation field is nullable since an owner logs whatever they actually noticed, not a mandatory checklist.')
+
+
+/**
+ * @summary Delete a Symptom Journal entry (e.g. a mis-tap)
+ */
+
+
+
+
+export const DeleteSymptomEntryParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "entryId": zod.coerce.number().int().min(1)
+})
+
+export const DeleteSymptomEntryResponse = zod.void()
+
+
+/**
  * @summary Complete a reminder
  */
 
