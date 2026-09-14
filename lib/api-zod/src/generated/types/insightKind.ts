@@ -7,7 +7,7 @@
  */
 
 /**
- * Whether a red flag short-circuited this to an escalation response.
+ * Whether a red flag short-circuited this to an escalation response, or (after a zipcode reply to one) a looked-up list of nearby emergency vets.
  */
 export type InsightKind = typeof InsightKind[keyof typeof InsightKind];
 
@@ -15,4 +15,5 @@ export type InsightKind = typeof InsightKind[keyof typeof InsightKind];
 export const InsightKind = {
   chat: 'chat',
   escalation: 'escalation',
+  emergency_vet_result: 'emergency_vet_result',
 } as const;

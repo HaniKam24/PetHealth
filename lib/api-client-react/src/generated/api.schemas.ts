@@ -539,7 +539,7 @@ export const InsightSource = {
 } as const;
 
 /**
- * Whether a red flag short-circuited this to an escalation response.
+ * Whether a red flag short-circuited this to an escalation response, or (after a zipcode reply to one) a looked-up list of nearby emergency vets.
  */
 export type InsightKind = typeof InsightKind[keyof typeof InsightKind];
 
@@ -547,7 +547,23 @@ export type InsightKind = typeof InsightKind[keyof typeof InsightKind];
 export const InsightKind = {
   chat: 'chat',
   escalation: 'escalation',
+  emergency_vet_result: 'emergency_vet_result',
 } as const;
+
+export type EmergencyVetMetadataVetsItem = {
+  name: string;
+  phone: string;
+  /** @nullable */
+  address: string | null;
+};
+
+/**
+ * Nearby emergency vet clinics found via web search, plus an AI-generated call script grounded in the pet's described symptoms. Never asserts a clinic is currently open — always call-ahead framed.
+ */
+export interface EmergencyVetMetadata {
+  vets: EmergencyVetMetadataVetsItem[];
+  script: string;
+}
 
 export type AiActionActionType = typeof AiActionActionType[keyof typeof AiActionActionType];
 
@@ -601,8 +617,15 @@ export interface Insight {
   source: InsightSource;
   createdAt: string;
   disclaimer: string;
-  /** Whether a red flag short-circuited this to an escalation response. */
+  /** Whether a red flag short-circuited this to an escalation response, or (after a zipcode reply to one) a looked-up list of nearby emergency vets. */
   kind: InsightKind;
+  /** Structured payload for kinds that need more than plain text. Currently only set for emergency_vet_result; null otherwise. */
+  metadata: EmergencyVetMetadata | null;
+  /**
+     * Set once the owner dismisses this insight's active-emergency dashboard banner. Null for every plain chat turn, which has no such banner.
+     * @nullable
+     */
+  dismissedAt: string | null;
   /** Set when Pawlie proposed a conversational action alongside this reply (e.g. "add a reminder for..."). Null for a plain answer with nothing to confirm. */
   action: AiAction | null;
 }
@@ -819,6 +842,8 @@ export interface DashboardSummary {
   activeMedications: Medication[];
   recentRecords: HealthRecord[];
   recentInsights: Insight[];
+  /** The most recent escalation/emergency_vet_result insight, if it's undismissed and within the last 48 hours. Null otherwise — clears only when the owner dismisses it, not on a timer. */
+  activeEmergency: Insight | null;
   stats: DashboardSummaryStats;
 }
 

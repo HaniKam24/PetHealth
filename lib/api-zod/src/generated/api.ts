@@ -1050,7 +1050,16 @@ export const GetDashboardSummaryResponse = zod.object({
   "source": zod.enum(['ai', 'record', 'reminder']),
   "createdAt": zod.coerce.date(),
   "disclaimer": zod.string(),
-  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.'),
+  "kind": zod.enum(['chat', 'escalation', 'emergency_vet_result']).describe('Whether a red flag short-circuited this to an escalation response, or (after a zipcode reply to one) a looked-up list of nearby emergency vets.'),
+  "metadata": zod.union([zod.object({
+  "vets": zod.array(zod.object({
+  "name": zod.string(),
+  "phone": zod.string(),
+  "address": zod.string().nullable()
+})),
+  "script": zod.string()
+}).describe('Nearby emergency vet clinics found via web search, plus an AI-generated call script grounded in the pet\'s described symptoms. Never asserts a clinic is currently open — always call-ahead framed.'),zod.null()]).describe('Structured payload for kinds that need more than plain text. Currently only set for emergency_vet_result; null otherwise.'),
+  "dismissedAt": zod.coerce.date().nullable().describe('Set once the owner dismisses this insight\'s active-emergency dashboard banner. Null for every plain chat turn, which has no such banner.'),
   "action": zod.union([zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
@@ -1064,11 +1073,91 @@ export const GetDashboardSummaryResponse = zod.object({
   "createdAt": zod.coerce.date()
 }).describe('A conversational edit Pawlie proposed — deliberately parallel to DocumentImportItem\'s review-gated shape. Nothing is written until the owner confirms.'),zod.null()]).describe('Set when Pawlie proposed a conversational action alongside this reply (e.g. \"add a reminder for...\"). Null for a plain answer with nothing to confirm.')
 })),
+  "activeEmergency": zod.union([zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "question": zod.string().describe('The owner\'s original question.'),
+  "tone": zod.enum(['helpful', 'watch', 'urgent']),
+  "source": zod.enum(['ai', 'record', 'reminder']),
+  "createdAt": zod.coerce.date(),
+  "disclaimer": zod.string(),
+  "kind": zod.enum(['chat', 'escalation', 'emergency_vet_result']).describe('Whether a red flag short-circuited this to an escalation response, or (after a zipcode reply to one) a looked-up list of nearby emergency vets.'),
+  "metadata": zod.union([zod.object({
+  "vets": zod.array(zod.object({
+  "name": zod.string(),
+  "phone": zod.string(),
+  "address": zod.string().nullable()
+})),
+  "script": zod.string()
+}).describe('Nearby emergency vet clinics found via web search, plus an AI-generated call script grounded in the pet\'s described symptoms. Never asserts a clinic is currently open — always call-ahead framed.'),zod.null()]).describe('Structured payload for kinds that need more than plain text. Currently only set for emergency_vet_result; null otherwise.'),
+  "dismissedAt": zod.coerce.date().nullable().describe('Set once the owner dismisses this insight\'s active-emergency dashboard banner. Null for every plain chat turn, which has no such banner.'),
+  "action": zod.union([zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "insightId": zod.number().int().nullable(),
+  "actionType": zod.enum(['create_reminder', 'complete_reminder', 'update_pet_profile', 'log_symptom']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on actionType — a ReminderInput-shaped object for create_reminder, {reminderId} for complete_reminder, a partial profile-update object (same shape as Smart Upload\'s vet_info item — any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex) for update_pet_profile, or {description} for log_symptom.'),
+  "status": zod.enum(['pending', 'confirmed', 'cancelled']),
+  "appliedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('A conversational edit Pawlie proposed — deliberately parallel to DocumentImportItem\'s review-gated shape. Nothing is written until the owner confirms.'),zod.null()]).describe('Set when Pawlie proposed a conversational action alongside this reply (e.g. \"add a reminder for...\"). Null for a plain answer with nothing to confirm.')
+}),zod.null()]).describe('The most recent escalation\/emergency_vet_result insight, if it\'s undismissed and within the last 48 hours. Null otherwise — clears only when the owner dismisses it, not on a timer.'),
   "stats": zod.object({
   "recordCount": zod.number().int(),
   "activeMedicationCount": zod.number().int(),
   "upcomingReminderCount": zod.number().int()
 })
+})
+
+
+/**
+ * @summary Dismiss an active-emergency dashboard banner (escalation or emergency_vet_result insight)
+ */
+
+
+
+
+export const DismissInsightParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "insightId": zod.coerce.number().int().min(1)
+})
+
+export const DismissInsightResponse = zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "question": zod.string().describe('The owner\'s original question.'),
+  "tone": zod.enum(['helpful', 'watch', 'urgent']),
+  "source": zod.enum(['ai', 'record', 'reminder']),
+  "createdAt": zod.coerce.date(),
+  "disclaimer": zod.string(),
+  "kind": zod.enum(['chat', 'escalation', 'emergency_vet_result']).describe('Whether a red flag short-circuited this to an escalation response, or (after a zipcode reply to one) a looked-up list of nearby emergency vets.'),
+  "metadata": zod.union([zod.object({
+  "vets": zod.array(zod.object({
+  "name": zod.string(),
+  "phone": zod.string(),
+  "address": zod.string().nullable()
+})),
+  "script": zod.string()
+}).describe('Nearby emergency vet clinics found via web search, plus an AI-generated call script grounded in the pet\'s described symptoms. Never asserts a clinic is currently open — always call-ahead framed.'),zod.null()]).describe('Structured payload for kinds that need more than plain text. Currently only set for emergency_vet_result; null otherwise.'),
+  "dismissedAt": zod.coerce.date().nullable().describe('Set once the owner dismisses this insight\'s active-emergency dashboard banner. Null for every plain chat turn, which has no such banner.'),
+  "action": zod.union([zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "insightId": zod.number().int().nullable(),
+  "actionType": zod.enum(['create_reminder', 'complete_reminder', 'update_pet_profile', 'log_symptom']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on actionType — a ReminderInput-shaped object for create_reminder, {reminderId} for complete_reminder, a partial profile-update object (same shape as Smart Upload\'s vet_info item — any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex) for update_pet_profile, or {description} for log_symptom.'),
+  "status": zod.enum(['pending', 'confirmed', 'cancelled']),
+  "appliedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('A conversational edit Pawlie proposed — deliberately parallel to DocumentImportItem\'s review-gated shape. Nothing is written until the owner confirms.'),zod.null()]).describe('Set when Pawlie proposed a conversational action alongside this reply (e.g. \"add a reminder for...\"). Null for a plain answer with nothing to confirm.')
 })
 
 
@@ -1093,7 +1182,16 @@ export const ListInsightsResponse = zod.object({
   "source": zod.enum(['ai', 'record', 'reminder']),
   "createdAt": zod.coerce.date(),
   "disclaimer": zod.string(),
-  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.'),
+  "kind": zod.enum(['chat', 'escalation', 'emergency_vet_result']).describe('Whether a red flag short-circuited this to an escalation response, or (after a zipcode reply to one) a looked-up list of nearby emergency vets.'),
+  "metadata": zod.union([zod.object({
+  "vets": zod.array(zod.object({
+  "name": zod.string(),
+  "phone": zod.string(),
+  "address": zod.string().nullable()
+})),
+  "script": zod.string()
+}).describe('Nearby emergency vet clinics found via web search, plus an AI-generated call script grounded in the pet\'s described symptoms. Never asserts a clinic is currently open — always call-ahead framed.'),zod.null()]).describe('Structured payload for kinds that need more than plain text. Currently only set for emergency_vet_result; null otherwise.'),
+  "dismissedAt": zod.coerce.date().nullable().describe('Set once the owner dismisses this insight\'s active-emergency dashboard banner. Null for every plain chat turn, which has no such banner.'),
   "action": zod.union([zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
@@ -1137,7 +1235,16 @@ export const AskInsightResponse = zod.object({
   "source": zod.enum(['ai', 'record', 'reminder']),
   "createdAt": zod.coerce.date(),
   "disclaimer": zod.string(),
-  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.'),
+  "kind": zod.enum(['chat', 'escalation', 'emergency_vet_result']).describe('Whether a red flag short-circuited this to an escalation response, or (after a zipcode reply to one) a looked-up list of nearby emergency vets.'),
+  "metadata": zod.union([zod.object({
+  "vets": zod.array(zod.object({
+  "name": zod.string(),
+  "phone": zod.string(),
+  "address": zod.string().nullable()
+})),
+  "script": zod.string()
+}).describe('Nearby emergency vet clinics found via web search, plus an AI-generated call script grounded in the pet\'s described symptoms. Never asserts a clinic is currently open — always call-ahead framed.'),zod.null()]).describe('Structured payload for kinds that need more than plain text. Currently only set for emergency_vet_result; null otherwise.'),
+  "dismissedAt": zod.coerce.date().nullable().describe('Set once the owner dismisses this insight\'s active-emergency dashboard banner. Null for every plain chat turn, which has no such banner.'),
   "action": zod.union([zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
@@ -1165,10 +1272,9 @@ export const AskInsightResponse = zod.object({
 
 
 
-
 export const ConfirmAiActionParams = zod.object({
   "petId": zod.coerce.number().int().min(1),
-  "actionId": zod.coerce.number().int().min(1)
+  "actionId": zod.coerce.number().int()
 })
 
 export const ConfirmAiActionResponse = zod.object({
@@ -1191,10 +1297,9 @@ export const ConfirmAiActionResponse = zod.object({
 
 
 
-
 export const CancelAiActionParams = zod.object({
   "petId": zod.coerce.number().int().min(1),
-  "actionId": zod.coerce.number().int().min(1)
+  "actionId": zod.coerce.number().int()
 })
 
 export const CancelAiActionResponse = zod.object({

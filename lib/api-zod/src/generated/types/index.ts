@@ -36,6 +36,8 @@ export * from './documentImportUploadError';
 export * from './documentImportUploadErrorCode';
 export * from './documentUploadResult';
 export * from './documentUrlResponse';
+export * from './emergencyVetMetadata';
+export * from './emergencyVetMetadataVetsItem';
 export * from './error';
 export * from './getDashboardSummaryParams';
 export * from './healthRecord';

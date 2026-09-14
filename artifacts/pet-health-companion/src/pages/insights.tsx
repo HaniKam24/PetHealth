@@ -25,11 +25,12 @@ import {
   type SymptomEntryEnergy,
   type SymptomEntryStoolQuality,
   type AiAction,
+  type EmergencyVetMetadata,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearch, useLocation } from 'wouter';
-import { Sparkles, Send, PawPrint, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill, NotebookPen, Trash2, Check, X, Loader2, Bell, Stethoscope } from 'lucide-react';
+import { Sparkles, Send, PawPrint, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill, NotebookPen, Trash2, Check, X, Loader2, Bell, Stethoscope, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -92,6 +93,63 @@ function renderBlock(block: string, key: number) {
     <div key={key}>
       {headingNode}
       {rest && <p>{renderFormattedText(rest)}</p>}
+    </div>
+  );
+}
+
+// Read-only — unlike ActionCard, there's nothing to confirm/cancel here.
+// Every phone number is a real tel: link; the "call ahead" line is
+// deliberate, not filler — web search can't guarantee real-time hours, and
+// asserting a clinic is open when it might not be is exactly the kind of
+// mistake this app can't afford to make in a genuine emergency.
+function EmergencyVetCard({ metadata }: { metadata: EmergencyVetMetadata }) {
+  const { toast } = useToast();
+
+  const handleCopyScript = async () => {
+    try {
+      await navigator.clipboard.writeText(metadata.script);
+      toast({ title: 'Copied', description: 'Script copied — read it when they pick up.' });
+    } catch {
+      toast({ title: "Couldn't copy", description: 'Your browser blocked clipboard access.', variant: 'destructive' });
+    }
+  };
+
+  if (metadata.vets.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col gap-3 mt-1">
+      <div className="flex flex-col gap-2">
+        {metadata.vets.map((vet, i) => (
+          <div key={i} className="bg-accent/40 border border-border rounded-2xl p-4 flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="font-serif font-extrabold truncate">{vet.name}</div>
+              {vet.address && <div className="text-xs text-muted-foreground truncate mt-0.5">{vet.address}</div>}
+            </div>
+            <a
+              href={`tel:${vet.phone}`}
+              className="shrink-0 h-9 flex items-center gap-1.5 px-3.5 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors"
+            >
+              <Phone size={14} /> {vet.phone}
+            </a>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground px-1">
+        Found via web search, not a live directory — call ahead to confirm they're open and can see you before heading over.
+      </p>
+      <div className="bg-card border border-border rounded-2xl p-4">
+        <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">What to say when they answer</div>
+        <p className="text-sm">{metadata.script}</p>
+        <button
+          type="button"
+          onClick={handleCopyScript}
+          className="mt-3 h-9 flex items-center gap-1.5 px-3.5 text-sm font-bold rounded-full border border-border hover:bg-accent transition-colors"
+        >
+          Copy script
+        </button>
+      </div>
     </div>
   );
 }
@@ -664,6 +722,9 @@ export default function Insights() {
                             {insight.kind === 'escalation' && (
                               <div className="text-xs font-bold text-destructive">Escalated — contact your vet</div>
                             )}
+                            {insight.kind === 'emergency_vet_result' && (
+                              <div className="text-xs font-bold text-destructive">Emergency vet lookup</div>
+                            )}
                           </div>
                         </div>
                         <div className="prose prose-sm md:prose-base prose-p:leading-relaxed prose-p:text-foreground/90 prose-headings:font-serif prose-strong:text-foreground max-w-none">
@@ -696,6 +757,9 @@ export default function Insights() {
                           onConfirm={() => confirmAction.mutate({ petId: activePetId, actionId: insight.action!.id })}
                           onCancel={() => cancelAction.mutate({ petId: activePetId, actionId: insight.action!.id })}
                         />
+                      )}
+                      {insight.kind === 'emergency_vet_result' && insight.metadata && (
+                        <EmergencyVetCard metadata={insight.metadata} />
                       )}
                     </div>
                   );

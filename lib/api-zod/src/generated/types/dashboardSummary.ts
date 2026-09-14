@@ -18,5 +18,7 @@ export interface DashboardSummary {
   activeMedications: Medication[];
   recentRecords: HealthRecord[];
   recentInsights: Insight[];
+  /** The most recent escalation/emergency_vet_result insight, if it's undismissed and within the last 48 hours. Null otherwise — clears only when the owner dismisses it, not on a timer. */
+  activeEmergency: Insight | null;
   stats: DashboardSummaryStats;
 }
