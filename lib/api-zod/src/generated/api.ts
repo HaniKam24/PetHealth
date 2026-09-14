@@ -1050,7 +1050,15 @@ export const GetDashboardSummaryResponse = zod.object({
   "source": zod.enum(['ai', 'record', 'reminder']),
   "createdAt": zod.coerce.date(),
   "disclaimer": zod.string(),
-  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.'),
+  "kind": zod.enum(['chat', 'escalation', 'emergency_vet_result']).describe('Whether a red flag short-circuited this to an escalation response, or (after a zipcode reply to one) a looked-up list of nearby emergency vets.'),
+  "metadata": zod.union([zod.object({
+  "vets": zod.array(zod.object({
+  "name": zod.string(),
+  "phone": zod.string(),
+  "address": zod.string().nullable()
+})),
+  "script": zod.string()
+}).describe('Nearby emergency vet clinics found via web search, plus an AI-generated call script grounded in the pet\'s described symptoms. Never asserts a clinic is currently open — always call-ahead framed.'),zod.null()]).describe('Structured payload for kinds that need more than plain text. Currently only set for emergency_vet_result; null otherwise.'),
   "action": zod.union([zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
@@ -1093,7 +1101,15 @@ export const ListInsightsResponse = zod.object({
   "source": zod.enum(['ai', 'record', 'reminder']),
   "createdAt": zod.coerce.date(),
   "disclaimer": zod.string(),
-  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.'),
+  "kind": zod.enum(['chat', 'escalation', 'emergency_vet_result']).describe('Whether a red flag short-circuited this to an escalation response, or (after a zipcode reply to one) a looked-up list of nearby emergency vets.'),
+  "metadata": zod.union([zod.object({
+  "vets": zod.array(zod.object({
+  "name": zod.string(),
+  "phone": zod.string(),
+  "address": zod.string().nullable()
+})),
+  "script": zod.string()
+}).describe('Nearby emergency vet clinics found via web search, plus an AI-generated call script grounded in the pet\'s described symptoms. Never asserts a clinic is currently open — always call-ahead framed.'),zod.null()]).describe('Structured payload for kinds that need more than plain text. Currently only set for emergency_vet_result; null otherwise.'),
   "action": zod.union([zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
@@ -1137,7 +1153,15 @@ export const AskInsightResponse = zod.object({
   "source": zod.enum(['ai', 'record', 'reminder']),
   "createdAt": zod.coerce.date(),
   "disclaimer": zod.string(),
-  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.'),
+  "kind": zod.enum(['chat', 'escalation', 'emergency_vet_result']).describe('Whether a red flag short-circuited this to an escalation response, or (after a zipcode reply to one) a looked-up list of nearby emergency vets.'),
+  "metadata": zod.union([zod.object({
+  "vets": zod.array(zod.object({
+  "name": zod.string(),
+  "phone": zod.string(),
+  "address": zod.string().nullable()
+})),
+  "script": zod.string()
+}).describe('Nearby emergency vet clinics found via web search, plus an AI-generated call script grounded in the pet\'s described symptoms. Never asserts a clinic is currently open — always call-ahead framed.'),zod.null()]).describe('Structured payload for kinds that need more than plain text. Currently only set for emergency_vet_result; null otherwise.'),
   "action": zod.union([zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),

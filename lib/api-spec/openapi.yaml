@@ -1085,13 +1085,33 @@ components:
         source: { type: string, enum: [ai, record, reminder] }
         createdAt: { type: string, format: date-time }
         disclaimer: { type: string }
-        kind: { type: string, enum: [chat, escalation], description: "Whether a red flag short-circuited this to an escalation response." }
+        kind: { type: string, enum: [chat, escalation, emergency_vet_result], description: "Whether a red flag short-circuited this to an escalation response, or (after a zipcode reply to one) a looked-up list of nearby emergency vets." }
+        metadata:
+          description: Structured payload for kinds that need more than plain text. Currently only set for emergency_vet_result; null otherwise.
+          oneOf:
+            - $ref: "#/components/schemas/EmergencyVetMetadata"
+            - type: "null"
         action:
           description: Set when Pawlie proposed a conversational action alongside this reply (e.g. "add a reminder for..."). Null for a plain answer with nothing to confirm.
           oneOf:
             - $ref: "#/components/schemas/AiAction"
             - type: "null"
-      required: [id, petId, title, content, question, tone, source, createdAt, disclaimer, kind, action]
+      required: [id, petId, title, content, question, tone, source, createdAt, disclaimer, kind, metadata, action]
+    EmergencyVetMetadata:
+      type: object
+      description: Nearby emergency vet clinics found via web search, plus an AI-generated call script grounded in the pet's described symptoms. Never asserts a clinic is currently open — always call-ahead framed.
+      properties:
+        vets:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              phone: { type: string }
+              address: { type: ["string", "null"] }
+            required: [name, phone, address]
+        script: { type: string }
+      required: [vets, script]
     AiAction:
       type: object
       description: A conversational edit Pawlie proposed — deliberately parallel to DocumentImportItem's review-gated shape. Nothing is written until the owner confirms.

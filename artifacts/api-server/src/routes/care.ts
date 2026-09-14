@@ -53,7 +53,8 @@ import {
 import { anthropic } from "@workspace/integrations-anthropic-ai-server";
 import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument } from "../lib/storage";
 import { runCareRecommendationsEngine, suppressRedundantSystemReminder } from "../lib/care-recommendations";
-import { buildEscalationMessage, isRedFlagQuestion } from "../lib/symptom-escalation";
+import { buildEscalationMessage, isRedFlagQuestion, looksLikeZipCode } from "../lib/symptom-escalation";
+import { lookupEmergencyVets } from "../lib/emergency-vet-lookup";
 import { assertChatQuotaAvailable, ChatQuotaExceededError, getChatQuota, recordChatUsage } from "../lib/chat-quota";
 import { ALLOWED_DOCUMENT_MIME_TYPES, handleSingleFileUpload } from "../lib/upload-middleware";
 import { logger } from "../lib/logger";
@@ -834,6 +835,39 @@ router.post("/insights", async (req, res, next) => {
     const [pet] = await db.select().from(pets).where(eq(pets.id, petId));
     if (!pet) {
       res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+
+    // A zipcode-shaped reply right after an escalation is treated as an
+    // answer to "what's your zipcode?" (see symptom-escalation.ts), not a
+    // fresh question — no other code path would ever ask for one. Same
+    // quota exemption as the escalation itself: a maxed-out quota must
+    // never block finding real emergency care.
+    const [mostRecentInsight] = await db
+      .select()
+      .from(insights)
+      .where(eq(insights.petId, petId))
+      .orderBy(desc(insights.createdAt))
+      .limit(1);
+    if (mostRecentInsight?.kind === "escalation" && looksLikeZipCode(question)) {
+      const result = await lookupEmergencyVets(pet.name, question.trim(), mostRecentInsight.question);
+      const [created] = await db
+        .insert(insights)
+        .values({
+          petId,
+          title: result ? "Nearby emergency vets" : "Couldn't find nearby emergency vets",
+          content: result
+            ? "Here's what I found — call ahead to confirm they're open before heading over."
+            : "I couldn't find emergency vet listings for that area. Please call your own vet's after-hours line or the nearest emergency animal hospital directly.",
+          question,
+          tone: "urgent",
+          kind: "emergency_vet_result",
+          source: "ai",
+          disclaimer: DISCLAIMER,
+          metadata: result,
+        })
+        .returning();
+      res.json({ insight: asInsight(created!), quota: await getChatQuota(userId) });
       return;
     }
 

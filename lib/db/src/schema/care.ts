@@ -1,6 +1,7 @@
 import {
   boolean,
   integer,
+  jsonb,
   numeric,
   pgTable,
   serial,
@@ -94,9 +95,13 @@ export const insights = pgTable("insights", {
   source: text("source").notNull().default("ai"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   disclaimer: text("disclaimer").notNull(),
-  // chat|escalation — the semantic audit flag distinct from `tone` (which
-  // is a UI-styling spectrum: helpful/watch/urgent).
-  kind: text("kind", { enum: ["chat", "escalation"] }).notNull().default("chat"),
+  // chat|escalation|emergency_vet_result — the semantic audit flag distinct
+  // from `tone` (which is a UI-styling spectrum: helpful/watch/urgent).
+  kind: text("kind", { enum: ["chat", "escalation", "emergency_vet_result"] }).notNull().default("chat"),
+  // Structured payload for kinds that need more than plain text — currently
+  // only emergency_vet_result ({ vets: [...], script }), rendered as a card
+  // rather than parsed out of prose. Null for every other kind.
+  metadata: jsonb("metadata"),
 });
 
 export const symptomLogs = pgTable("symptom_logs", {

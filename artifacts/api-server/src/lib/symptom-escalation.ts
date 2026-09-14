@@ -10,6 +10,14 @@ export function isRedFlagQuestion(question: string): boolean {
   return RED_FLAG_PATTERN.test(question);
 }
 
+// A US zipcode, 5-digit or ZIP+4 — used only to recognize a reply to the
+// "what's your zipcode?" offer below as such, not to validate deliverability.
+const ZIP_CODE_PATTERN = /^\d{5}(-\d{4})?$/;
+
+export function looksLikeZipCode(text: string): boolean {
+  return ZIP_CODE_PATTERN.test(text.trim());
+}
+
 interface PetVetContact {
   vetName: string | null;
   vetClinic: string | null;
@@ -30,5 +38,5 @@ export function buildEscalationMessage(pet: PetVetContact): string {
       ? `Contact your pet's saved vet right away:\n\n${contactLines.join("\n")}`
       : "Contact the nearest emergency veterinary clinic right away — this app doesn't have a vet saved for this pet yet.";
 
-  return `What you're describing could be a medical emergency. Please don't wait — seek veterinary care now rather than continuing to look for guidance here.\n\n${contactBlock}`;
+  return `What you're describing could be a medical emergency. Please don't wait — seek veterinary care now rather than continuing to look for guidance here.\n\n${contactBlock}\n\nIf you'd like, I can also look up emergency vet clinics near you — just reply with your zipcode.`;
 }
