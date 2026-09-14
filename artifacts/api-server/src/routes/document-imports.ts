@@ -20,6 +20,7 @@ import {
   PetNameMismatchError,
   ScannedDocumentError,
   TooManyPagesError,
+  UnreadableImageError,
   extractDocument,
 } from "../lib/document-extraction";
 import {
@@ -179,7 +180,11 @@ router.post(
           res.status(400).json({ error: error.message, code: "pet_name_mismatch" });
           return;
         }
-        if (error instanceof TooManyPagesError || error instanceof ScannedDocumentError) {
+        if (
+          error instanceof TooManyPagesError ||
+          error instanceof ScannedDocumentError ||
+          error instanceof UnreadableImageError
+        ) {
           await deleteDocumentBestEffort(uploaded.path);
           res.status(400).json({ error: error.message });
           return;
