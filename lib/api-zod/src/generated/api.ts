@@ -892,6 +892,67 @@ export const DeleteSymptomEntryResponse = zod.void()
 
 
 /**
+ * @summary List Predictive Health Monitoring alerts for a pet (active first, most recent first)
+ */
+
+
+
+export const ListAlertsParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+export const ListAlertsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "triggeredByEntryId": zod.number().int().nullable(),
+  "severity": zod.enum(['yellow', 'red']),
+  "confidence": zod.enum(['low', 'medium', 'high']),
+  "reasoning": zod.array(zod.object({
+  "signal": zod.string(),
+  "value": zod.string(),
+  "historicalDataPoint": zod.string().nullable(),
+  "weight": zod.number()
+}).describe('One contributing signal, rendered through a fixed template — never freeform AI text. historicalDataPoint is always null today; kept in the shape for a real historical-fact source later.')),
+  "status": zod.enum(['active', 'dismissed', 'resolved']),
+  "outcomeNote": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullable()
+}).describe('A pure rule-based flag from Predictive Health Monitoring — one row represents a pet\'s current assessment; re-evaluation after each new Symptom Journal entry updates it in place rather than piling up duplicates. Never contains a symptom-to-medication or symptom-to-diagnosis guess — see docs\/PRD.md §7e for why that line is firm.')
+export const ListAlertsResponse = zod.array(ListAlertsResponseItem)
+
+
+/**
+ * @summary Dismiss an active alert — the owner has seen it and doesn't need it surfaced anymore
+ */
+
+
+
+
+export const DismissAlertParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "alertId": zod.coerce.number().int().min(1)
+})
+
+export const DismissAlertResponse = zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "triggeredByEntryId": zod.number().int().nullable(),
+  "severity": zod.enum(['yellow', 'red']),
+  "confidence": zod.enum(['low', 'medium', 'high']),
+  "reasoning": zod.array(zod.object({
+  "signal": zod.string(),
+  "value": zod.string(),
+  "historicalDataPoint": zod.string().nullable(),
+  "weight": zod.number()
+}).describe('One contributing signal, rendered through a fixed template — never freeform AI text. historicalDataPoint is always null today; kept in the shape for a real historical-fact source later.')),
+  "status": zod.enum(['active', 'dismissed', 'resolved']),
+  "outcomeNote": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullable()
+}).describe('A pure rule-based flag from Predictive Health Monitoring — one row represents a pet\'s current assessment; re-evaluation after each new Symptom Journal entry updates it in place rather than piling up duplicates. Never contains a symptom-to-medication or symptom-to-diagnosis guess — see docs\/PRD.md §7e for why that line is firm.')
+
+
+/**
  * @summary Complete a reminder
  */
 

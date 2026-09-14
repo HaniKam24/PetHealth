@@ -4,12 +4,13 @@ import healthRouter from "./health";
 import careRouter from "./care";
 import documentImportsRouter from "./document-imports";
 import symptomEntriesRouter from "./symptom-entries";
+import alertsRouter from "./alerts";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 // Every pet-scoped route requires a signed-in session. Per-owner data
 // scoping (does this session's user actually own this pet) lands in Bolt 2.
-router.use(requireAuth, careRouter, documentImportsRouter, symptomEntriesRouter);
+router.use(requireAuth, careRouter, documentImportsRouter, symptomEntriesRouter, alertsRouter);
 
 export default router;

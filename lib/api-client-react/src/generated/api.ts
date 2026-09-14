@@ -22,6 +22,7 @@ import type {
 import type {
   AcceptDocumentImportItemBody,
   AiAction,
+  Alert,
   CreateDocumentImportBody,
   DashboardSummary,
   DocumentImportItem,
@@ -2340,6 +2341,156 @@ export const useDeleteSymptomEntry = <TError = ErrorType<NotFoundResponse>,
         TContext
       > => {
       return useMutation(getDeleteSymptomEntryMutationOptions(options));
+    }
+
+export const getListAlertsUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/alerts`
+}
+
+/**
+ * @summary List Predictive Health Monitoring alerts for a pet (active first, most recent first)
+ */
+export const listAlerts = async (petId: number, options?: Parameters<typeof customFetch>[1]): Promise<Alert[]> => {
+
+  return customFetch<Alert[]>(getListAlertsUrl(petId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAlertsQueryKey = (petId: number,) => {
+    return [
+    `/api/pets/${petId}/alerts`
+    ] as const;
+    }
+
+
+export const getListAlertsQueryOptions = <TData = Awaited<ReturnType<typeof listAlerts>>, TError = ErrorType<unknown>>(petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAlerts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAlertsQueryKey(petId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAlerts>>> = ({ signal }) => listAlerts(petId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: petId !== null && petId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAlerts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAlertsQueryResult = NonNullable<Awaited<ReturnType<typeof listAlerts>>>
+export type ListAlertsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List Predictive Health Monitoring alerts for a pet (active first, most recent first)
+ */
+
+export function useListAlerts<TData = Awaited<ReturnType<typeof listAlerts>>, TError = ErrorType<unknown>>(
+ petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAlerts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAlertsQueryOptions(petId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDismissAlertUrl = (petId: number,
+    alertId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/alerts/${alertId}/dismiss`
+}
+
+/**
+ * @summary Dismiss an active alert — the owner has seen it and doesn't need it surfaced anymore
+ */
+export const dismissAlert = async (petId: number,
+    alertId: number, options?: Parameters<typeof customFetch>[1]): Promise<Alert> => {
+
+  return customFetch<Alert>(getDismissAlertUrl(petId,alertId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDismissAlertMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissAlert>>, TError,{petId: number;alertId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissAlert>>, TError,{petId: number;alertId: number}, TContext> => {
+
+const mutationKey = ['dismissAlert'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissAlert>>, {petId: number;alertId: number}> = (props) => {
+          const {petId,alertId} = props ?? {};
+
+          return  dismissAlert(petId,alertId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissAlertMutationResult = NonNullable<Awaited<ReturnType<typeof dismissAlert>>>
+
+    export type DismissAlertMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Dismiss an active alert — the owner has seen it and doesn't need it surfaced anymore
+ */
+export const useDismissAlert = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissAlert>>, TError,{petId: number;alertId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof dismissAlert>>,
+        TError,
+        {petId: number;alertId: number},
+        TContext
+      > => {
+      return useMutation(getDismissAlertMutationOptions(options));
     }
 
 export const getCompleteReminderUrl = (reminderId: number,) => {
