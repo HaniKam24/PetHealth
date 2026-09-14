@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db, healthRecords, medications, pets, reminders, symptomLogs, weightLogs } from "@workspace/db";
+import { db, healthRecords, medications, pets, reminders, symptomEntries, symptomLogs, weightLogs } from "@workspace/db";
 import type { CreateHealthRecordBody, CreateMedicationBody, CreateReminderBody } from "@workspace/api-zod";
 import { runCareRecommendationsEngine, suppressRedundantSystemReminder } from "./care-recommendations";
 
@@ -37,6 +37,29 @@ export async function insertReminderForPet(petId: number, body: z.infer<typeof C
     .values({ petId, ...body, dueDate: asDateString(body.dueDate)!, completed: false, source: "owner" })
     .returning();
   await suppressRedundantSystemReminder(petId, created!);
+  return created!;
+}
+
+// Mirrors symptom-entries.ts's own POST handler — used when Pawlie itself
+// detects a symptom worth logging (currently only the emergency-vet flow,
+// where it writes immediately without a confirm step; see
+// emergency-vet-lookup.ts for why that's scoped narrowly to this one flow).
+export async function insertSymptomEntryForPet(
+  petId: number,
+  body: {
+    appetite?: "low" | "normal" | "high";
+    energy?: "low" | "normal" | "high";
+    stoolQuality?: "normal" | "soft" | "diarrhea" | "constipated";
+    vomiting?: boolean;
+    limping?: boolean;
+    behaviorNote?: string;
+    note?: string;
+  },
+) {
+  const [created] = await db
+    .insert(symptomEntries)
+    .values({ petId, ...body })
+    .returning();
   return created!;
 }
 

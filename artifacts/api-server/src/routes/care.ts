@@ -6,6 +6,7 @@ import {
   CancelAiActionParams,
   CompleteReminderParams,
   ConfirmAiActionParams,
+  DismissInsightParams,
   CreateHealthRecordBody,
   CreateHealthRecordParams,
   CreateMedicationBody,
@@ -53,14 +54,16 @@ import {
 import { anthropic } from "@workspace/integrations-anthropic-ai-server";
 import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument } from "../lib/storage";
 import { runCareRecommendationsEngine, suppressRedundantSystemReminder } from "../lib/care-recommendations";
-import { buildEscalationMessage, isRedFlagQuestion, looksLikeZipCode } from "../lib/symptom-escalation";
+import { buildEscalationMessage, isRedFlagQuestion, extractZipCode } from "../lib/symptom-escalation";
 import { lookupEmergencyVets } from "../lib/emergency-vet-lookup";
 import { assertChatQuotaAvailable, ChatQuotaExceededError, getChatQuota, recordChatUsage } from "../lib/chat-quota";
 import { ALLOWED_DOCUMENT_MIME_TYPES, handleSingleFileUpload } from "../lib/upload-middleware";
 import { logger } from "../lib/logger";
 import {
   completeReminderForPet,
+  insertHealthRecordForPet,
   insertReminderForPet,
+  insertSymptomEntryForPet,
   insertSymptomLogForPet,
   ProfileUpdateBody,
   updatePetProfile,
@@ -849,7 +852,8 @@ router.post("/insights", async (req, res, next) => {
       .where(eq(insights.petId, petId))
       .orderBy(desc(insights.createdAt))
       .limit(1);
-    if (mostRecentInsight?.kind === "escalation" && looksLikeZipCode(question)) {
+    const zipCode = extractZipCode(question);
+    if (mostRecentInsight?.kind === "escalation" && zipCode) {
       // The triggering question alone is often just "emergency" or "nearest
       // vet" with no real symptom detail — the Symptom Journal (timestamped,
       // structured) is what actually grounds the call script in what's
@@ -860,7 +864,32 @@ router.post("/insights", async (req, res, next) => {
         .where(eq(symptomEntries.petId, petId))
         .orderBy(desc(symptomEntries.loggedAt))
         .limit(20);
-      const result = await lookupEmergencyVets(pet.name, question.trim(), mostRecentInsight.question, recentSymptomEntries);
+      const result = await lookupEmergencyVets(pet.name, zipCode, mostRecentInsight.question, question, recentSymptomEntries);
+
+      // Everything below writes immediately, with no owner confirm step —
+      // the one deliberate exception to Bolt 21's "nothing written without
+      // confirmation" rule, scoped strictly to this active-emergency
+      // exchange (see emergency-vet-lookup.ts's file-level note for why).
+      if (result?.symptomEntry) {
+        await insertSymptomEntryForPet(petId, result.symptomEntry);
+      }
+      const foundVetNames = result?.vets.map((v) => v.name).join(", ");
+      await insertHealthRecordForPet(petId, {
+        type: "visit",
+        title: "Emergency vet visit",
+        date: new Date(),
+        clinic: null,
+        summary: foundVetNames
+          ? `Owner reported a possible emergency and was directed to nearby clinics near ${zipCode}: ${foundVetNames}. Placeholder record — replace with the real visit details once available.`
+          : `Owner reported a possible emergency near ${zipCode}. Placeholder record — replace with the real visit details once available.`,
+      });
+      await insertReminderForPet(petId, {
+        title: "Add the emergency visit report",
+        dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        category: "other",
+        note: "Once you're back, add what the emergency vet found — replace this reminder with the real visit summary.",
+      });
+
       const [created] = await db
         .insert(insights)
         .values({
@@ -1058,6 +1087,33 @@ router.post("/insights", async (req, res, next) => {
   }
 });
 
+router.post("/pets/:petId/insights/:insightId/dismiss", async (req, res, next) => {
+  try {
+    const userId = requireUserId(req);
+    const { petId, insightId } = DismissInsightParams.parse(req.params);
+    if (!(await isPetOwnedByUser(userId, petId))) {
+      res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+    const [insight] = await db
+      .select()
+      .from(insights)
+      .where(and(eq(insights.id, insightId), eq(insights.petId, petId)));
+    if (!insight) {
+      res.status(404).json({ error: "Insight not found" });
+      return;
+    }
+    const [updated] = await db
+      .update(insights)
+      .set({ dismissedAt: new Date() })
+      .where(eq(insights.id, insightId))
+      .returning();
+    res.json(asInsight(updated!));
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post("/pets/:petId/ai-actions/:actionId/confirm", async (req, res, next) => {
   try {
     const userId = requireUserId(req);
@@ -1182,12 +1238,27 @@ router.get("/dashboard/summary", async (req, res, next) => {
       db.select().from(insights).where(eq(insights.petId, pet.id)).orderBy(desc(insights.createdAt)).limit(4),
     ]);
 
+    // Surfaces on the dashboard until the owner dismisses it (no
+    // auto-expiry per the design decision) but bounded to a recent window
+    // regardless — a months-old undismissed emergency the owner simply
+    // never got back to shouldn't linger as an active banner forever.
+    const EMERGENCY_WINDOW_MS = 48 * 60 * 60 * 1000;
+    const mostRecentForEmergency = recentInsights[0];
+    const activeEmergency =
+      mostRecentForEmergency &&
+      (mostRecentForEmergency.kind === "escalation" || mostRecentForEmergency.kind === "emergency_vet_result") &&
+      !mostRecentForEmergency.dismissedAt &&
+      Date.now() - mostRecentForEmergency.createdAt.getTime() <= EMERGENCY_WINDOW_MS
+        ? asInsight(mostRecentForEmergency)
+        : null;
+
     res.json({
       pet: asPet(pet),
       upcomingReminders: todos.slice(0, 5),
       activeMedications: meds.map(asMedication),
       recentRecords: records.slice(0, 5),
       recentInsights: recentInsights.map((insight) => asInsight(insight)),
+      activeEmergency,
       stats: {
         recordCount: records.length,
         activeMedicationCount: meds.length,

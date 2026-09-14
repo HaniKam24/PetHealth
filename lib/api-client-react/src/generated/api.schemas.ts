@@ -621,6 +621,11 @@ export interface Insight {
   kind: InsightKind;
   /** Structured payload for kinds that need more than plain text. Currently only set for emergency_vet_result; null otherwise. */
   metadata: EmergencyVetMetadata | null;
+  /**
+     * Set once the owner dismisses this insight's active-emergency dashboard banner. Null for every plain chat turn, which has no such banner.
+     * @nullable
+     */
+  dismissedAt: string | null;
   /** Set when Pawlie proposed a conversational action alongside this reply (e.g. "add a reminder for..."). Null for a plain answer with nothing to confirm. */
   action: AiAction | null;
 }
@@ -837,6 +842,8 @@ export interface DashboardSummary {
   activeMedications: Medication[];
   recentRecords: HealthRecord[];
   recentInsights: Insight[];
+  /** The most recent escalation/emergency_vet_result insight, if it's undismissed and within the last 48 hours. Null otherwise — clears only when the owner dismisses it, not on a timer. */
+  activeEmergency: Insight | null;
   stats: DashboardSummaryStats;
 }
 

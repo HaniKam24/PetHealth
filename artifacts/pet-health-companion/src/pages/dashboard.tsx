@@ -15,6 +15,8 @@ import {
   getListAlertsQueryKey,
   useDismissAlert,
   type Alert,
+  useDismissInsight,
+  type Insight,
 } from '@workspace/api-client-react';
 import { Link } from 'wouter';
 import {
@@ -159,6 +161,64 @@ function AlertBanner({
   );
 }
 
+// Distinct from (and can coexist with) the predictive-health alert banner
+// above — this reflects a live escalation/emergency-vet exchange with
+// Pawlie, not a pattern the rule engine noticed. Clears only when the owner
+// dismisses it, never on a timer (see care.ts's dashboard/summary handler).
+function EmergencyBanner({
+  petName,
+  insight,
+  onDismiss,
+  dismissing,
+}: {
+  petName: string;
+  insight: Insight;
+  onDismiss: () => void;
+  dismissing: boolean;
+}) {
+  const vets = insight.metadata?.vets ?? [];
+  return (
+    <div className="rounded-3xl p-5 border bg-destructive/5 border-destructive/25 flex flex-col gap-3">
+      <div className="flex items-start gap-3">
+        <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 bg-destructive/10 text-destructive">
+          <AlertTriangle size={20} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-serif text-lg font-extrabold">Emergency in progress</div>
+          <p className="mt-1 text-sm text-foreground/90">
+            {vets.length > 0
+              ? `${petName} may be headed to an emergency vet — nearby options were found and a call script prepared.`
+              : `${petName} may need urgent care — see Pawlie for details.`}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          disabled={dismissing}
+          aria-label="Dismiss"
+          className="text-muted-foreground hover:text-foreground transition-colors shrink-0 disabled:opacity-50"
+        >
+          <X size={18} />
+        </button>
+      </div>
+      {vets[0] && (
+        <a
+          href={`tel:${vets[0].phone}`}
+          className="self-start h-10 flex items-center gap-1.5 px-4 rounded-full bg-destructive text-destructive-foreground text-sm font-bold hover:opacity-90 transition-opacity"
+        >
+          <Phone size={14} /> Call {vets[0].name}
+        </a>
+      )}
+      <Link
+        href="/insights"
+        className="self-start h-10 flex items-center gap-1.5 px-4 rounded-full bg-foreground text-background text-sm font-bold hover:opacity-90 transition-opacity"
+      >
+        <MessageCircle size={14} /> Open the conversation with Pawlie
+      </Link>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { activePetId } = usePetContext();
   const queryClient = useQueryClient();
@@ -223,6 +283,14 @@ export default function Dashboard() {
           queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey(activePetId) });
         }
       },
+    },
+  });
+
+  const { toast: dashboardToast } = useToast();
+  const dismissInsight = useDismissInsight({
+    mutation: {
+      onSuccess: invalidateSummary,
+      onError: (error) => dashboardToast({ title: "Couldn't dismiss", description: error.message, variant: 'destructive' }),
     },
   });
 
@@ -434,6 +502,17 @@ export default function Dashboard() {
             vetPhone={pet.vetPhone}
             onDismiss={() => dismissAlert.mutate({ petId: activePetId, alertId: activeAlert.id })}
             dismissing={dismissAlert.isPending}
+          />
+        </div>
+      )}
+
+      {summary.activeEmergency && (
+        <div className="mb-5">
+          <EmergencyBanner
+            petName={pet.name}
+            insight={summary.activeEmergency}
+            dismissing={dismissInsight.isPending}
+            onDismiss={() => dismissInsight.mutate({ petId: activePetId, insightId: summary.activeEmergency!.id })}
           />
         </div>
       )}

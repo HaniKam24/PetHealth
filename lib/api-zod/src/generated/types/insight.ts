@@ -26,6 +26,11 @@ export interface Insight {
   kind: InsightKind;
   /** Structured payload for kinds that need more than plain text. Currently only set for emergency_vet_result; null otherwise. */
   metadata: EmergencyVetMetadata | null;
+  /**
+     * Set once the owner dismisses this insight's active-emergency dashboard banner. Null for every plain chat turn, which has no such banner.
+     * @nullable
+     */
+  dismissedAt: Date | null;
   /** Set when Pawlie proposed a conversational action alongside this reply (e.g. "add a reminder for..."). Null for a plain answer with nothing to confirm. */
   action: AiAction | null;
 }

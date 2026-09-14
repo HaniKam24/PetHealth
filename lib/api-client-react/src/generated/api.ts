@@ -37,6 +37,7 @@ import type {
   HealthRecordInput,
   HealthRecordUpdate,
   HealthStatus,
+  Insight,
   InsightListResponse,
   InsightQuestion,
   InsightResponse,
@@ -2647,6 +2648,79 @@ export function useGetDashboardSummary<TData = Awaited<ReturnType<typeof getDash
 
 
 
+
+export const getDismissInsightUrl = (petId: number,
+    insightId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/insights/${insightId}/dismiss`
+}
+
+/**
+ * @summary Dismiss an active-emergency dashboard banner (escalation or emergency_vet_result insight)
+ */
+export const dismissInsight = async (petId: number,
+    insightId: number, options?: Parameters<typeof customFetch>[1]): Promise<Insight> => {
+
+  return customFetch<Insight>(getDismissInsightUrl(petId,insightId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDismissInsightMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissInsight>>, TError,{petId: number;insightId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissInsight>>, TError,{petId: number;insightId: number}, TContext> => {
+
+const mutationKey = ['dismissInsight'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissInsight>>, {petId: number;insightId: number}> = (props) => {
+          const {petId,insightId} = props ?? {};
+
+          return  dismissInsight(petId,insightId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissInsightMutationResult = NonNullable<Awaited<ReturnType<typeof dismissInsight>>>
+
+    export type DismissInsightMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Dismiss an active-emergency dashboard banner (escalation or emergency_vet_result insight)
+ */
+export const useDismissInsight = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissInsight>>, TError,{petId: number;insightId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof dismissInsight>>,
+        TError,
+        {petId: number;insightId: number},
+        TContext
+      > => {
+      return useMutation(getDismissInsightMutationOptions(options));
+    }
 
 export const getListInsightsUrl = (params?: ListInsightsParams,) => {
   const normalizedParams = new URLSearchParams();

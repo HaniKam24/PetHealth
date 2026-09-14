@@ -102,6 +102,10 @@ export const insights = pgTable("insights", {
   // only emergency_vet_result ({ vets: [...], script }), rendered as a card
   // rather than parsed out of prose. Null for every other kind.
   metadata: jsonb("metadata"),
+  // Set only when the owner dismisses an active-emergency dashboard banner
+  // (escalation/emergency_vet_result kinds) — null otherwise, including for
+  // every plain chat turn, which has no such banner to dismiss.
+  dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
 });
 
 export const symptomLogs = pgTable("symptom_logs", {
