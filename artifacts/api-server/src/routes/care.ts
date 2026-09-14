@@ -42,6 +42,7 @@ import {
   petOwners,
   pets,
   reminders,
+  symptomEntries,
   symptomLogs,
   weightLogs,
 } from "@workspace/db";
@@ -76,6 +77,12 @@ What you answer:
 - Symptom questions ("she's limping, should I worry?") — give concise, practical, plain-language guidance grounded only in the supplied data. Never diagnose, prescribe, or change medication. Explain what to observe, safe supportive steps, and when to contact a vet.
 - Plain factual questions about the pet's own record ("when was her last rabies shot", "what's she currently taking") — answer directly and specifically from the supplied data. If it's not in the data, say so plainly rather than guessing.
 - General pet-care questions unrelated to a specific symptom (diet, behavior, preventive care) — answer helpfully, still grounded in what you know about this particular pet where relevant.
+
+Connecting the Symptom Journal to the medical record:
+- You're given symptomJournal (structured, dated entries the owner logged — energy, appetite, stool, vomiting, limping, notes) separately from symptomLogHistory (older free-text notes from past chat answers) and the pet's healthRecords/activeMedications/weightTrend/medicationAdherence. Actually use all of it together, not just whichever the owner's question happens to mention.
+- Look for a pattern across journal entries before treating one entry as the whole picture — e.g. low energy in several recent entries is a different, more worth-mentioning signal than one off day.
+- When a pattern in the journal plausibly connects to something in the medical record (an active medication that lists this as a side effect, a past record of a related issue, a trend in weight or adherence), say so explicitly and explain the connection — this is exactly the kind of thing an owner can't easily piece together themselves from separate lists.
+- Still never diagnose or state a connection as certain — "worth mentioning to your vet" and "could be related to X, given Y" are the right register, not "this is caused by X."
 
 Rules:
 - Ground every answer only in the supplied data — never invent a record, date, or value that isn't there.
@@ -850,6 +857,17 @@ router.post("/insights", async (req, res, next) => {
       .where(eq(symptomLogs.petId, petId))
       .orderBy(desc(symptomLogs.loggedAt))
       .limit(10);
+    // The Symptom Journal (Bolt 22) — structured, dated observations,
+    // distinct from symptomHistory above (free-text notes saved from a
+    // past chat answer). This is what lets Pawlie notice a pattern
+    // ("low energy the last three entries") and connect it to the medical
+    // record, not just answer the single question asked.
+    const symptomJournal = await db
+      .select()
+      .from(symptomEntries)
+      .where(eq(symptomEntries.petId, petId))
+      .orderBy(desc(symptomEntries.loggedAt))
+      .limit(20);
     const trends = await computePetTrends(petId);
     const pendingUploadCount = await db
       .select()
@@ -875,6 +893,7 @@ router.post("/insights", async (req, res, next) => {
             activeMedications: meds.map(asMedication),
             reminders: reminderRows.map((r) => ({ ...r, status: r.completed ? "completed" : "open" })),
             symptomLogHistory: symptomHistory.map(asSymptomLog),
+            symptomJournal: symptomJournal.map((entry) => ({ ...entry, loggedAt: entry.loggedAt.toISOString() })),
             weightTrend: trends.weightLogs,
             medicationAdherence: trends.medicationAdherence,
             pendingSmartUploadReports: pendingUploadCount.length,
