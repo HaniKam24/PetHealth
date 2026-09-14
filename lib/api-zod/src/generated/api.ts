@@ -308,6 +308,66 @@ export const UploadHealthRecordDocumentResponse = zod.object({
 
 
 /**
+ * @summary Upload a pet's profile photo (JPEG/PNG/WEBP/HEIC, 10MB max) — replaces any existing photo
+ */
+
+
+
+export const UploadPetPhotoParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+export const UploadPetPhotoBody = zod.object({
+  "file": zod.instanceof(File)
+})
+
+export const UploadPetPhotoResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "species": zod.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  "breed": zod.string().nullable(),
+  "sex": zod.enum(['female', 'male', 'unknown']),
+  "birthDate": zod.coerce.date().nullable(),
+  "weight": zod.number().nullable(),
+  "weightUnit": zod.enum(['lb', 'kg']),
+  "photoUrl": zod.string().url().nullable(),
+  "notes": zod.string().nullable(),
+  "vetName": zod.string().nullable(),
+  "vetClinic": zod.string().nullable(),
+  "vetPhone": zod.string().nullable(),
+  "vetAddress": zod.string().nullable()
+})
+
+
+/**
+ * @summary Remove a pet's uploaded photo — falls back to the species illustration
+ */
+
+
+
+export const RemovePetPhotoParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+export const RemovePetPhotoResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "species": zod.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  "breed": zod.string().nullable(),
+  "sex": zod.enum(['female', 'male', 'unknown']),
+  "birthDate": zod.coerce.date().nullable(),
+  "weight": zod.number().nullable(),
+  "weightUnit": zod.enum(['lb', 'kg']),
+  "photoUrl": zod.string().url().nullable(),
+  "notes": zod.string().nullable(),
+  "vetName": zod.string().nullable(),
+  "vetClinic": zod.string().nullable(),
+  "vetPhone": zod.string().nullable(),
+  "vetAddress": zod.string().nullable()
+})
+
+
+/**
  * @summary Get a viewable link for a health record's attached document — a fresh short-lived signed URL for an uploaded file, or the stored link as-is for a pasted one
  */
 

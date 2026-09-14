@@ -14,6 +14,13 @@ export const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
   "image/heic",
 ]);
 
+export const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+]);
+
 /**
  * Wraps a single-file multer upload so an oversized file gets a clean 400
  * instead of falling through to the generic error handler (multer's own

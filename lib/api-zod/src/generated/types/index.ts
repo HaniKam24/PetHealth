@@ -89,5 +89,6 @@ export * from './symptomEntryStoolQuality';
 export * from './symptomLog';
 export * from './symptomLogInput';
 export * from './uploadHealthRecordDocumentBody';
+export * from './uploadPetPhotoBody';
 export * from './weightLog';
 export * from './weightLogWeightUnit';

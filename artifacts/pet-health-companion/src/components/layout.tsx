@@ -68,11 +68,11 @@ export function Layout({ children }: { children: ReactNode }) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="h-10 flex items-center gap-2 pl-1 pr-3.5 rounded-full bg-accent border border-border hover:border-primary/30 transition-colors">
-                {activePet && resolvePetAvatar(null, activePet.species) ? (
+                {activePet && resolvePetAvatar(activePet.photoUrl, activePet.species) ? (
                   <img
-                    src={resolvePetAvatar(null, activePet.species)!}
+                    src={resolvePetAvatar(activePet.photoUrl, activePet.species)!}
                     alt=""
-                    className="w-[30px] h-[30px] rounded-full bg-background"
+                    className="w-[30px] h-[30px] rounded-full bg-background object-cover"
                   />
                 ) : (
                   <div className="w-[30px] h-[30px] rounded-full bg-muted flex items-center justify-center font-serif text-sm font-semibold text-muted-foreground">
@@ -93,8 +93,8 @@ export function Layout({ children }: { children: ReactNode }) {
                       onSelect={() => setActivePetId(pet.id)}
                       className="gap-2.5 py-2"
                     >
-                      {resolvePetAvatar(null, pet.species) ? (
-                        <img src={resolvePetAvatar(null, pet.species)!} alt="" className="w-7 h-7 rounded-full bg-muted shrink-0" />
+                      {resolvePetAvatar(pet.photoUrl, pet.species) ? (
+                        <img src={resolvePetAvatar(pet.photoUrl, pet.species)!} alt="" className="w-7 h-7 rounded-full bg-muted shrink-0 object-cover" />
                       ) : (
                         <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-semibold shrink-0">
                           {pet.name.charAt(0)}
@@ -128,8 +128,8 @@ export function Layout({ children }: { children: ReactNode }) {
 
           {otherPet && (
             <button onClick={() => setActivePetId(otherPet.id)} className="shrink-0 opacity-55 hover:opacity-90 transition-opacity" title={`Switch to ${otherPet.name}`}>
-              {resolvePetAvatar(null, otherPet.species) ? (
-                <img src={resolvePetAvatar(null, otherPet.species)!} alt={otherPet.name} className="w-[34px] h-[34px] rounded-full bg-muted" />
+              {resolvePetAvatar(otherPet.photoUrl, otherPet.species) ? (
+                <img src={resolvePetAvatar(otherPet.photoUrl, otherPet.species)!} alt={otherPet.name} className="w-[34px] h-[34px] rounded-full bg-muted object-cover" />
               ) : (
                 <div className="w-[34px] h-[34px] rounded-full bg-muted flex items-center justify-center text-sm font-semibold">
                   {otherPet.name.charAt(0)}

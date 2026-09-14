@@ -56,7 +56,8 @@ import type {
   SymptomEntryInput,
   SymptomLog,
   SymptomLogInput,
-  UploadHealthRecordDocumentBody
+  UploadHealthRecordDocumentBody,
+  UploadPetPhotoBody
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -900,6 +901,151 @@ export const useUploadHealthRecordDocument = <TError = ErrorType<Error | NotFoun
         TContext
       > => {
       return useMutation(getUploadHealthRecordDocumentMutationOptions(options));
+    }
+
+export const getUploadPetPhotoUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/photo`
+}
+
+/**
+ * @summary Upload a pet's profile photo (JPEG/PNG/WEBP/HEIC, 10MB max) — replaces any existing photo
+ */
+export const uploadPetPhoto = async (petId: number,
+    uploadPetPhotoBody: UploadPetPhotoBody, options?: Parameters<typeof customFetch>[1]): Promise<Pet> => {
+    const formData = new FormData();
+formData.append(`file`, uploadPetPhotoBody.file);
+
+  return customFetch<Pet>(getUploadPetPhotoUrl(petId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadPetPhotoMutationOptions = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadPetPhoto>>, TError,{petId: number;data: BodyType<UploadPetPhotoBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadPetPhoto>>, TError,{petId: number;data: BodyType<UploadPetPhotoBody>}, TContext> => {
+
+const mutationKey = ['uploadPetPhoto'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadPetPhoto>>, {petId: number;data: BodyType<UploadPetPhotoBody>}> = (props) => {
+          const {petId,data} = props ?? {};
+
+          return  uploadPetPhoto(petId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadPetPhotoMutationResult = NonNullable<Awaited<ReturnType<typeof uploadPetPhoto>>>
+    export type UploadPetPhotoMutationBody = BodyType<UploadPetPhotoBody>
+    export type UploadPetPhotoMutationError = ErrorType<Error | NotFoundResponse>
+
+    /**
+ * @summary Upload a pet's profile photo (JPEG/PNG/WEBP/HEIC, 10MB max) — replaces any existing photo
+ */
+export const useUploadPetPhoto = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadPetPhoto>>, TError,{petId: number;data: BodyType<UploadPetPhotoBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadPetPhoto>>,
+        TError,
+        {petId: number;data: BodyType<UploadPetPhotoBody>},
+        TContext
+      > => {
+      return useMutation(getUploadPetPhotoMutationOptions(options));
+    }
+
+export const getRemovePetPhotoUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/photo`
+}
+
+/**
+ * @summary Remove a pet's uploaded photo — falls back to the species illustration
+ */
+export const removePetPhoto = async (petId: number, options?: Parameters<typeof customFetch>[1]): Promise<Pet> => {
+
+  return customFetch<Pet>(getRemovePetPhotoUrl(petId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemovePetPhotoMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removePetPhoto>>, TError,{petId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removePetPhoto>>, TError,{petId: number}, TContext> => {
+
+const mutationKey = ['removePetPhoto'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removePetPhoto>>, {petId: number}> = (props) => {
+          const {petId} = props ?? {};
+
+          return  removePetPhoto(petId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemovePetPhotoMutationResult = NonNullable<Awaited<ReturnType<typeof removePetPhoto>>>
+
+    export type RemovePetPhotoMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Remove a pet's uploaded photo — falls back to the species illustration
+ */
+export const useRemovePetPhoto = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removePetPhoto>>, TError,{petId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removePetPhoto>>,
+        TError,
+        {petId: number},
+        TContext
+      > => {
+      return useMutation(getRemovePetPhotoMutationOptions(options));
     }
 
 export const getGetHealthRecordDocumentUrlUrl = (petId: number,
