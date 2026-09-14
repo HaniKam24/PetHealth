@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db, healthRecords, medications, pets, reminders } from "@workspace/db";
+import { db, healthRecords, medications, pets, reminders, weightLogs } from "@workspace/db";
 import type { CreateHealthRecordBody, CreateMedicationBody, CreateReminderBody } from "@workspace/api-zod";
 import { runCareRecommendationsEngine } from "./care-recommendations";
 
@@ -39,20 +39,49 @@ export async function insertReminderForPet(petId: number, body: z.infer<typeof C
   return created!;
 }
 
-// Every field optional and, when present, non-empty — matches how
-// buildVetInfoUpdate (document-extraction.ts) builds a vet_info item's
-// proposedData: only the fields the source document actually stated, never
+// Every field optional and, when present, non-empty (or positive, for
+// weight) — matches how buildProfileUpdate (document-extraction.ts) builds
+// a "vet_info" item's proposedData: only the fields the source document
+// actually stated and that differ from the pet's current profile, never
 // null. An owner editing the proposal before accepting goes through this
 // same schema, so it can't smuggle in an empty string to blank a field —
-// clearing a vet field is done from the pet's own profile page, not here.
-export const VetInfoUpdateBody = z.object({
+// clearing a profile field is done from the pet's own profile page, not here.
+export const ProfileUpdateBody = z.object({
   vetName: z.string().min(1).optional(),
   vetClinic: z.string().min(1).optional(),
   vetPhone: z.string().min(1).optional(),
   vetAddress: z.string().min(1).optional(),
+  breed: z.string().min(1).optional(),
+  weight: z.number().positive().optional(),
+  weightUnit: z.enum(["lb", "kg"]).optional(),
 });
 
-export async function updatePetVetInfo(petId: number, body: z.infer<typeof VetInfoUpdateBody>) {
-  const [updated] = await db.update(pets).set(body).where(eq(pets.id, petId)).returning();
+// previousPet is passed in by the caller (already fetched for the ownership
+// check) rather than re-queried here — same "duplicate a few lines instead
+// of a risky shared refactor" call as the rest of this file, and it's the
+// only way to know whether an accepted weight actually changed for the
+// weight_logs snapshot below (mirrors logWeightIfChanged in routes/care.ts,
+// not reused directly since that one is a private, unexported function).
+export async function updatePetProfile(
+  petId: number,
+  body: z.infer<typeof ProfileUpdateBody>,
+  previousPet: typeof pets.$inferSelect,
+) {
+  const { weight, weightUnit, ...rest } = body;
+  const [updated] = await db
+    .update(pets)
+    .set({
+      ...rest,
+      ...(weight !== undefined ? { weight: weight.toString() } : {}),
+      ...(weightUnit !== undefined ? { weightUnit } : {}),
+    })
+    .where(eq(pets.id, petId))
+    .returning();
+  if (weight !== undefined) {
+    const previousWeight = previousPet.weight === null ? null : Number(previousPet.weight);
+    if (previousWeight !== weight) {
+      await db.insert(weightLogs).values({ petId, weight: weight.toString(), weightUnit: updated!.weightUnit });
+    }
+  }
   return updated!;
 }

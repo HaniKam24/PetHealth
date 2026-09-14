@@ -84,7 +84,8 @@ Return a single JSON object with exactly these fields:
   "healthRecords": [ { "type": "visit"|"vaccine"|"lab"|"procedure"|"note", "title": string, "date": "YYYY-MM-DD", "clinic": string|null, "summary": string|null } ],
   "medications": [ { "name": string, "dose": string, "frequency": string, "doseIntervalValue": number|null, "doseIntervalUnit": "hours"|"days"|"weeks"|"months"|null, "instructions": string|null } ],
   "reminders": [ { "title": string, "dueDate": "YYYY-MM-DD", "category": "appointment"|"vaccine"|"medication"|"wellness"|"other", "note": string|null } ],
-  "vetInfo": { "name": string|null, "clinic": string|null, "phone": string|null, "address": string|null } | null
+  "vetInfo": { "name": string|null, "clinic": string|null, "phone": string|null, "address": string|null } | null,
+  "petProfile": { "weight": number|null, "weightUnit": "lb"|"kg"|null, "breed": string|null } | null
 }
 
 Rules:
@@ -93,6 +94,7 @@ Rules:
 - medications: one entry per medication/prescription mentioned, "dose" as written (e.g. "5mg", "1 tablet"). Only set doseIntervalValue/doseIntervalUnit if the document states a clear fixed interval (e.g. "twice daily" -> 12/"hours", "every 30 days" -> 30/"days"); otherwise leave both null and describe the schedule in "frequency" as free text.
 - reminders: only include a follow-up if the document explicitly states one is needed (e.g. "recheck in 2 weeks", "next booster due March 2027"). Compute "dueDate" as an absolute date from the document's own dated context; omit the reminder if no date can be determined.
 - vetInfo: the attending veterinarian and/or clinic's contact info as stated in the document (letterhead, signature block, a "Veterinarian:" field, etc.) — name, clinic, phone, address, each null if that specific piece isn't stated. Return vetInfo itself as null if the document gives no vet/clinic contact info at all.
+- petProfile: the patient's current weight and breed exactly as stated in the document (e.g. a vitals/weight line, a "Breed:" field) — weight as a plain number with its unit separately in weightUnit, breed as a plain string. Each null if that specific piece isn't stated; never estimate or convert units. Return petProfile itself as null if the document states neither.
 - Dates must be in YYYY-MM-DD format.
 - Output only the JSON object — no commentary, no markdown fences.`;
 
@@ -105,7 +107,15 @@ export interface ExtractionResult {
   // Omitted keys mean "leave this field alone" when later applied as a
   // partial pet update — never null, which would mean "clear this field".
   // Null (not an empty object) when there's nothing worth proposing at all.
-  vetInfoUpdate: { vetName?: string; vetClinic?: string; vetPhone?: string; vetAddress?: string } | null;
+  profileUpdate: {
+    vetName?: string;
+    vetClinic?: string;
+    vetPhone?: string;
+    vetAddress?: string;
+    breed?: string;
+    weight?: number;
+    weightUnit?: "lb" | "kg";
+  } | null;
 }
 
 interface CurrentPetVetInfo {
@@ -115,32 +125,66 @@ interface CurrentPetVetInfo {
   vetAddress: string | null;
 }
 
-type CurrentPet = CurrentPetVetInfo & { name: string };
+interface CurrentPetProfile extends CurrentPetVetInfo {
+  breed: string | null;
+  weight: string | null; // numeric column — comes through as a string, or null
+  weightUnit: string;
+}
+
+type CurrentPet = CurrentPetProfile & { name: string };
 
 function normalizeForCompare(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
 }
 
-function buildVetInfoUpdate(
-  raw: unknown,
-  currentPet: CurrentPetVetInfo,
-): ExtractionResult["vetInfoUpdate"] {
-  if (typeof raw !== "object" || raw === null) return null;
-  const obj = raw as Record<string, unknown>;
-  const fieldMap: [sourceKey: string, petKey: keyof CurrentPetVetInfo][] = [
-    ["name", "vetName"],
-    ["clinic", "vetClinic"],
-    ["phone", "vetPhone"],
-    ["address", "vetAddress"],
-  ];
-  const update: NonNullable<ExtractionResult["vetInfoUpdate"]> = {};
-  for (const [sourceKey, petKey] of fieldMap) {
-    const value = obj[sourceKey];
-    if (typeof value !== "string" || !value.trim()) continue;
-    if (normalizeForCompare(value) !== normalizeForCompare(currentPet[petKey])) {
-      update[petKey] = value.trim();
+function buildProfileUpdate(
+  vetInfoRaw: unknown,
+  petProfileRaw: unknown,
+  currentPet: CurrentPetProfile,
+): ExtractionResult["profileUpdate"] {
+  const update: NonNullable<ExtractionResult["profileUpdate"]> = {};
+
+  if (typeof vetInfoRaw === "object" && vetInfoRaw !== null) {
+    const obj = vetInfoRaw as Record<string, unknown>;
+    const fieldMap: [sourceKey: string, petKey: keyof CurrentPetVetInfo][] = [
+      ["name", "vetName"],
+      ["clinic", "vetClinic"],
+      ["phone", "vetPhone"],
+      ["address", "vetAddress"],
+    ];
+    for (const [sourceKey, petKey] of fieldMap) {
+      const value = obj[sourceKey];
+      if (typeof value !== "string" || !value.trim()) continue;
+      if (normalizeForCompare(value) !== normalizeForCompare(currentPet[petKey])) {
+        update[petKey] = value.trim();
+      }
     }
   }
+
+  if (typeof petProfileRaw === "object" && petProfileRaw !== null) {
+    const obj = petProfileRaw as Record<string, unknown>;
+    const breed = obj.breed;
+    if (typeof breed === "string" && breed.trim() && normalizeForCompare(breed) !== normalizeForCompare(currentPet.breed)) {
+      update.breed = breed.trim();
+    }
+
+    const weight = obj.weight;
+    const weightUnitRaw = obj.weightUnit;
+    const weightUnit = weightUnitRaw === "lb" || weightUnitRaw === "kg" ? weightUnitRaw : undefined;
+    // Only propose a weight change when the document actually stated a
+    // number — a stated unit alone (or a unit that doesn't match "lb"/"kg")
+    // is never enough by itself, since weight and weightUnit are always
+    // written together (see updatePetProfile, care-mutations.ts).
+    if (typeof weight === "number" && Number.isFinite(weight) && weight > 0) {
+      const currentWeight = currentPet.weight === null ? null : Number(currentPet.weight);
+      const effectiveUnit = weightUnit ?? currentPet.weightUnit;
+      if (currentWeight !== weight || effectiveUnit !== currentPet.weightUnit) {
+        update.weight = weight;
+        update.weightUnit = effectiveUnit as "lb" | "kg";
+      }
+    }
+  }
+
   return Object.keys(update).length > 0 ? update : null;
 }
 
@@ -256,6 +300,6 @@ export async function extractDocument(file: UploadedFile, pet: CurrentPet): Prom
       const result = CreateReminderBody.safeParse(item);
       return result.success ? result.data : null;
     }),
-    vetInfoUpdate: buildVetInfoUpdate(obj.vetInfo, pet),
+    profileUpdate: buildProfileUpdate(obj.vetInfo, obj.petProfile, pet),
   };
 }

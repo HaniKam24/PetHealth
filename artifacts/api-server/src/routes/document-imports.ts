@@ -33,11 +33,11 @@ import {
 } from "../lib/document-import-quota";
 import { findDuplicate } from "../lib/duplicate-detection";
 import {
-  VetInfoUpdateBody,
+  ProfileUpdateBody,
   insertHealthRecordForPet,
   insertMedicationForPet,
   insertReminderForPet,
-  updatePetVetInfo,
+  updatePetProfile,
 } from "../lib/care-mutations";
 
 const router: IRouter = Router();
@@ -212,9 +212,11 @@ router.post(
         ...extraction.healthRecords.map((d) => ({ itemType: "health_record" as const, proposedData: d })),
         ...extraction.medications.map((d) => ({ itemType: "medication" as const, proposedData: d })),
         ...extraction.reminders.map((d) => ({ itemType: "reminder" as const, proposedData: d })),
-        // At most one — only present when extraction found vet/clinic
-        // contact info that's new or differs from the pet's current profile.
-        ...(extraction.vetInfoUpdate ? [{ itemType: "vet_info" as const, proposedData: extraction.vetInfoUpdate }] : []),
+        // At most one — only present when extraction found vet contact
+        // info, weight, or breed that's new or differs from the pet's
+        // current profile. Kept as the "vet_info" item type (not renamed)
+        // to avoid touching the stored item_type of existing rows.
+        ...(extraction.profileUpdate ? [{ itemType: "vet_info" as const, proposedData: extraction.profileUpdate }] : []),
       ];
 
       const insertedItems: (typeof documentImportItems.$inferSelect)[] = [];
@@ -348,8 +350,9 @@ router.post("/pets/:petId/document-imports/:importId/items/:itemId/accept", asyn
         const parsed = CreateReminderBody.parse(dataToUse);
         createdRecordId = (await insertReminderForPet(petId, parsed)).id;
       } else {
-        const parsed = VetInfoUpdateBody.parse(dataToUse);
-        await updatePetVetInfo(petId, parsed);
+        const parsed = ProfileUpdateBody.parse(dataToUse);
+        const [currentPet] = await db.select().from(pets).where(eq(pets.id, petId));
+        await updatePetProfile(petId, parsed, currentPet!);
       }
     } catch (error) {
       if (error instanceof Error && error.name === "ZodError") {
