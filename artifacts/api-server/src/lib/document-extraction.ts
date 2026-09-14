@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { PDFParse } from "pdf-parse";
 import convertHeic from "heic-convert";
-import { anthropic } from "@workspace/integrations-anthropic-ai-server";
+import { BadRequestError, anthropic } from "@workspace/integrations-anthropic-ai-server";
 import { CreateHealthRecordBody, CreateMedicationBody, CreateReminderBody } from "@workspace/api-zod";
 import type { z } from "zod";
 
@@ -36,6 +36,7 @@ const MIN_TEXT_LENGTH = 40;
 export class TooManyPagesError extends Error {}
 export class ScannedDocumentError extends Error {}
 export class PetNameMismatchError extends Error {}
+export class UnreadableImageError extends Error {}
 
 interface UploadedFile {
   buffer: Buffer;
@@ -197,25 +198,38 @@ type ImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 export async function extractDocument(file: UploadedFile, pet: CurrentPet): Promise<ExtractionResult> {
   const content = await readContent(file);
 
-  const completion = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 4096,
-    system: SYSTEM_PROMPT,
-    messages: [
-      content.kind === "text"
-        ? { role: "user", content: `Vet report text:\n\n${content.text}` }
-        : {
-            role: "user",
-            content: [
-              { type: "text", text: "Extract structured info from this vet report image." },
-              {
-                type: "image",
-                source: { type: "base64", media_type: content.mimetype as ImageMediaType, data: content.base64 },
-              },
-            ],
-          },
-    ],
-  });
+  let completion;
+  try {
+    completion = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 4096,
+      system: SYSTEM_PROMPT,
+      messages: [
+        content.kind === "text"
+          ? { role: "user", content: `Vet report text:\n\n${content.text}` }
+          : {
+              role: "user",
+              content: [
+                { type: "text", text: "Extract structured info from this vet report image." },
+                {
+                  type: "image",
+                  source: { type: "base64", media_type: content.mimetype as ImageMediaType, data: content.base64 },
+                },
+              ],
+            },
+      ],
+    });
+  } catch (error) {
+    // Claude's vision input rejects some otherwise-valid-looking images
+    // (corrupted data, unusual encodings, etc.) with a 400 "Could not
+    // process image" — without this, that surfaced as an unhandled 500.
+    if (content.kind === "image" && error instanceof BadRequestError) {
+      throw new UnreadableImageError(
+        "This image couldn't be read. Try a clearer photo, or a different file.",
+      );
+    }
+    throw error;
+  }
 
   const textBlock = completion.content.find((block) => block.type === "text");
   const raw = textBlock?.text ?? "{}";
