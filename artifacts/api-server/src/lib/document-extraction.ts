@@ -300,7 +300,24 @@ export async function extractDocument(file: UploadedFile, pet: CurrentPet): Prom
       return result.success ? result.data : null;
     }),
     medications: parseArray(obj.medications, (item) => {
-      const result = CreateMedicationBody.safeParse({ ...(item as object), active: true });
+      // A medication can be genuinely present in a document without a stated
+      // dosing schedule — e.g. a pharmacy line item on an itemized invoice
+      // ("Doxycycline Hyclate 100 mg Tablet, qty 360") rather than a
+      // prescription note. The system prompt correctly tells the model not
+      // to invent a frequency it wasn't given, so it comes back null — but
+      // CreateMedicationBody requires a non-empty dose/frequency (the
+      // manual-entry form relies on that). Without a fallback here,
+      // safeParse fails and the whole medication silently vanishes with no
+      // trace, even though the model found it. Substitute a placeholder
+      // that flags it for review instead, so the item still reaches the
+      // user, editable, in the accept flow.
+      const raw = (typeof item === "object" && item !== null ? item : {}) as Record<string, unknown>;
+      const dose = typeof raw.dose === "string" && raw.dose.trim() ? raw.dose : "Not stated in document";
+      const frequency =
+        typeof raw.frequency === "string" && raw.frequency.trim()
+          ? raw.frequency
+          : "Not stated in document — please confirm";
+      const result = CreateMedicationBody.safeParse({ ...raw, dose, frequency, active: true });
       return result.success ? result.data : null;
     }),
     reminders: parseArray(obj.reminders, (item) => {
