@@ -21,6 +21,7 @@ import type {
 
 import type {
   AcceptDocumentImportItemBody,
+  AiAction,
   CreateDocumentImportBody,
   DashboardSummary,
   DocumentImportItem,
@@ -2649,5 +2650,151 @@ export const useAskInsight = <TError = ErrorType<Error>,
         TContext
       > => {
       return useMutation(getAskInsightMutationOptions(options));
+    }
+
+export const getConfirmAiActionUrl = (petId: number,
+    actionId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/ai-actions/${actionId}/confirm`
+}
+
+/**
+ * @summary Confirm a Pawlie-proposed action — writes it to the pet's real records
+ */
+export const confirmAiAction = async (petId: number,
+    actionId: number, options?: Parameters<typeof customFetch>[1]): Promise<AiAction> => {
+
+  return customFetch<AiAction>(getConfirmAiActionUrl(petId,actionId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getConfirmAiActionMutationOptions = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmAiAction>>, TError,{petId: number;actionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmAiAction>>, TError,{petId: number;actionId: number}, TContext> => {
+
+const mutationKey = ['confirmAiAction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmAiAction>>, {petId: number;actionId: number}> = (props) => {
+          const {petId,actionId} = props ?? {};
+
+          return  confirmAiAction(petId,actionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmAiActionMutationResult = NonNullable<Awaited<ReturnType<typeof confirmAiAction>>>
+
+    export type ConfirmAiActionMutationError = ErrorType<Error | NotFoundResponse>
+
+    /**
+ * @summary Confirm a Pawlie-proposed action — writes it to the pet's real records
+ */
+export const useConfirmAiAction = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmAiAction>>, TError,{petId: number;actionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmAiAction>>,
+        TError,
+        {petId: number;actionId: number},
+        TContext
+      > => {
+      return useMutation(getConfirmAiActionMutationOptions(options));
+    }
+
+export const getCancelAiActionUrl = (petId: number,
+    actionId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/ai-actions/${actionId}/cancel`
+}
+
+/**
+ * @summary Cancel a Pawlie-proposed action — nothing is written
+ */
+export const cancelAiAction = async (petId: number,
+    actionId: number, options?: Parameters<typeof customFetch>[1]): Promise<AiAction> => {
+
+  return customFetch<AiAction>(getCancelAiActionUrl(petId,actionId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelAiActionMutationOptions = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelAiAction>>, TError,{petId: number;actionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelAiAction>>, TError,{petId: number;actionId: number}, TContext> => {
+
+const mutationKey = ['cancelAiAction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelAiAction>>, {petId: number;actionId: number}> = (props) => {
+          const {petId,actionId} = props ?? {};
+
+          return  cancelAiAction(petId,actionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelAiActionMutationResult = NonNullable<Awaited<ReturnType<typeof cancelAiAction>>>
+
+    export type CancelAiActionMutationError = ErrorType<Error | NotFoundResponse>
+
+    /**
+ * @summary Cancel a Pawlie-proposed action — nothing is written
+ */
+export const useCancelAiAction = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelAiAction>>, TError,{petId: number;actionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelAiAction>>,
+        TError,
+        {petId: number;actionId: number},
+        TContext
+      > => {
+      return useMutation(getCancelAiActionMutationOptions(options));
     }
 

@@ -989,7 +989,19 @@ export const GetDashboardSummaryResponse = zod.object({
   "source": zod.enum(['ai', 'record', 'reminder']),
   "createdAt": zod.coerce.date(),
   "disclaimer": zod.string(),
-  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.')
+  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.'),
+  "action": zod.union([zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "insightId": zod.number().int().nullable(),
+  "actionType": zod.enum(['create_reminder', 'complete_reminder', 'update_pet_profile', 'log_symptom']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on actionType — a ReminderInput-shaped object for create_reminder, {reminderId} for complete_reminder, a partial profile-update object (same shape as Smart Upload\'s vet_info item — any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex) for update_pet_profile, or {description} for log_symptom.'),
+  "status": zod.enum(['pending', 'confirmed', 'cancelled']),
+  "appliedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('A conversational edit Pawlie proposed — deliberately parallel to DocumentImportItem\'s review-gated shape. Nothing is written until the owner confirms.'),zod.null()]).describe('Set when Pawlie proposed a conversational action alongside this reply (e.g. \"add a reminder for...\"). Null for a plain answer with nothing to confirm.')
 })),
   "stats": zod.object({
   "recordCount": zod.number().int(),
@@ -1020,7 +1032,19 @@ export const ListInsightsResponse = zod.object({
   "source": zod.enum(['ai', 'record', 'reminder']),
   "createdAt": zod.coerce.date(),
   "disclaimer": zod.string(),
-  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.')
+  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.'),
+  "action": zod.union([zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "insightId": zod.number().int().nullable(),
+  "actionType": zod.enum(['create_reminder', 'complete_reminder', 'update_pet_profile', 'log_symptom']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on actionType — a ReminderInput-shaped object for create_reminder, {reminderId} for complete_reminder, a partial profile-update object (same shape as Smart Upload\'s vet_info item — any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex) for update_pet_profile, or {description} for log_symptom.'),
+  "status": zod.enum(['pending', 'confirmed', 'cancelled']),
+  "appliedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('A conversational edit Pawlie proposed — deliberately parallel to DocumentImportItem\'s review-gated shape. Nothing is written until the owner confirms.'),zod.null()]).describe('Set when Pawlie proposed a conversational action alongside this reply (e.g. \"add a reminder for...\"). Null for a plain answer with nothing to confirm.')
 })),
   "quota": zod.object({
   "used": zod.number().int(),
@@ -1052,7 +1076,19 @@ export const AskInsightResponse = zod.object({
   "source": zod.enum(['ai', 'record', 'reminder']),
   "createdAt": zod.coerce.date(),
   "disclaimer": zod.string(),
-  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.')
+  "kind": zod.enum(['chat', 'escalation']).describe('Whether a red flag short-circuited this to an escalation response.'),
+  "action": zod.union([zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "insightId": zod.number().int().nullable(),
+  "actionType": zod.enum(['create_reminder', 'complete_reminder', 'update_pet_profile', 'log_symptom']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on actionType — a ReminderInput-shaped object for create_reminder, {reminderId} for complete_reminder, a partial profile-update object (same shape as Smart Upload\'s vet_info item — any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex) for update_pet_profile, or {description} for log_symptom.'),
+  "status": zod.enum(['pending', 'confirmed', 'cancelled']),
+  "appliedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('A conversational edit Pawlie proposed — deliberately parallel to DocumentImportItem\'s review-gated shape. Nothing is written until the owner confirms.'),zod.null()]).describe('Set when Pawlie proposed a conversational action alongside this reply (e.g. \"add a reminder for...\"). Null for a plain answer with nothing to confirm.')
 }),
   "quota": zod.object({
   "used": zod.number().int(),
@@ -1060,5 +1096,57 @@ export const AskInsightResponse = zod.object({
   "remaining": zod.number().int()
 }).describe('A single account-wide monthly allowance for symptom-chat AI questions (50\/month), separate from the document-import lanes in DocumentImportQuota. A red-flag escalation never draws on this.')
 })
+
+
+/**
+ * @summary Confirm a Pawlie-proposed action — writes it to the pet's real records
+ */
+
+
+
+
+export const ConfirmAiActionParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "actionId": zod.coerce.number().int().min(1)
+})
+
+export const ConfirmAiActionResponse = zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "insightId": zod.number().int().nullable(),
+  "actionType": zod.enum(['create_reminder', 'complete_reminder', 'update_pet_profile', 'log_symptom']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on actionType — a ReminderInput-shaped object for create_reminder, {reminderId} for complete_reminder, a partial profile-update object (same shape as Smart Upload\'s vet_info item — any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex) for update_pet_profile, or {description} for log_symptom.'),
+  "status": zod.enum(['pending', 'confirmed', 'cancelled']),
+  "appliedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('A conversational edit Pawlie proposed — deliberately parallel to DocumentImportItem\'s review-gated shape. Nothing is written until the owner confirms.')
+
+
+/**
+ * @summary Cancel a Pawlie-proposed action — nothing is written
+ */
+
+
+
+
+export const CancelAiActionParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "actionId": zod.coerce.number().int().min(1)
+})
+
+export const CancelAiActionResponse = zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "insightId": zod.number().int().nullable(),
+  "actionType": zod.enum(['create_reminder', 'complete_reminder', 'update_pet_profile', 'log_symptom']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on actionType — a ReminderInput-shaped object for create_reminder, {reminderId} for complete_reminder, a partial profile-update object (same shape as Smart Upload\'s vet_info item — any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex) for update_pet_profile, or {description} for log_symptom.'),
+  "status": zod.enum(['pending', 'confirmed', 'cancelled']),
+  "appliedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('A conversational edit Pawlie proposed — deliberately parallel to DocumentImportItem\'s review-gated shape. Nothing is written until the owner confirms.')
 
 

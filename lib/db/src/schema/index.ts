@@ -23,3 +23,4 @@ export * from "./pet-owners";
 export * from "./document-imports";
 export * from "./ai-usage";
 export * from "./symptom-entries";
+export * from "./ai-actions";

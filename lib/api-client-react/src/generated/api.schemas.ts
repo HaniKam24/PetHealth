@@ -549,6 +549,47 @@ export const InsightKind = {
   escalation: 'escalation',
 } as const;
 
+export type AiActionActionType = typeof AiActionActionType[keyof typeof AiActionActionType];
+
+
+export const AiActionActionType = {
+  create_reminder: 'create_reminder',
+  complete_reminder: 'complete_reminder',
+  update_pet_profile: 'update_pet_profile',
+  log_symptom: 'log_symptom',
+} as const;
+
+export type AiActionStatus = typeof AiActionStatus[keyof typeof AiActionStatus];
+
+
+export const AiActionStatus = {
+  pending: 'pending',
+  confirmed: 'confirmed',
+  cancelled: 'cancelled',
+} as const;
+
+/**
+ * Shape depends on actionType — a ReminderInput-shaped object for create_reminder, {reminderId} for complete_reminder, a partial profile-update object (same shape as Smart Upload's vet_info item — any of vetName/vetClinic/vetPhone/vetAddress/breed/weight/weightUnit/sex) for update_pet_profile, or {description} for log_symptom.
+ */
+export type AiActionProposedData = { [key: string]: unknown };
+
+/**
+ * A conversational edit Pawlie proposed — deliberately parallel to DocumentImportItem's review-gated shape. Nothing is written until the owner confirms.
+ */
+export interface AiAction {
+  id: number;
+  petId: number;
+  /** @nullable */
+  insightId: number | null;
+  actionType: AiActionActionType;
+  /** Shape depends on actionType — a ReminderInput-shaped object for create_reminder, {reminderId} for complete_reminder, a partial profile-update object (same shape as Smart Upload's vet_info item — any of vetName/vetClinic/vetPhone/vetAddress/breed/weight/weightUnit/sex) for update_pet_profile, or {description} for log_symptom. */
+  proposedData: AiActionProposedData;
+  status: AiActionStatus;
+  /** @nullable */
+  appliedAt: string | null;
+  createdAt: string;
+}
+
 export interface Insight {
   id: number;
   petId: number;
@@ -562,6 +603,8 @@ export interface Insight {
   disclaimer: string;
   /** Whether a red flag short-circuited this to an escalation response. */
   kind: InsightKind;
+  /** Set when Pawlie proposed a conversational action alongside this reply (e.g. "add a reminder for..."). Null for a plain answer with nothing to confirm. */
+  action: AiAction | null;
 }
 
 /**

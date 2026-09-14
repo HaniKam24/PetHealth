@@ -13,15 +13,22 @@ import {
   getListSymptomEntriesQueryKey,
   useCreateSymptomEntry,
   useDeleteSymptomEntry,
+  getListPetsQueryKey,
+  getGetPetQueryKey,
+  getGetDashboardSummaryQueryKey,
+  getListRemindersQueryKey,
+  useConfirmAiAction,
+  useCancelAiAction,
   type Insight,
   type SymptomEntry,
   type SymptomEntryAppetite,
   type SymptomEntryEnergy,
   type SymptomEntryStoolQuality,
+  type AiAction,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Sparkles, Send, PawPrint, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill, NotebookPen, Trash2, Check, Loader2 } from 'lucide-react';
+import { Sparkles, Send, PawPrint, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill, NotebookPen, Trash2, Check, X, Loader2, Bell, Stethoscope } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -39,6 +46,17 @@ const toneLabel = {
   helpful: 'Helpful to know',
   watch: 'Worth keeping an eye on',
   urgent: 'Needs attention',
+};
+
+// Deliberately no per-field summary here the way Smart Upload's cards have
+// one — Pawlie's own reply text (rendered right above this card) already
+// describes the proposed change in plain language, so this just needs a
+// type label plus the confirm/cancel affordance itself.
+const ACTION_TYPE_META: Record<AiAction['actionType'], { label: string; icon: typeof Bell }> = {
+  create_reminder: { label: 'New reminder', icon: Bell },
+  complete_reminder: { label: 'Mark reminder done', icon: CheckCircle2 },
+  update_pet_profile: { label: 'Profile update', icon: Stethoscope },
+  log_symptom: { label: 'Symptom log entry', icon: ClipboardPlus },
 };
 
 // Renders **bold** spans as real React nodes instead of injecting HTML, so AI-generated
@@ -73,6 +91,64 @@ function renderBlock(block: string, key: number) {
     <div key={key}>
       {headingNode}
       {rest && <p>{renderFormattedText(rest)}</p>}
+    </div>
+  );
+}
+
+// No per-field summary the way Smart Upload's item cards have one — Pawlie's
+// own reply text (rendered right above this, in the same message) already
+// describes the proposed change in plain language, so this just needs a
+// type label and the confirm/cancel affordance itself.
+function ActionCard({
+  action,
+  onConfirm,
+  onCancel,
+  busy,
+}: {
+  action: AiAction;
+  onConfirm: () => void;
+  onCancel: () => void;
+  busy: boolean;
+}) {
+  const meta = ACTION_TYPE_META[action.actionType];
+  const Icon = meta.icon;
+  return (
+    <div className="bg-accent/40 border border-border rounded-2xl p-4 flex items-center gap-3">
+      <div className="w-9 h-9 rounded-xl bg-accent text-primary flex items-center justify-center shrink-0">
+        <Icon size={16} />
+      </div>
+      <div className="flex-1 min-w-0 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        {meta.label}
+      </div>
+      {action.status === 'pending' ? (
+        <div className="flex gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy}
+            className="h-9 flex items-center gap-1.5 px-3.5 text-sm font-bold rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+          >
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Confirm
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="h-9 flex items-center gap-1.5 px-3.5 text-sm font-bold rounded-full border border-border hover:bg-accent disabled:opacity-50 transition-colors"
+          >
+            <X size={14} /> Cancel
+          </button>
+        </div>
+      ) : (
+        <span
+          className={cn(
+            'text-xs font-bold px-2.5 py-1 rounded-full shrink-0',
+            action.status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground',
+          )}
+        >
+          {action.status === 'confirmed' ? 'Saved' : 'Cancelled'}
+        </span>
+      )}
     </div>
   );
 }
@@ -345,6 +421,35 @@ export default function Insights() {
     }
   });
 
+  // Invalidates everything a confirmed action could plausibly have written
+  // to, not just the one list a given actionType touches — three separate
+  // bugs earlier taught us that under-invalidating after an accept/confirm
+  // step is the recurring failure mode here, and these queries are cheap
+  // to over-invalidate versus silently stale.
+  const invalidateAfterAction = () => {
+    if (!activePetId) return;
+    queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey({ petId: activePetId }) });
+    queryClient.invalidateQueries({ queryKey: getListRemindersQueryKey(activePetId) });
+    queryClient.invalidateQueries({ queryKey: getListSymptomLogsQueryKey(activePetId) });
+    queryClient.invalidateQueries({ queryKey: getGetPetQueryKey(activePetId) });
+    queryClient.invalidateQueries({ queryKey: getListPetsQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+  };
+
+  const confirmAction = useConfirmAiAction({
+    mutation: {
+      onSuccess: invalidateAfterAction,
+      onError: (error) => toast({ title: "Couldn't save that", description: error.message, variant: "destructive" }),
+    },
+  });
+
+  const cancelAction = useCancelAiAction({
+    mutation: {
+      onSuccess: invalidateAfterAction,
+      onError: (error) => toast({ title: "Couldn't cancel that", description: error.message, variant: "destructive" }),
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim() || !activePetId || askInsight.isPending || quotaExhausted) return;
@@ -569,6 +674,14 @@ export default function Insights() {
                           </div>
                         </div>
                       </div>
+                      {insight.action && activePetId && (
+                        <ActionCard
+                          action={insight.action}
+                          busy={confirmAction.isPending || cancelAction.isPending}
+                          onConfirm={() => confirmAction.mutate({ petId: activePetId, actionId: insight.action!.id })}
+                          onCancel={() => cancelAction.mutate({ petId: activePetId, actionId: insight.action!.id })}
+                        />
+                      )}
                     </div>
                   );
                 })}
