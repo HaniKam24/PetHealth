@@ -7,6 +7,9 @@ import {
   useAcceptDocumentImportItem,
   useRejectDocumentImportItem,
   getDocumentImportDocumentUrl,
+  getGetPetQueryKey,
+  getListPetsQueryKey,
+  getGetDashboardSummaryQueryKey,
   ApiError,
   type DocumentImport,
   type DocumentImportItem,
@@ -372,6 +375,12 @@ export default function SmartUpload() {
   const invalidate = () => {
     if (activePetId) {
       queryClient.invalidateQueries({ queryKey: getListDocumentImportsQueryKey(activePetId) });
+      // An accepted item can change the pet row itself (e.g. a vet-info
+      // update) — without these, the profile/dashboard kept showing stale
+      // data until an unrelated refetch happened to occur.
+      queryClient.invalidateQueries({ queryKey: getGetPetQueryKey(activePetId) });
+      queryClient.invalidateQueries({ queryKey: getListPetsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
     }
   };
 
