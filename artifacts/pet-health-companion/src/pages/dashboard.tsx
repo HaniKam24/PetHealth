@@ -8,6 +8,10 @@ import {
   getGetPetTrendsQueryKey,
   useListDocumentImports,
   getListDocumentImportsQueryKey,
+  useListAlerts,
+  getListAlertsQueryKey,
+  useDismissAlert,
+  type Alert,
 } from '@workspace/api-client-react';
 import { Link } from 'wouter';
 import {
@@ -22,10 +26,15 @@ import {
   Bell,
   MessageCircle,
   Check,
+  X,
+  Phone,
+  Copy,
+  AlertTriangle,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
+import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, isPast, isToday, differenceInYears, differenceInMonths } from 'date-fns';
 import {
   DropdownMenu,
@@ -46,6 +55,105 @@ function formatAge(birthDate: string) {
   const months = differenceInMonths(new Date(), born) % 12;
   if (years === 0) return `${months} mo`;
   return months > 0 ? `${years} yr ${months} mo` : `${years} yr`;
+}
+
+// Renders an alert's `reasoning` through a fixed template — each item's
+// `value` is already plain-language text built by the rule engine itself
+// (predictive-monitoring.ts), never model-generated. This component adds
+// no interpretation of its own, just structure and styling.
+function AlertBanner({
+  alert,
+  petName,
+  vetPhone,
+  onDismiss,
+  dismissing,
+}: {
+  alert: Alert;
+  petName: string;
+  vetPhone: string | null;
+  onDismiss: () => void;
+  dismissing: boolean;
+}) {
+  const { toast } = useToast();
+  const isRed = alert.severity === 'red';
+
+  const summaryText = [
+    `${petName} — ${isRed ? 'worth contacting your vet about' : "worth watching"}:`,
+    ...alert.reasoning.map((r) => `- ${r.value}`),
+  ].join('\n');
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(summaryText);
+      toast({ title: 'Copied', description: 'Summary copied — paste it wherever you need it.' });
+    } catch {
+      toast({ title: "Couldn't copy", description: 'Your browser blocked clipboard access.', variant: 'destructive' });
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        'rounded-3xl p-5 border flex flex-col gap-3',
+        isRed ? 'bg-destructive/5 border-destructive/25' : 'bg-amber-50 border-amber-200',
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className={cn(
+            'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0',
+            isRed ? 'bg-destructive/10 text-destructive' : 'bg-amber-100 text-amber-700',
+          )}
+        >
+          <AlertTriangle size={20} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-serif text-lg font-extrabold">
+            {isRed ? 'Contact your vet soon' : 'Worth watching'}
+          </div>
+          <ul className="mt-1.5 space-y-1 text-sm text-foreground/90">
+            {alert.reasoning.map((r, i) => (
+              <li key={i}>• {r.value}</li>
+            ))}
+          </ul>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          disabled={dismissing}
+          aria-label="Dismiss"
+          className="text-muted-foreground hover:text-foreground transition-colors shrink-0 disabled:opacity-50"
+        >
+          <X size={18} />
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {isRed && vetPhone && (
+          <a
+            href={`tel:${vetPhone}`}
+            className="h-10 flex items-center gap-1.5 px-4 rounded-full bg-destructive text-destructive-foreground text-sm font-bold hover:opacity-90 transition-opacity"
+          >
+            <Phone size={14} /> Call {petName}'s vet
+          </a>
+        )}
+        {isRed && (
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="h-10 flex items-center gap-1.5 px-4 rounded-full border border-border text-sm font-bold hover:bg-accent transition-colors"
+          >
+            <Copy size={14} /> Copy summary
+          </button>
+        )}
+        <Link
+          href={`/insights?ask=${encodeURIComponent(`Can you tell me more about this: ${summaryText}`)}`}
+          className="h-10 flex items-center gap-1.5 px-4 rounded-full bg-foreground text-background text-sm font-bold hover:opacity-90 transition-opacity"
+        >
+          <MessageCircle size={14} /> Ask Pawlie about this
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 export default function Dashboard() {
@@ -93,6 +201,24 @@ export default function Dashboard() {
 
   const logDose = useLogMedicationDose({
     mutation: { onSuccess: invalidateSummary },
+  });
+
+  const { data: alertsData } = useListAlerts(activePetId!, {
+    query: {
+      enabled: !!activePetId,
+      queryKey: activePetId ? getListAlertsQueryKey(activePetId) : ['no-pet', 'alerts'],
+    },
+  });
+  const activeAlert = (alertsData ?? []).find((a) => a.status === 'active') ?? null;
+
+  const dismissAlert = useDismissAlert({
+    mutation: {
+      onSuccess: () => {
+        if (activePetId) {
+          queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey(activePetId) });
+        }
+      },
+    },
   });
 
   if (!activePetId) {
@@ -284,6 +410,18 @@ export default function Dashboard() {
           </DropdownMenu>
         </div>
       </div>
+
+      {activeAlert && (
+        <div className="mb-5">
+          <AlertBanner
+            alert={activeAlert}
+            petName={pet.name}
+            vetPhone={pet.vetPhone}
+            onDismiss={() => dismissAlert.mutate({ petId: activePetId, alertId: activeAlert.id })}
+            dismissing={dismissAlert.isPending}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5 items-start">
         <div className="flex flex-col gap-4">

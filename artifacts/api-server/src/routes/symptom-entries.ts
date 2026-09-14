@@ -7,6 +7,7 @@ import {
   ListSymptomEntriesParams,
 } from "@workspace/api-zod";
 import { db, petOwners, symptomEntries } from "@workspace/db";
+import { runPredictiveMonitoringEngine } from "../lib/predictive-monitoring";
 
 const router: IRouter = Router();
 
@@ -69,6 +70,7 @@ router.post("/pets/:petId/symptom-entries", async (req, res, next) => {
       .insert(symptomEntries)
       .values({ petId, ...body })
       .returning();
+    await runPredictiveMonitoringEngine(petId, created!.id);
     res.status(201).json(asSymptomEntry(created!));
   } catch (error) {
     next(error);
@@ -91,6 +93,10 @@ router.delete("/pets/:petId/symptom-entries/:entryId", async (req, res, next) =>
       res.status(404).json({ error: "Entry not found" });
       return;
     }
+    // Correcting a mis-tap can change whether a pattern still holds — the
+    // deleted entry itself never becomes the new triggeredByEntryId, that
+    // FK would just point at a gone row.
+    await runPredictiveMonitoringEngine(petId, null);
     res.status(204).send();
   } catch (error) {
     next(error);

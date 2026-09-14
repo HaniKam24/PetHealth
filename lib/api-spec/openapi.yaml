@@ -584,6 +584,38 @@ paths:
           description: Entry deleted
         "404":
           $ref: "#/components/responses/NotFound"
+  /pets/{petId}/alerts:
+    get:
+      operationId: listAlerts
+      tags: [pets]
+      summary: List Predictive Health Monitoring alerts for a pet (active first, most recent first)
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          description: Alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Alert" }
+  /pets/{petId}/alerts/{alertId}/dismiss:
+    post:
+      operationId: dismissAlert
+      tags: [pets]
+      summary: Dismiss an active alert — the owner has seen it and doesn't need it surfaced anymore
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/AlertId"
+      responses:
+        "200":
+          description: Updated alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /reminders/{reminderId}/complete:
     post:
       operationId: completeReminder
@@ -755,6 +787,13 @@ components:
         minimum: 1
     AiActionId:
       name: actionId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    AlertId:
+      name: alertId
       in: path
       required: true
       schema:
@@ -1137,6 +1176,32 @@ components:
         limping: { type: boolean }
         behaviorNote: { type: string, minLength: 1 }
         note: { type: string, minLength: 1 }
+    AlertReasoningItem:
+      type: object
+      description: One contributing signal, rendered through a fixed template — never freeform AI text. historicalDataPoint is always null today; kept in the shape for a real historical-fact source later.
+      properties:
+        signal: { type: string }
+        value: { type: string }
+        historicalDataPoint: { type: ["string", "null"] }
+        weight: { type: number }
+      required: [signal, value, historicalDataPoint, weight]
+    Alert:
+      type: object
+      description: A pure rule-based flag from Predictive Health Monitoring — one row represents a pet's current assessment; re-evaluation after each new Symptom Journal entry updates it in place rather than piling up duplicates. Never contains a symptom-to-medication or symptom-to-diagnosis guess — see docs/PRD.md §7e for why that line is firm.
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        triggeredByEntryId: { type: ["integer", "null"] }
+        severity: { type: string, enum: [yellow, red] }
+        confidence: { type: string, enum: [low, medium, high] }
+        reasoning:
+          type: array
+          items: { $ref: "#/components/schemas/AlertReasoningItem" }
+        status: { type: string, enum: [active, dismissed, resolved] }
+        outcomeNote: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        resolvedAt: { type: ["string", "null"], format: date-time }
+      required: [id, petId, triggeredByEntryId, severity, confidence, reasoning, status, outcomeNote, createdAt, resolvedAt]
     DashboardSummary:
       type: object
       properties:

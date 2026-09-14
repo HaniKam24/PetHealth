@@ -28,6 +28,7 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearch, useLocation } from 'wouter';
 import { Sparkles, Send, PawPrint, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill, NotebookPen, Trash2, Check, X, Loader2, Bell, Stethoscope } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -354,6 +355,20 @@ export default function Insights() {
   const [question, setQuestion] = useState('');
   const [tab, setTab] = useState<'chat' | 'trends' | 'journal'>('chat');
   const { toast } = useToast();
+  const search = useSearch();
+  const [, setLocation] = useLocation();
+
+  // A dashboard alert's "Ask Pawlie about this" link arrives as ?ask=... —
+  // pre-fill the question once, then strip the param so navigating away
+  // and back (or refreshing) doesn't keep re-filling it.
+  useEffect(() => {
+    const ask = new URLSearchParams(search).get('ask');
+    if (ask) {
+      setQuestion(ask);
+      setTab('chat');
+      setLocation('/insights', { replace: true });
+    }
+  }, [search, setLocation]);
 
   const { data: pets } = useListPets();
   const activePet = pets?.find((p) => p.id === activePetId);
