@@ -12,7 +12,7 @@ import {
   type Insight,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Sparkles, Send, PawPrint, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -96,7 +96,12 @@ export default function Insights() {
   // The API returns newest-first (so a "recent activity" list elsewhere
   // could use it as-is) — a chat thread reads top-to-bottom oldest-first,
   // so flip it for display here rather than changing the API's own order.
-  const insights = data?.insights ? [...data.insights].reverse() : data?.insights;
+  // Memoized on the underlying array, not recomputed fresh every render —
+  // otherwise this produced a new array reference on every keystroke in
+  // the question box (any state change re-renders the component), which
+  // made the scroll-to-bottom effect below fire on every keystroke too.
+  const rawInsights = data?.insights;
+  const insights = useMemo(() => (rawInsights ? [...rawInsights].reverse() : rawInsights), [rawInsights]);
   const quota = data?.quota;
   const quotaExhausted = quota !== undefined && quota.remaining <= 0;
 
