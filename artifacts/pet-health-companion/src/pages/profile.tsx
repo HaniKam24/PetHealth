@@ -1,11 +1,21 @@
 import { usePetContext } from '@/context/pet-context';
-import { useGetPet, getGetPetQueryKey, useUpdatePet, useCreatePet, useDeletePet, getListPetsQueryKey, type Pet } from '@workspace/api-client-react';
+import {
+  useGetPet,
+  getGetPetQueryKey,
+  useUpdatePet,
+  useCreatePet,
+  useDeletePet,
+  useUploadPetPhoto,
+  useRemovePetPhoto,
+  getListPetsQueryKey,
+  type Pet,
+} from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useSearch } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trash2, HeartPulse, Check } from 'lucide-react';
+import { Trash2, HeartPulse, Check, Camera, Loader2 } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,9 +31,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
+
+const ALLOWED_PHOTO_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 
 const profileSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -332,10 +344,53 @@ export default function Profile() {
     }
   });
 
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadPhoto = useUploadPetPhoto({
+    mutation: {
+      onSuccess: (updated) => {
+        queryClient.setQueryData(getGetPetQueryKey(updated.id), updated);
+        queryClient.invalidateQueries({ queryKey: getListPetsQueryKey() });
+        toast({ title: "Photo updated" });
+      },
+      onError: (error) => {
+        toast({ title: "Couldn't upload photo", description: error.message, variant: "destructive" });
+      },
+    },
+  });
+
+  const removePhoto = useRemovePetPhoto({
+    mutation: {
+      onSuccess: (updated) => {
+        queryClient.setQueryData(getGetPetQueryKey(updated.id), updated);
+        queryClient.invalidateQueries({ queryKey: getListPetsQueryKey() });
+        toast({ title: "Photo removed" });
+      },
+      onError: (error) => {
+        toast({ title: "Couldn't remove photo", description: error.message, variant: "destructive" });
+      },
+    },
+  });
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !activePetId) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: 'Photo is too large', description: 'Maximum size is 10MB.', variant: 'destructive' });
+      return;
+    }
+    if (!ALLOWED_PHOTO_MIME_TYPES.has(file.type)) {
+      toast({ title: 'Unsupported file type', description: 'Use a JPEG, PNG, WEBP, or HEIC image.', variant: 'destructive' });
+      return;
+    }
+    uploadPhoto.mutate({ petId: activePetId, data: { file } });
+  };
+
   const onSubmit = (data: ProfileFormValues) => {
     const payload = {
       ...data,
-      photoUrl: null,
+      photoUrl: pet?.photoUrl ?? null,
       birthDate: data.birthDate || null,
       breed: data.breed || null,
       notes: data.notes || null,
@@ -356,7 +411,8 @@ export default function Profile() {
 
   const name = form.watch('name');
   const selectedSpecies = form.watch('species');
-  const currentPhotoSrc = resolvePetAvatar(null, selectedSpecies);
+  const currentPhotoSrc = resolvePetAvatar(isNew ? null : pet?.photoUrl ?? null, selectedSpecies);
+  const hasUploadedPhoto = !isNew && !!pet?.photoUrl && !pet.photoUrl.startsWith('preset:');
   const savedBreed = form.watch('breed');
   const breedOptions = BREEDS_BY_SPECIES[selectedSpecies] ?? [];
   const visibleBreedOptions =
@@ -378,14 +434,42 @@ export default function Profile() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-5">
           <div className="bg-card border border-border rounded-3xl p-7 flex items-center gap-6">
-            <div className="w-24 h-24 rounded-full bg-accent flex items-center justify-center text-primary shrink-0 overflow-hidden">
-              {currentPhotoSrc ? (
-                <img src={currentPhotoSrc} alt="Pet avatar" className="w-full h-full object-cover" />
-              ) : name ? (
-                <span className="text-4xl font-serif font-extrabold">{name.charAt(0)}</span>
-              ) : (
-                <HeartPulse size={40} />
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                disabled={isNew || uploadPhoto.isPending}
+                onClick={() => photoInputRef.current?.click()}
+                className={cn(
+                  'w-24 h-24 rounded-full bg-accent flex items-center justify-center text-primary overflow-hidden',
+                  !isNew && 'cursor-pointer',
+                )}
+                aria-label="Change pet photo"
+              >
+                {currentPhotoSrc ? (
+                  <img src={currentPhotoSrc} alt="Pet avatar" className="w-full h-full object-cover" />
+                ) : name ? (
+                  <span className="text-4xl font-serif font-extrabold">{name.charAt(0)}</span>
+                ) : (
+                  <HeartPulse size={40} />
+                )}
+                {uploadPhoto.isPending && (
+                  <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
+                    <Loader2 size={24} className="text-white animate-spin" />
+                  </div>
+                )}
+              </button>
+              {!isNew && (
+                <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center border-2 border-card pointer-events-none">
+                  <Camera size={14} />
+                </div>
               )}
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic"
+                onChange={handlePhotoSelect}
+                className="hidden"
+              />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-bold text-muted-foreground">Name</div>
@@ -406,8 +490,31 @@ export default function Profile() {
                 )}
               />
             </div>
-            <div className="text-sm text-muted-foreground shrink-0 hidden sm:block text-right">
-              Using the {selectedSpecies} illustration
+            <div className="text-sm shrink-0 hidden sm:flex flex-col items-end gap-1 text-right">
+              {isNew ? (
+                <span className="text-muted-foreground">Using the {selectedSpecies} illustration</span>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={uploadPhoto.isPending}
+                    className="text-primary font-bold hover:underline disabled:opacity-50"
+                  >
+                    {hasUploadedPhoto ? 'Change photo' : 'Add a photo'}
+                  </button>
+                  {hasUploadedPhoto && (
+                    <button
+                      type="button"
+                      onClick={() => activePetId && removePhoto.mutate({ petId: activePetId })}
+                      disabled={removePhoto.isPending}
+                      className="text-muted-foreground hover:underline disabled:opacity-50"
+                    >
+                      Remove photo
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </div>
 

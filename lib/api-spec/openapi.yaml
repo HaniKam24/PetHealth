@@ -212,6 +212,54 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           $ref: "#/components/responses/NotFound"
+  /pets/{petId}/photo:
+    post:
+      operationId: uploadPetPhoto
+      tags: [pets]
+      summary: Upload a pet's profile photo (JPEG/PNG/WEBP/HEIC, 10MB max) — replaces any existing photo
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        "201":
+          description: Updated pet, with photoUrl pointing at the new photo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+        "400":
+          description: File missing, too large, or an unsupported type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: removePetPhoto
+      tags: [pets]
+      summary: Remove a pet's uploaded photo — falls back to the species illustration
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          description: Updated pet, with photoUrl cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /pets/{petId}/records/{recordId}/document-url:
     get:
       operationId: getHealthRecordDocumentUrl

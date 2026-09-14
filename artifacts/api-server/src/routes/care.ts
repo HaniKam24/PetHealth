@@ -33,6 +33,8 @@ import {
   UpdateMedicationBody,
   UpdateMedicationParams,
   UploadHealthRecordDocumentParams,
+  UploadPetPhotoParams,
+  RemovePetPhotoParams,
   UpdatePetBody,
   UpdatePetParams,
 } from "@workspace/api-zod";
@@ -52,12 +54,12 @@ import {
   weightLogs,
 } from "@workspace/db";
 import { anthropic } from "@workspace/integrations-anthropic-ai-server";
-import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument } from "../lib/storage";
+import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument, uploadPetPhoto } from "../lib/storage";
 import { runCareRecommendationsEngine, suppressRedundantSystemReminder } from "../lib/care-recommendations";
 import { buildEscalationMessage, isRedFlagQuestion, extractZipCode } from "../lib/symptom-escalation";
 import { lookupEmergencyVets } from "../lib/emergency-vet-lookup";
 import { assertChatQuotaAvailable, ChatQuotaExceededError, getChatQuota, recordChatUsage } from "../lib/chat-quota";
-import { ALLOWED_DOCUMENT_MIME_TYPES, handleSingleFileUpload } from "../lib/upload-middleware";
+import { ALLOWED_DOCUMENT_MIME_TYPES, ALLOWED_IMAGE_MIME_TYPES, handleSingleFileUpload } from "../lib/upload-middleware";
 import { logger } from "../lib/logger";
 import {
   completeReminderForPet,
@@ -497,6 +499,65 @@ router.post(
     }
   },
 );
+
+router.post(
+  "/pets/:petId/photo",
+  handleSingleFileUpload("file"),
+  async (req, res, next) => {
+    try {
+      const userId = requireUserId(req);
+      const { petId } = UploadPetPhotoParams.parse(req.params);
+      if (!(await isPetOwnedByUser(userId, petId))) {
+        res.status(404).json({ error: "Pet not found" });
+        return;
+      }
+      if (!req.file) {
+        res.status(400).json({ error: "A file is required." });
+        return;
+      }
+      if (!ALLOWED_IMAGE_MIME_TYPES.has(req.file.mimetype)) {
+        res.status(400).json({ error: "Only JPEG, PNG, WEBP, or HEIC images are supported." });
+        return;
+      }
+      const { url } = await uploadPetPhoto(petId, req.file);
+      const [updated] = await db
+        .update(pets)
+        .set({ photoUrl: url })
+        .where(eq(pets.id, petId))
+        .returning();
+      if (!updated) {
+        res.status(404).json({ error: "Pet not found" });
+        return;
+      }
+      res.status(201).json(asPet(updated));
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.delete("/pets/:petId/photo", async (req, res, next) => {
+  try {
+    const userId = requireUserId(req);
+    const { petId } = RemovePetPhotoParams.parse(req.params);
+    if (!(await isPetOwnedByUser(userId, petId))) {
+      res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+    const [updated] = await db
+      .update(pets)
+      .set({ photoUrl: null })
+      .where(eq(pets.id, petId))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+    res.json(asPet(updated));
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.get("/pets/:petId/medications", async (req, res, next) => {
   try {

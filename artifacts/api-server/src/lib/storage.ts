@@ -7,6 +7,11 @@ const BUCKET = "health-record-documents";
 // A leaked link expires on its own instead of staying valid for years.
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 60 * 60;
 
+// Separate, public bucket — unlike vet documents, a pet photo isn't
+// sensitive medical data, and it needs to load instantly and repeatedly
+// (dashboard, profile, pet switcher) without re-signing a URL each time.
+const PHOTO_BUCKET = "pet-photos";
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -39,6 +44,25 @@ async function ensureBucket() {
   }
 
   bucketEnsured = true;
+}
+
+let photoBucketEnsured = false;
+
+async function ensurePhotoBucket() {
+  if (photoBucketEnsured) return;
+
+  const { data: existing } = await supabase.storage.getBucket(PHOTO_BUCKET);
+  if (!existing) {
+    const { error } = await supabase.storage.createBucket(PHOTO_BUCKET, {
+      public: true,
+      fileSizeLimit: "10MB",
+    });
+    if (error && !error.message.toLowerCase().includes("already exists")) {
+      throw error;
+    }
+  }
+
+  photoBucketEnsured = true;
 }
 
 export interface UploadedFile {
@@ -91,4 +115,28 @@ export async function deleteDocument(path: string): Promise<void> {
   if (error) {
     throw error;
   }
+}
+
+// Returns a plain public URL, not a storage path — unlike vet documents,
+// this is what gets saved directly into pets.photoUrl and rendered as-is.
+export async function uploadPetPhoto(
+  petId: number,
+  file: UploadedFile,
+): Promise<{ url: string }> {
+  await ensurePhotoBucket();
+
+  const ext = file.originalname.includes(".")
+    ? file.originalname.slice(file.originalname.lastIndexOf("."))
+    : "";
+  const path = `pet-${petId}/${randomUUID()}${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(PHOTO_BUCKET)
+    .upload(path, file.buffer, { contentType: file.mimetype, upsert: false });
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const { data } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path);
+  return { url: data.publicUrl };
 }

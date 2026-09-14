@@ -863,6 +863,10 @@ export type UploadHealthRecordDocumentBody = {
   file: Blob;
 };
 
+export type UploadPetPhotoBody = {
+  file: Blob;
+};
+
 export type CreateDocumentImportBody = {
   file: Blob;
 };
