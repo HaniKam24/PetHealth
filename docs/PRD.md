@@ -234,7 +234,8 @@ flowchart LR
 - Bolt 12 — Trend insights (weight, adherence) with Recharts — built out of order, ahead of Bolt 11; `weight_logs`/`medication_dose_logs` tables, `GET /pets/:petId/trends`, Trends tab in `insights.tsx`
 
 **Phase 2 — Depth** *(next)*
-- Bolt 11 — Email digest + recurring reminders — the one Phase 1/2 item still unbuilt: no email provider wired up, no scheduler, no recurrence field on `reminders`
+- Bolt 11 — Daily email digest + recurring owner reminders — **code complete on `feature/bolt-11-digest-and-recurring-reminders`, not yet merged.** Recurrence (`reminders.recurrenceIntervalValue`/`recurrenceIntervalUnit`, applied on `POST /reminders/:reminderId/complete`) and the digest pipeline (`lib/integrations-resend`, `POST /internal/daily-digest`, a Render Cron Job in `render.yaml`) are both built and typechecked, but **never run against a real Resend account** — no `RESEND_API_KEY`/`DIGEST_FROM_EMAIL`/`DIGEST_CRON_SECRET` set anywhere yet.
+- Bolt 11a — Wire up Resend + verify the digest end-to-end — the actual remaining work: get a Resend account + API key + verified sending domain (or use the `onboarding@resend.dev` test address against one's own inbox), set the three env vars locally and on Render, confirm a real digest email arrives, and confirm recurrence produces the right next `dueDate` via the UI. Blocked on the Resend account itself, not on code.
 
 **Phase 3 — Platform** *(later)*
 - Bolt 13 — Co-owner invites on `pet_owners` — matches the "designed for, not built" status already given to the co-owner persona in section 2 and the P3 tag in section 5; kept here rather than Phase 2 despite the schema already being multi-owner-shaped
