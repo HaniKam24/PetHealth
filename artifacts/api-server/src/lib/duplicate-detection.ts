@@ -13,6 +13,17 @@ function looselyMatches(a: string, b: string): boolean {
   return x.length > 0 && y.length > 0 && (x.includes(y) || y.includes(x));
 }
 
+// CreateHealthRecordBody/CreateReminderBody parse their date fields with
+// zod.coerce.date() — by the time a proposed item's data reaches here, its
+// date is a real Date instance, never a plain string. A prior version of
+// this file only accepted a string here, which silently made date-based
+// duplicate matching a no-op for every health_record/reminder proposal.
+function asDateInput(value: unknown): string | Date | null {
+  if (value instanceof Date) return value;
+  if (typeof value === "string" && value) return value;
+  return null;
+}
+
 export interface DuplicateMatch {
   type: "health_record" | "medication" | "reminder";
   id: number;
@@ -29,7 +40,7 @@ export async function findDuplicate(
 ): Promise<DuplicateMatch | null> {
   if (itemType === "health_record") {
     const type = typeof data.type === "string" ? data.type : null;
-    const date = typeof data.date === "string" ? data.date : null;
+    const date = asDateInput(data.date);
     if (!type || !date) return null;
     const rows = await db
       .select()
@@ -51,7 +62,7 @@ export async function findDuplicate(
   }
 
   const title = typeof data.title === "string" ? data.title : null;
-  const dueDate = typeof data.dueDate === "string" ? data.dueDate : null;
+  const dueDate = asDateInput(data.dueDate);
   if (!title || !dueDate) return null;
   const rows = await db.select().from(reminders).where(eq(reminders.petId, petId));
   const match = rows.find((r) => daysApart(r.dueDate, dueDate) <= THREE_DAYS_MS && looselyMatches(r.title, title));
