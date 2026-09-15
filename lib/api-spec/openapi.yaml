@@ -1000,10 +1000,13 @@ components:
       properties:
         id: { type: integer }
         name: { type: string }
-        species: { type: string, enum: [dog, cat, bird, rabbit, other] }
+        species: { type: string, enum: [dog, cat, rabbit, bird, fish, hamster, pig, horse, reptile, ferret, other] }
         breed: { type: ["string", "null"] }
+        color: { type: ["string", "null"] }
+        microchipId: { type: ["string", "null"] }
         sex: { type: string, enum: [female, male, unknown] }
         birthDate: { type: ["string", "null"], format: date }
+        gotchaDate: { type: ["string", "null"], format: date }
         weight: { type: ["number", "null"] }
         weightUnit: { type: string, enum: [lb, kg] }
         photoUrl: { type: ["string", "null"], format: uri }
@@ -1012,15 +1015,18 @@ components:
         vetClinic: { type: ["string", "null"] }
         vetPhone: { type: ["string", "null"] }
         vetAddress: { type: ["string", "null"] }
-      required: [id, name, species, breed, sex, birthDate, weight, weightUnit, photoUrl, notes, vetName, vetClinic, vetPhone, vetAddress]
+      required: [id, name, species, breed, color, microchipId, sex, birthDate, gotchaDate, weight, weightUnit, photoUrl, notes, vetName, vetClinic, vetPhone, vetAddress]
     PetInput:
       type: object
       properties:
         name: { type: string, minLength: 1 }
-        species: { type: string, enum: [dog, cat, bird, rabbit, other] }
+        species: { type: string, enum: [dog, cat, rabbit, bird, fish, hamster, pig, horse, reptile, ferret, other] }
         breed: { type: ["string", "null"] }
+        color: { type: ["string", "null"] }
+        microchipId: { type: ["string", "null"] }
         sex: { type: string, enum: [female, male, unknown] }
         birthDate: { type: ["string", "null"], format: date }
+        gotchaDate: { type: ["string", "null"], format: date }
         weight: { type: ["number", "null"] }
         weightUnit: { type: string, enum: [lb, kg] }
         photoUrl: { type: ["string", "null"], format: uri }

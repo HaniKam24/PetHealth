@@ -11,6 +11,8 @@ import {
   getGetShareLinkQueryKey,
   useCreateShareLink,
   useRevokeShareLink,
+  useListMedications,
+  getListMedicationsQueryKey,
   getListPetsQueryKey,
   type Pet,
 } from '@workspace/api-client-react';
@@ -19,12 +21,15 @@ import { useLocation, useSearch } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trash2, HeartPulse, Check, Camera, Loader2, Share2, Copy } from 'lucide-react';
+import { Trash2, HeartPulse, Check, Camera, Loader2, Share2, Copy, X, CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,15 +44,19 @@ import { useToast } from '@/hooks/use-toast';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
+import { SPECIES_VALUES, SPECIES_OPTIONS, BREEDS_BY_SPECIES } from '@/lib/pet-species';
 
 const ALLOWED_PHOTO_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 
 const profileSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  species: z.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  species: z.enum(SPECIES_VALUES),
   breed: z.string().optional().nullable(),
+  color: z.string().optional().nullable(),
+  microchipId: z.string().optional().nullable(),
   sex: z.enum(['female', 'male', 'unknown']),
   birthDate: z.string().optional().nullable(),
+  gotchaDate: z.string().optional().nullable(),
   weight: z.coerce.number().optional().nullable(),
   weightUnit: z.enum(['lb', 'kg']),
   photoUrl: z.string().optional().nullable(),
@@ -60,160 +69,119 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-type BreedOption = {
-  value: string;
-  label: string;
-};
+// Age is never stored — it's either derived from birthDate, or (when there's
+// no birthDate) a free-standing number the user can type in for their own
+// reference, which isn't part of the form's zod schema and isn't sent to the
+// server at all.
+function computeAgeYearsFromBirthDate(birthDate: string): string {
+  const birth = new Date(birthDate);
+  if (Number.isNaN(birth.getTime())) return '';
+  const now = new Date();
+  let years = now.getFullYear() - birth.getFullYear();
+  const monthDiff = now.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) years -= 1;
+  return String(Math.max(years, 0));
+}
 
-const BREEDS_BY_SPECIES: Record<ProfileFormValues['species'], readonly BreedOption[]> = {
-  dog: [
-    'Mixed breed',
-    'Labrador Retriever',
-    'Golden Retriever',
-    'German Shepherd',
-    'French Bulldog',
-    'Bulldog',
-    'Poodle',
-    'Beagle',
-    'Rottweiler',
-    'Dachshund',
-    'Yorkshire Terrier',
-    'Boxer',
-    'Australian Shepherd',
-    'Siberian Husky',
-    'Great Dane',
-    'Cavalier King Charles Spaniel',
-    'Doberman Pinscher',
-    'Cane Corso',
-    'Miniature Schnauzer',
-    'Shih Tzu',
-    'Boston Terrier',
-    'Pomeranian',
-    'Havanese',
-    'Bernese Mountain Dog',
-    'Chihuahua',
-    'Pug',
-    'Cocker Spaniel',
-    'Border Collie',
-    'Maltese',
-    'Akita',
-    'Newfoundland',
-    'Basset Hound',
-    'Rhodesian Ridgeback',
-    'Weimaraner',
-    'Vizsla',
-    'Australian Cattle Dog',
-    'Jack Russell Terrier',
-    'West Highland White Terrier',
-    'Bichon Frise',
-    'Mastiff',
-    'Saint Bernard',
-    'English Springer Spaniel',
-    'Irish Setter',
-    'Whippet',
-    'Greyhound',
-    'Papillon',
-    'Shetland Sheepdog',
-    'Collie',
-    'Staffordshire Bull Terrier',
-    'Other / Not listed',
-  ].map((breed) => ({ value: breed, label: breed })),
-  cat: [
-    'Domestic Shorthair',
-    'Domestic Longhair',
-    'Domestic Medium Hair',
-    'Mixed breed',
-    'Abyssinian',
-    'American Shorthair',
-    'Bengal',
-    'Birman',
-    'British Shorthair',
-    'Burmese',
-    'Burmilla',
-    'Chartreux',
-    'Cornish Rex',
-    'Devon Rex',
-    'Egyptian Mau',
-    'Himalayan',
-    'Maine Coon',
-    'Manx',
-    'Norwegian Forest Cat',
-    'Ocicat',
-    'Oriental Shorthair',
-    'Persian',
-    'Ragdoll',
-    'Russian Blue',
-    'Savannah',
-    'Scottish Fold',
-    'Siamese',
-    'Siberian',
-    'Singapura',
-    'Snowshoe',
-    'Somali',
-    'Sphynx',
-    'Tonkinese',
-    'Toyger',
-    'Turkish Angora',
-    'Other / Not listed',
-  ].map((breed) => ({ value: breed, label: breed })),
-  bird: [
-    'Budgerigar / Parakeet',
-    'Cockatiel',
-    'African Grey Parrot',
-    'Amazon Parrot',
-    'Blue-and-Gold Macaw',
-    'Scarlet Macaw',
-    'Cockatoo',
-    'Conure',
-    'Eclectus Parrot',
-    'Lovebird',
-    'Finch',
-    'Canary',
-    'Dove',
-    'Pigeon',
-    'Quaker Parrot',
-    'Parrotlet',
-    'Mynah',
-    'Chicken',
-    'Duck',
-    'Goose',
-    'Other / Not listed',
-  ].map((breed) => ({ value: breed, label: breed })),
-  rabbit: [
-    'Mixed breed',
-    'American',
-    'Angora',
-    'Belgian Hare',
-    'Beveren',
-    'Britannia Petite',
-    'Californian',
-    'Champagne d’Argent',
-    'Checkered Giant',
-    'Chinchilla',
-    'Dutch',
-    'Dwarf Hotot',
-    'English Lop',
-    'English Spot',
-    'Flemish Giant',
-    'Holland Lop',
-    'Jersey Wooly',
-    'Lionhead',
-    'Mini Lop',
-    'Mini Rex',
-    'Netherland Dwarf',
-    'New Zealand',
-    'Polish',
-    'Rex',
-    'Satin',
-    'Silver Fox',
-    'Other / Not listed',
-  ].map((breed) => ({ value: breed, label: breed })),
-  other: [
-    'Mixed breed',
-    'Unknown',
-    'Other / Not listed',
-  ].map((breed) => ({ value: breed, label: breed })),
-};
+// A native <input type="date"> (so typing mm/dd/yyyy directly always works)
+// plus: a clear button, since native date inputs don't reliably show one
+// across browsers, and a dedicated calendar-icon button that opens a bigger,
+// easier-to-browse picker for jumping across months/years by click instead.
+//
+// The calendar button is deliberately separate from the input itself and
+// never attached to the input's own onClick — that was tried and reverted:
+// showPicker() on a generic click popped the calendar open even when the
+// click was meant to focus a specific mm/dd/yyyy segment for keyboard
+// typing, and the calendar then intercepted the keystrokes instead of the
+// field, so a typed date silently never registered.
+function DateField({
+  value,
+  onChange,
+  className,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const selected = value ? new Date(`${value}T00:00:00`) : undefined;
+  // The formatted overlay (real date, or a "Month DD, YYYY" placeholder when
+  // empty) only replaces the native mm/dd/yyyy display while the field is at
+  // rest — while focused/being edited, the native segments show through as
+  // normal. Tried hiding them unconditionally too: the browser's own
+  // highlight for the focused segment ignores an author `color`, so it bled
+  // through as garbled overlapping text with the overlay.
+  const showOverlay = !focused;
+  return (
+    <div className="relative">
+      <Input
+        type="date"
+        className={cn(
+          className,
+          'pl-9',
+          value && 'pr-9',
+          showOverlay && 'text-transparent caret-transparent',
+        )}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+      />
+      {showOverlay && (
+        <span
+          className={cn(
+            'pointer-events-none absolute left-9 top-1/2 -translate-y-1/2 text-sm',
+            !selected && 'text-muted-foreground',
+          )}
+        >
+          {selected ? format(selected, 'MMM d, yyyy') : 'Month DD, YYYY'}
+        </span>
+      )}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Open calendar"
+          >
+            <CalendarDays size={16} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-auto p-4 text-base"
+          align="start"
+          style={{ '--cell-size': '3rem' } as React.CSSProperties}
+        >
+          <Calendar
+            mode="single"
+            selected={selected}
+            defaultMonth={selected}
+            captionLayout="dropdown"
+            onSelect={(date) => {
+              onChange(date ? format(date, 'yyyy-MM-dd') : '');
+              setOpen(false);
+            }}
+            autoFocus
+          />
+        </PopoverContent>
+      </Popover>
+      {value && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onChange('');
+          }}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label="Clear date"
+        >
+          <X size={14} />
+        </button>
+      )}
+    </div>
+  );
+}
 
 // Standalone card, not part of the profile form — creating/revoking a link
 // takes effect immediately, same reasoning as the delete-pet action, rather
@@ -350,14 +318,30 @@ export default function Profile() {
     }
   );
 
+  // Read-only — medications are managed on the Medicines page, this is just
+  // a quick "what are they currently on" glance shown in the Health card.
+  const { data: medications } = useListMedications(
+    activePetId!,
+    {
+      query: {
+        enabled: !!activePetId && !isNew,
+        queryKey: activePetId ? getListMedicationsQueryKey(activePetId) : ['no-pet-medications'],
+      },
+    },
+  );
+  const activeMedicationNames = (medications ?? []).filter((m) => m.active).map((m) => m.name);
+
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       name: '',
       species: 'dog',
       breed: '',
+      color: '',
+      microchipId: '',
       sex: 'unknown',
       birthDate: '',
+      gotchaDate: '',
       weight: null,
       weightUnit: 'lb',
       photoUrl: '',
@@ -382,8 +366,11 @@ export default function Profile() {
         name: pet.name,
         species: pet.species,
         breed: pet.breed || '',
+        color: pet.color || '',
+        microchipId: pet.microchipId || '',
         sex: pet.sex,
         birthDate: pet.birthDate ? pet.birthDate.split('T')[0] : '',
+        gotchaDate: pet.gotchaDate ? pet.gotchaDate.split('T')[0] : '',
         weight: pet.weight,
         weightUnit: pet.weightUnit,
          photoUrl: pet.photoUrl?.startsWith('preset:') ? '' : pet.photoUrl || '',
@@ -400,12 +387,13 @@ export default function Profile() {
   useEffect(() => {
     if (isNew) {
       form.reset({
-        name: '', species: 'dog', breed: '', sex: 'unknown', birthDate: '',
+        name: '', species: 'dog', breed: '', color: '', microchipId: '', sex: 'unknown', birthDate: '', gotchaDate: '',
         weight: null, weightUnit: 'lb', photoUrl: '', notes: '',
         vetName: '', vetClinic: '', vetPhone: '', vetAddress: '',
       });
     }
   }, [isNew, form]);
+
 
 
   const updatePet = useUpdatePet({
@@ -511,7 +499,10 @@ export default function Profile() {
       ...data,
       photoUrl: pet?.photoUrl ?? null,
       birthDate: data.birthDate || null,
+      gotchaDate: data.gotchaDate || null,
       breed: data.breed || null,
+      color: data.color || null,
+      microchipId: data.microchipId || null,
       notes: data.notes || null,
       vetName: data.vetName || null,
       vetClinic: data.vetClinic || null,
@@ -529,6 +520,8 @@ export default function Profile() {
   if (isLoading && !isNew) return <div className="p-10 animate-pulse text-center text-muted-foreground">Loading profile...</div>;
 
   const name = form.watch('name');
+  const watchedBirthDate = form.watch('birthDate');
+  const displayedAge = watchedBirthDate ? computeAgeYearsFromBirthDate(watchedBirthDate) : '';
   const selectedSpecies = form.watch('species');
   const currentPhotoSrc = resolvePetAvatar(isNew ? null : pet?.photoUrl ?? null, selectedSpecies);
   const hasUploadedPhoto = !isNew && !!pet?.photoUrl && !pet.photoUrl.startsWith('preset:');
@@ -639,7 +632,7 @@ export default function Profile() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="bg-card border border-border rounded-3xl p-6">
-              <div className="font-serif text-lg font-extrabold mb-4">The basics</div>
+              <div className="font-serif text-lg font-extrabold mb-4">Basics</div>
               <div className="grid grid-cols-2 gap-3">
                 <FormField
                   control={form.control}
@@ -660,11 +653,11 @@ export default function Profile() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="dog">Dog</SelectItem>
-                          <SelectItem value="cat">Cat</SelectItem>
-                          <SelectItem value="bird">Bird</SelectItem>
-                          <SelectItem value="rabbit">Rabbit</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          {SPECIES_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -702,7 +695,7 @@ export default function Profile() {
                   name="breed"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Breed (Optional)</FormLabel>
+                      <FormLabel>Breed</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value ?? ''}>
                         <FormControl>
                           <SelectTrigger className={fieldClass}>
@@ -721,27 +714,55 @@ export default function Profile() {
                     </FormItem>
                   )}
                 />
-                <p className="mt-1.5 text-xs text-muted-foreground">{breedOptions.length} {selectedSpecies} breeds listed, or type your own.</p>
+              </div>
+
+              <div className="mt-3">
+                <FormField
+                  control={form.control}
+                  name="color"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Color</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Black and white" className={fieldClass} {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="mt-3">
+                <FormField
+                  control={form.control}
+                  name="birthDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Birthday</FormLabel>
+                      <FormControl>
+                        <DateField value={field.value || ''} onChange={field.onChange} className={fieldClass} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="mt-3 space-y-1">
+                <Label>Age</Label>
+                <p className="text-[15px] font-medium">
+                  {displayedAge ? `${displayedAge} ${displayedAge === '1' ? 'year' : 'years'}` : <span className="text-muted-foreground">—</span>}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {watchedBirthDate ? 'Calculated automatically from birthday.' : 'Set a birthday to calculate age.'}
+                </p>
               </div>
             </div>
 
+            <div className="flex flex-col gap-5">
             <div className="bg-card border border-border rounded-3xl p-6">
-              <div className="font-serif text-lg font-extrabold mb-4">Vitals</div>
-              <FormField
-                control={form.control}
-                name="birthDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Birthday or gotcha day</FormLabel>
-                    <FormControl>
-                      <Input type="date" className={fieldClass} {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_6rem] items-start gap-3">
+              <div className="font-serif text-lg font-extrabold mb-4">Health</div>
+              <div className="grid grid-cols-[minmax(0,1fr)_6rem] items-start gap-3">
                 <FormField
                   control={form.control}
                   name="weight"
@@ -778,11 +799,65 @@ export default function Profile() {
                   )}
                 />
               </div>
+
+              <div className="mt-3 space-y-1">
+                <Label>Medication</Label>
+                {activeMedicationNames.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeMedicationNames.map((name) => (
+                      <span
+                        key={name}
+                        className="rounded-full bg-accent/60 px-2.5 py-1 text-xs font-medium text-foreground"
+                      >
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">None on file.</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Read from the Medicines page — manage medications there.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-3xl p-6">
+              <div className="font-serif text-lg font-extrabold mb-4">Details</div>
+              <div className="space-y-3">
+                <FormField
+                  control={form.control}
+                  name="gotchaDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gotcha day</FormLabel>
+                      <FormControl>
+                        <DateField value={field.value || ''} onChange={field.onChange} className={fieldClass} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="microchipId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Microchip ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="985141000000000" className={fieldClass} {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
             </div>
           </div>
 
           <div className="bg-card border border-border rounded-3xl p-6">
-            <div className="font-serif text-lg font-extrabold mb-4">Their vet</div>
+            <div className="font-serif text-lg font-extrabold mb-4">My Vet</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -846,10 +921,10 @@ export default function Profile() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-serif text-lg font-extrabold">Things worth remembering</FormLabel>
-                  <p className="text-sm text-muted-foreground mb-1">Microchip number, allergies, what frightens them, where they hide.</p>
+                  <p className="text-sm text-muted-foreground mb-1">Allergies, what frightens them, where they hide.</p>
                   <FormControl>
                     <Textarea
-                      placeholder="Allergies, microchip number, favorite hiding spots, fears..."
+                      placeholder="Allergies, favorite hiding spots, fears..."
                       className="resize-none rounded-2xl bg-accent/40 min-h-[130px]"
                       {...field}
                       value={field.value || ''}
