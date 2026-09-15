@@ -559,6 +559,29 @@ export interface PetTrends {
   medicationAdherence: MedicationAdherence[];
 }
 
+export type VaccineStatusStatus = typeof VaccineStatusStatus[keyof typeof VaccineStatusStatus];
+
+
+export const VaccineStatusStatus = {
+  current: 'current',
+  overdue: 'overdue',
+  never_recorded: 'never_recorded',
+} as const;
+
+export interface VaccineStatus {
+  key: string;
+  label: string;
+  status: VaccineStatusStatus;
+  /** @nullable */
+  lastGivenDate: string | null;
+  /** @nullable */
+  dueDate: string | null;
+}
+
+export interface PetVaccines {
+  vaccines: VaccineStatus[];
+}
+
 export type ReminderCategory = typeof ReminderCategory[keyof typeof ReminderCategory];
 
 

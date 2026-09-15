@@ -152,6 +152,47 @@ async function upsertSystemReminder(input: {
   }
 }
 
+export type VaccineStatus = {
+  key: string;
+  label: string;
+  status: "current" | "overdue" | "never_recorded";
+  lastGivenDate: string | null;
+  dueDate: string | null;
+};
+
+// Read-only counterpart to the engine below — a vaccine type with no
+// matching record yet still needs to show up (as "never_recorded"), which
+// the engine itself can't tell you: it just skips a rule with no match
+// (see the `if (!match) continue` below), so there's never a reminder row
+// to read for that case. Small deliberate duplication of the match-finding
+// step rather than refactoring the engine, since that's a working,
+// side-effecting path other code depends on.
+export async function computeVaccineStatuses(pet: typeof pets.$inferSelect): Promise<VaccineStatus[]> {
+  const vaccineRecords = await db
+    .select()
+    .from(healthRecords)
+    .where(and(eq(healthRecords.petId, pet.id), eq(healthRecords.type, "vaccine")));
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  return VACCINE_RULES.filter((rule) => rule.species === "any" || rule.species === pet.species).map((rule) => {
+    const match = vaccineRecords
+      .filter((r) => rule.keywords.some((k) => r.title.toLowerCase().includes(k)))
+      .sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+    if (!match) {
+      return { key: rule.key, label: rule.label, status: "never_recorded" as const, lastGivenDate: null, dueDate: null };
+    }
+    const dueDate = addMonthsToDateString(match.date, rule.intervalMonths);
+    return {
+      key: rule.key,
+      label: rule.label,
+      status: dueDate < today ? ("overdue" as const) : ("current" as const),
+      lastGivenDate: match.date,
+      dueDate,
+    };
+  });
+}
+
 export async function runCareRecommendationsEngine(pet: typeof pets.$inferSelect): Promise<void> {
   const vaccineRecords = await db
     .select()

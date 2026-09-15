@@ -802,6 +802,27 @@ export const GetPetTrendsResponse = zod.object({
 
 
 /**
+ * @summary Get per-vaccine-type status (current/overdue/never recorded) for a pet
+ */
+
+
+
+export const GetPetVaccinesParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+export const GetPetVaccinesResponse = zod.object({
+  "vaccines": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['current', 'overdue', 'never_recorded']),
+  "lastGivenDate": zod.coerce.date().nullable(),
+  "dueDate": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
  * @summary List reminders for a pet
  */
 
