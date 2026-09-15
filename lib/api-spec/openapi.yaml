@@ -915,7 +915,7 @@ components:
       properties:
         id: { type: integer }
         name: { type: string }
-        species: { type: string, enum: [dog, cat, bird, rabbit, other] }
+        species: { type: string, enum: [dog, cat, rabbit, bird, fish, hamster, pig, horse, reptile, ferret, other] }
         breed: { type: ["string", "null"] }
         color: { type: ["string", "null"] }
         microchipId: { type: ["string", "null"] }
@@ -935,7 +935,7 @@ components:
       type: object
       properties:
         name: { type: string, minLength: 1 }
-        species: { type: string, enum: [dog, cat, bird, rabbit, other] }
+        species: { type: string, enum: [dog, cat, rabbit, bird, fish, hamster, pig, horse, reptile, ferret, other] }
         breed: { type: ["string", "null"] }
         color: { type: ["string", "null"] }
         microchipId: { type: ["string", "null"] }

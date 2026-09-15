@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
+import { SPECIES_VALUES, SPECIES_OPTIONS } from '@/lib/pet-species';
 import { setPendingTutorial } from '@/lib/onboarding-tutorial-flag';
 import SmartUpload from '@/pages/smart-upload';
 
@@ -21,7 +22,7 @@ import SmartUpload from '@/pages/smart-upload';
 // deliberately doesn't need photoUrl in its form state at all.
 const onboardingSchema = z.object({
   name: z.string().min(1, "Your pet's name is required"),
-  species: z.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  species: z.enum(SPECIES_VALUES),
   breed: z.string().optional().nullable(),
   sex: z.enum(['female', 'male', 'unknown']),
   birthDate: z.string().optional().nullable(),
@@ -256,11 +257,11 @@ export default function Onboarding() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="dog">Dog</SelectItem>
-                        <SelectItem value="cat">Cat</SelectItem>
-                        <SelectItem value="bird">Bird</SelectItem>
-                        <SelectItem value="rabbit">Rabbit</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        {SPECIES_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -369,11 +370,11 @@ export default function Onboarding() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="dog">Dog</SelectItem>
-                            <SelectItem value="cat">Cat</SelectItem>
-                            <SelectItem value="bird">Bird</SelectItem>
-                            <SelectItem value="rabbit">Rabbit</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
+                            {SPECIES_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
