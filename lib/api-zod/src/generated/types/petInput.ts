@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PetInputSex } from './petInputSex';
+import type { PetInputSpayNeuterStatus } from './petInputSpayNeuterStatus';
 import type { PetInputSpecies } from './petInputSpecies';
 import type { PetInputWeightUnit } from './petInputWeightUnit';
 
@@ -20,6 +21,7 @@ export interface PetInput {
   /** @nullable */
   microchipId?: string | null;
   sex: PetInputSex;
+  spayNeuterStatus: PetInputSpayNeuterStatus;
   /** @nullable */
   birthDate?: Date | null;
   /** @nullable */

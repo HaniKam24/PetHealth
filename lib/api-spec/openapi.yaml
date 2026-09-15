@@ -1021,6 +1021,7 @@ components:
         color: { type: ["string", "null"] }
         microchipId: { type: ["string", "null"] }
         sex: { type: string, enum: [female, male, unknown] }
+        spayNeuterStatus: { type: string, enum: [spayed_neutered, intact, unknown] }
         birthDate: { type: ["string", "null"], format: date }
         gotchaDate: { type: ["string", "null"], format: date }
         weight: { type: ["number", "null"] }
@@ -1032,7 +1033,7 @@ components:
         vetClinic: { type: ["string", "null"] }
         vetPhone: { type: ["string", "null"] }
         vetAddress: { type: ["string", "null"] }
-      required: [id, name, species, breed, color, microchipId, sex, birthDate, gotchaDate, weight, weightUnit, photoUrl, notes, allergies, vetName, vetClinic, vetPhone, vetAddress]
+      required: [id, name, species, breed, color, microchipId, sex, spayNeuterStatus, birthDate, gotchaDate, weight, weightUnit, photoUrl, notes, allergies, vetName, vetClinic, vetPhone, vetAddress]
     PetInput:
       type: object
       properties:
@@ -1042,6 +1043,7 @@ components:
         color: { type: ["string", "null"] }
         microchipId: { type: ["string", "null"] }
         sex: { type: string, enum: [female, male, unknown] }
+        spayNeuterStatus: { type: string, enum: [spayed_neutered, intact, unknown] }
         birthDate: { type: ["string", "null"], format: date }
         gotchaDate: { type: ["string", "null"], format: date }
         weight: { type: ["number", "null"] }
@@ -1053,7 +1055,7 @@ components:
         vetClinic: { type: ["string", "null"] }
         vetPhone: { type: ["string", "null"] }
         vetAddress: { type: ["string", "null"] }
-      required: [name, species, sex, weightUnit]
+      required: [name, species, sex, spayNeuterStatus, weightUnit]
     PetUpdate:
       allOf:
         - $ref: "#/components/schemas/PetInput"

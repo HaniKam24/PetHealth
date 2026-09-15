@@ -125,6 +125,7 @@ export default function Onboarding() {
         data: {
           ...data,
           photoUrl: null,
+          spayNeuterStatus: 'unknown',
           birthDate: data.birthDate || null,
           breed: data.breed || null,
           notes: data.notes || null,
@@ -148,6 +149,7 @@ export default function Onboarding() {
           name: data.name,
           species: data.species,
           sex: 'unknown',
+          spayNeuterStatus: 'unknown',
           weightUnit: 'lb',
           breed: null,
           birthDate: null,

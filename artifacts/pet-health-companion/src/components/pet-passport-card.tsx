@@ -31,6 +31,12 @@ const VACCINE_STATUS_STYLES: Record<VaccineStatus['status'], { label: string; cl
   never_recorded: { label: 'Not on file', cls: 'text-muted-foreground' },
 };
 
+const SPAY_NEUTER_STATUS_LABELS: Record<Pet['spayNeuterStatus'], string> = {
+  spayed_neutered: 'Spayed/Neutered',
+  intact: 'Intact',
+  unknown: 'Unknown',
+};
+
 export function PetPassportCard({
   pet,
   activeMedications,
@@ -99,9 +105,9 @@ export function PetPassportCard({
                 cut off or forcing the whole row onto a new line. */}
             <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-x-10 gap-y-5">
               <div>
-                <div className={statLabelClass}>Born</div>
+                <div className={statLabelClass}>Age</div>
                 <div className="mt-1 text-sm font-bold break-words">
-                  {pet.birthDate ? format(new Date(`${pet.birthDate}T00:00:00`), 'd MMM yyyy') : '—'}
+                  {pet.birthDate ? formatAgeYearsMonths(pet.birthDate) : '—'}
                 </div>
               </div>
               <div>
@@ -158,10 +164,10 @@ export function PetPassportCard({
         </button>
       </div>
 
-      <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="bg-card border border-border rounded-3xl p-6">
-          <div className="font-serif text-lg font-extrabold mb-3">Identity</div>
-          <dl className="space-y-2.5">
+      <div className="mt-3 grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <div className="bg-card border border-border rounded-3xl p-4 flex flex-col">
+          <div className="font-serif text-base font-extrabold mb-3">Identity</div>
+          <dl className="flex-1 flex flex-col justify-between">
             <div className={identityRowClass}>
               <dt className="text-muted-foreground">Species</dt>
               <dd className="font-bold text-right capitalize">{pet.species}</dd>
@@ -175,15 +181,9 @@ export function PetPassportCard({
               <dd className="font-bold text-right capitalize">{pet.sex}</dd>
             </div>
             <div className={identityRowClass}>
-              <dt className="text-muted-foreground">Microchip</dt>
-              <dd className="font-bold text-right">{pet.microchipId || '—'}</dd>
+              <dt className="text-muted-foreground">Spay/Neuter status</dt>
+              <dd className="font-bold text-right">{SPAY_NEUTER_STATUS_LABELS[pet.spayNeuterStatus]}</dd>
             </div>
-          </dl>
-        </div>
-
-        <div className="bg-card border border-border rounded-3xl p-6">
-          <div className="font-serif text-lg font-extrabold mb-3">Vitals</div>
-          <dl className="space-y-2.5">
             <div className={identityRowClass}>
               <dt className="text-muted-foreground">Birthday</dt>
               <dd className="font-bold text-right">
@@ -194,27 +194,51 @@ export function PetPassportCard({
               <dt className="text-muted-foreground">Age</dt>
               <dd className="font-bold text-right">{pet.birthDate ? formatAgeYearsMonths(pet.birthDate) : '—'}</dd>
             </div>
-            <div className={identityRowClass}>
-              <dt className="text-muted-foreground">Weight</dt>
-              <dd className="font-bold text-right">
-                {pet.weight != null ? `${pet.weight} ${pet.weightUnit}` : '—'}
-                {hasWeightTrend && weightDelta !== 0 && (
-                  <span className={cn('ml-1.5', weightDelta > 0 ? 'text-destructive' : 'text-primary')}>
-                    {weightDelta > 0 ? '↑' : '↓'} {Math.abs(weightDelta).toFixed(1)}
-                  </span>
-                )}
-              </dd>
-            </div>
-            <div className={identityRowClass}>
-              <dt className="text-muted-foreground">Last weighed</dt>
-              <dd className="font-bold text-right">{lastWeighedAt ? format(lastWeighedAt, 'MMM d') : '—'}</dd>
-            </div>
           </dl>
         </div>
 
-        <div className="bg-card border border-border rounded-3xl p-6">
-          <div className="font-serif text-lg font-extrabold mb-3">Vaccines</div>
-          <dl className="space-y-2.5">
+        <div className="flex flex-col gap-3">
+          <div className="bg-card border border-border rounded-3xl p-4">
+            <div className="font-serif text-base font-extrabold mb-3">Vitals</div>
+            <dl className="space-y-1.5">
+              <div className={identityRowClass}>
+                <dt className="text-muted-foreground">Weight</dt>
+                <dd className="font-bold text-right">
+                  {pet.weight != null ? `${pet.weight} ${pet.weightUnit}` : '—'}
+                  {hasWeightTrend && weightDelta !== 0 && (
+                    <span className={cn('ml-1.5', weightDelta > 0 ? 'text-destructive' : 'text-primary')}>
+                      {weightDelta > 0 ? '↑' : '↓'} {Math.abs(weightDelta).toFixed(1)}
+                    </span>
+                  )}
+                </dd>
+              </div>
+              <div className={identityRowClass}>
+                <dt className="text-muted-foreground">Last weighed</dt>
+                <dd className="font-bold text-right">{lastWeighedAt ? format(lastWeighedAt, 'MMM d') : '—'}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="bg-card border border-border rounded-3xl p-4">
+            <div className="font-serif text-base font-extrabold mb-3">Details</div>
+            <dl className="space-y-1.5">
+              <div className={identityRowClass}>
+                <dt className="text-muted-foreground">Gotcha day</dt>
+                <dd className="font-bold text-right">
+                  {pet.gotchaDate ? format(new Date(`${pet.gotchaDate}T00:00:00`), 'd MMMM yyyy') : '—'}
+                </dd>
+              </div>
+              <div className={identityRowClass}>
+                <dt className="text-muted-foreground">Microchip ID</dt>
+                <dd className="font-bold text-right">{pet.microchipId || '—'}</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+
+        <div className="bg-card border border-border rounded-3xl p-4 flex flex-col">
+          <div className="font-serif text-base font-extrabold mb-3">Vaccines</div>
+          <dl className="space-y-1.5">
             {vaccines.map((v) => {
               const style = VACCINE_STATUS_STYLES[v.status];
               return (
@@ -230,9 +254,34 @@ export function PetPassportCard({
               );
             })}
           </dl>
+          <div className="flex-1" />
           {vaccines.length > 0 && (
-            <p className="mt-3 text-xs text-muted-foreground">General guideline — confirm with your vet.</p>
+            <p className="mt-2 text-xs text-muted-foreground">General guideline — confirm with your vet.</p>
           )}
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="bg-card border border-border rounded-3xl p-6">
+          <div className="font-serif text-lg font-extrabold mb-2">Medicine</div>
+          {activeMedications.length === 0 ? (
+            <p className="text-[15px] text-muted-foreground">None on file.</p>
+          ) : (
+            <ul className="list-disc pl-4 space-y-0.5">
+              {activeMedications.map((m) => (
+                <li key={m.id} className="text-[15px] font-bold break-words">
+                  {m.name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="bg-card border border-border rounded-3xl p-6">
+          <div className="font-serif text-lg font-extrabold mb-2">Allergies</div>
+          <p className="text-[15px] whitespace-pre-wrap">
+            {pet.allergies || <span className="text-muted-foreground">None on file.</span>}
+          </p>
         </div>
       </div>
 
