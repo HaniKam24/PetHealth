@@ -12,7 +12,13 @@ export type PetSpecies = typeof PetSpecies[keyof typeof PetSpecies];
 export const PetSpecies = {
   dog: 'dog',
   cat: 'cat',
-  bird: 'bird',
   rabbit: 'rabbit',
+  bird: 'bird',
+  fish: 'fish',
+  hamster: 'hamster',
+  pig: 'pig',
+  horse: 'horse',
+  reptile: 'reptile',
+  ferret: 'ferret',
   other: 'other',
 } as const;

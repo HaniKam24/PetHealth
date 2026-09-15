@@ -35,8 +35,14 @@ export type PetSpecies = typeof PetSpecies[keyof typeof PetSpecies];
 export const PetSpecies = {
   dog: 'dog',
   cat: 'cat',
-  bird: 'bird',
   rabbit: 'rabbit',
+  bird: 'bird',
+  fish: 'fish',
+  hamster: 'hamster',
+  pig: 'pig',
+  horse: 'horse',
+  reptile: 'reptile',
+  ferret: 'ferret',
   other: 'other',
 } as const;
 
@@ -63,9 +69,15 @@ export interface Pet {
   species: PetSpecies;
   /** @nullable */
   breed: string | null;
+  /** @nullable */
+  color: string | null;
+  /** @nullable */
+  microchipId: string | null;
   sex: PetSex;
   /** @nullable */
   birthDate: string | null;
+  /** @nullable */
+  gotchaDate: string | null;
   /** @nullable */
   weight: number | null;
   weightUnit: PetWeightUnit;
@@ -89,8 +101,14 @@ export type PetInputSpecies = typeof PetInputSpecies[keyof typeof PetInputSpecie
 export const PetInputSpecies = {
   dog: 'dog',
   cat: 'cat',
-  bird: 'bird',
   rabbit: 'rabbit',
+  bird: 'bird',
+  fish: 'fish',
+  hamster: 'hamster',
+  pig: 'pig',
+  horse: 'horse',
+  reptile: 'reptile',
+  ferret: 'ferret',
   other: 'other',
 } as const;
 
@@ -117,9 +135,15 @@ export interface PetInput {
   species: PetInputSpecies;
   /** @nullable */
   breed?: string | null;
+  /** @nullable */
+  color?: string | null;
+  /** @nullable */
+  microchipId?: string | null;
   sex: PetInputSex;
   /** @nullable */
   birthDate?: string | null;
+  /** @nullable */
+  gotchaDate?: string | null;
   /** @nullable */
   weight?: number | null;
   weightUnit: PetInputWeightUnit;
