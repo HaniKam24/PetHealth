@@ -143,3 +143,20 @@ export const medicationDoseLogs = pgTable("medication_dose_logs", {
   petId: integer("pet_id").notNull().references(() => pets.id, { onDelete: "cascade" }),
   loggedAt: timestamp("logged_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// A read-only, unauthenticated care-summary link an owner can hand to a
+// sitter or boarding facility — this app's only data-exposing route that
+// isn't behind a login (see routes/share-links.ts). The token itself is the
+// only credential, so it's a long random string, never a guessable id. Only
+// one active link per pet at a time — creating a new one revokes the prior
+// one (see insertPetShareLink) rather than this table enforcing it directly.
+export const petShareLinks = pgTable("pet_share_links", {
+  id: serial("id").primaryKey(),
+  petId: integer("pet_id").notNull().references(() => pets.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  lastViewedAt: timestamp("last_viewed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

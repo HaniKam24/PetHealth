@@ -166,6 +166,70 @@ export interface PetInput {
  */
 export type PetUpdate = PetInput;
 
+/**
+ * An owner-facing view of a sitter/boarding share link — includes the full shareable URL, never the raw token alone (the URL is what gets copied/sent).
+ */
+export interface ShareLink {
+  id: number;
+  petId: number;
+  url: string;
+  startsAt: string;
+  expiresAt: string;
+  /** @nullable */
+  lastViewedAt: string | null;
+  createdAt: string;
+}
+
+export interface CreateShareLinkBody {
+  /**
+     * Defaults to now if omitted
+     * @nullable
+     */
+  startsAt?: string | null;
+  expiresAt: string;
+}
+
+export interface SitterReportMedication {
+  name: string;
+  dose: string;
+  frequency: string;
+  /** @nullable */
+  instructions: string | null;
+}
+
+export type SitterReportSpecies = typeof SitterReportSpecies[keyof typeof SitterReportSpecies];
+
+
+export const SitterReportSpecies = {
+  dog: 'dog',
+  cat: 'cat',
+  bird: 'bird',
+  rabbit: 'rabbit',
+  other: 'other',
+} as const;
+
+/**
+ * Deliberately narrow — only what a sitter/boarding facility needs. Never health records, symptom journal, insights/chat history, weight logs, other pets, or owner account info.
+ */
+export interface SitterReport {
+  petName: string;
+  species: SitterReportSpecies;
+  /** @nullable */
+  photoUrl: string | null;
+  /** @nullable */
+  vetName: string | null;
+  /** @nullable */
+  vetClinic: string | null;
+  /** @nullable */
+  vetPhone: string | null;
+  /** @nullable */
+  vetAddress: string | null;
+  medications: SitterReportMedication[];
+  /** @nullable */
+  notes: string | null;
+  expiresAt: string;
+}
+
 export type HealthRecordType = typeof HealthRecordType[keyof typeof HealthRecordType];
 
 

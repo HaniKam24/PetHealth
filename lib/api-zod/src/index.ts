@@ -8,3 +8,4 @@ export { UploadHealthRecordDocumentBody } from "./generated/api";
 export { CreateDocumentImportBody } from "./generated/api";
 export { AcceptDocumentImportItemBody } from "./generated/api";
 export { UploadPetPhotoBody } from "./generated/api";
+export { CreateShareLinkBody } from "./generated/api";

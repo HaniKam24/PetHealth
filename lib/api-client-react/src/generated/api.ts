@@ -24,6 +24,7 @@ import type {
   AiAction,
   Alert,
   CreateDocumentImportBody,
+  CreateShareLinkBody,
   DashboardSummary,
   DocumentImportItem,
   DocumentImportListResponse,
@@ -53,6 +54,8 @@ import type {
   PetUpdate,
   Reminder,
   ReminderInput,
+  ShareLink,
+  SitterReport,
   SymptomEntry,
   SymptomEntryInput,
   SymptomLog,
@@ -3168,4 +3171,301 @@ export const useCancelAiAction = <TError = ErrorType<Error | NotFoundResponse>,
       > => {
       return useMutation(getCancelAiActionMutationOptions(options));
     }
+
+export const getGetShareLinkUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/share-link`
+}
+
+/**
+ * @summary Get the pet's current active sitter/boarding share link, if any
+ */
+export const getShareLink = async (petId: number, options?: Parameters<typeof customFetch>[1]): Promise<ShareLink | null> => {
+
+  return customFetch<ShareLink | null>(getGetShareLinkUrl(petId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetShareLinkQueryKey = (petId: number,) => {
+    return [
+    `/api/pets/${petId}/share-link`
+    ] as const;
+    }
+
+
+export const getGetShareLinkQueryOptions = <TData = Awaited<ReturnType<typeof getShareLink>>, TError = ErrorType<NotFoundResponse>>(petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getShareLink>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetShareLinkQueryKey(petId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getShareLink>>> = ({ signal }) => getShareLink(petId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: petId !== null && petId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getShareLink>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetShareLinkQueryResult = NonNullable<Awaited<ReturnType<typeof getShareLink>>>
+export type GetShareLinkQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Get the pet's current active sitter/boarding share link, if any
+ */
+
+export function useGetShareLink<TData = Awaited<ReturnType<typeof getShareLink>>, TError = ErrorType<NotFoundResponse>>(
+ petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getShareLink>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetShareLinkQueryOptions(petId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateShareLinkUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/share-link`
+}
+
+/**
+ * @summary Create a new sitter/boarding share link — revokes any existing active link for this pet first
+ */
+export const createShareLink = async (petId: number,
+    createShareLinkBody: CreateShareLinkBody, options?: Parameters<typeof customFetch>[1]): Promise<ShareLink> => {
+
+  return customFetch<ShareLink>(getCreateShareLinkUrl(petId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createShareLinkBody)
+  }
+);}
+
+
+
+
+
+export const getCreateShareLinkMutationOptions = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createShareLink>>, TError,{petId: number;data: BodyType<CreateShareLinkBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createShareLink>>, TError,{petId: number;data: BodyType<CreateShareLinkBody>}, TContext> => {
+
+const mutationKey = ['createShareLink'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createShareLink>>, {petId: number;data: BodyType<CreateShareLinkBody>}> = (props) => {
+          const {petId,data} = props ?? {};
+
+          return  createShareLink(petId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateShareLinkMutationResult = NonNullable<Awaited<ReturnType<typeof createShareLink>>>
+    export type CreateShareLinkMutationBody = BodyType<CreateShareLinkBody>
+    export type CreateShareLinkMutationError = ErrorType<Error | NotFoundResponse>
+
+    /**
+ * @summary Create a new sitter/boarding share link — revokes any existing active link for this pet first
+ */
+export const useCreateShareLink = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createShareLink>>, TError,{petId: number;data: BodyType<CreateShareLinkBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createShareLink>>,
+        TError,
+        {petId: number;data: BodyType<CreateShareLinkBody>},
+        TContext
+      > => {
+      return useMutation(getCreateShareLinkMutationOptions(options));
+    }
+
+export const getRevokeShareLinkUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/share-link`
+}
+
+/**
+ * @summary Revoke the pet's current active share link
+ */
+export const revokeShareLink = async (petId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRevokeShareLinkUrl(petId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeShareLinkMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeShareLink>>, TError,{petId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeShareLink>>, TError,{petId: number}, TContext> => {
+
+const mutationKey = ['revokeShareLink'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeShareLink>>, {petId: number}> = (props) => {
+          const {petId} = props ?? {};
+
+          return  revokeShareLink(petId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeShareLinkMutationResult = NonNullable<Awaited<ReturnType<typeof revokeShareLink>>>
+
+    export type RevokeShareLinkMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Revoke the pet's current active share link
+ */
+export const useRevokeShareLink = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeShareLink>>, TError,{petId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeShareLink>>,
+        TError,
+        {petId: number},
+        TContext
+      > => {
+      return useMutation(getRevokeShareLinkMutationOptions(options));
+    }
+
+export const getGetSitterReportUrl = (token: string,) => {
+
+
+
+
+  return `/api/share/${token}`
+}
+
+/**
+ * @summary Public, unauthenticated read of a sitter/boarding care report — the token itself is the only credential
+ */
+export const getSitterReport = async (token: string, options?: Parameters<typeof customFetch>[1]): Promise<SitterReport> => {
+
+  return customFetch<SitterReport>(getGetSitterReportUrl(token),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSitterReportQueryKey = (token: string,) => {
+    return [
+    `/api/share/${token}`
+    ] as const;
+    }
+
+
+export const getGetSitterReportQueryOptions = <TData = Awaited<ReturnType<typeof getSitterReport>>, TError = ErrorType<Error>>(token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSitterReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSitterReportQueryKey(token);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSitterReport>>> = ({ signal }) => getSitterReport(token, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: token !== null && token !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSitterReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSitterReportQueryResult = NonNullable<Awaited<ReturnType<typeof getSitterReport>>>
+export type GetSitterReportQueryError = ErrorType<Error>
+
+
+/**
+ * @summary Public, unauthenticated read of a sitter/boarding care report — the token itself is the only credential
+ */
+
+export function useGetSitterReport<TData = Awaited<ReturnType<typeof getSitterReport>>, TError = ErrorType<Error>>(
+ token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSitterReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSitterReportQueryOptions(token,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
