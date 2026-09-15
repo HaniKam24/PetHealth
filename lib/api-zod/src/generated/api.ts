@@ -34,6 +34,7 @@ export const ListPetsResponseItem = zod.object({
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullable(),
   "notes": zod.string().nullable(),
+  "allergies": zod.string().nullable(),
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
   "vetPhone": zod.string().nullable(),
@@ -61,6 +62,7 @@ export const CreatePetBody = zod.object({
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullish(),
   "notes": zod.string().nullish(),
+  "allergies": zod.string().nullish(),
   "vetName": zod.string().nullish(),
   "vetClinic": zod.string().nullish(),
   "vetPhone": zod.string().nullish(),
@@ -81,6 +83,7 @@ export const CreatePetResponse = zod.object({
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullable(),
   "notes": zod.string().nullable(),
+  "allergies": zod.string().nullable(),
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
   "vetPhone": zod.string().nullable(),
@@ -112,6 +115,7 @@ export const GetPetResponse = zod.object({
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullable(),
   "notes": zod.string().nullable(),
+  "allergies": zod.string().nullable(),
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
   "vetPhone": zod.string().nullable(),
@@ -145,6 +149,7 @@ export const UpdatePetBody = zod.object({
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullish(),
   "notes": zod.string().nullish(),
+  "allergies": zod.string().nullish(),
   "vetName": zod.string().nullish(),
   "vetClinic": zod.string().nullish(),
   "vetPhone": zod.string().nullish(),
@@ -165,6 +170,7 @@ export const UpdatePetResponse = zod.object({
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullable(),
   "notes": zod.string().nullable(),
+  "allergies": zod.string().nullable(),
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
   "vetPhone": zod.string().nullable(),
@@ -353,6 +359,7 @@ export const UploadPetPhotoResponse = zod.object({
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullable(),
   "notes": zod.string().nullable(),
+  "allergies": zod.string().nullable(),
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
   "vetPhone": zod.string().nullable(),
@@ -384,6 +391,7 @@ export const RemovePetPhotoResponse = zod.object({
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullable(),
   "notes": zod.string().nullable(),
+  "allergies": zod.string().nullable(),
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
   "vetPhone": zod.string().nullable(),
@@ -794,6 +802,27 @@ export const GetPetTrendsResponse = zod.object({
 
 
 /**
+ * @summary Get per-vaccine-type status (current/overdue/never recorded) for a pet
+ */
+
+
+
+export const GetPetVaccinesParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+export const GetPetVaccinesResponse = zod.object({
+  "vaccines": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['current', 'overdue', 'never_recorded']),
+  "lastGivenDate": zod.coerce.date().nullable(),
+  "dueDate": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
  * @summary List reminders for a pet
  */
 
@@ -1087,6 +1116,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "weightUnit": zod.enum(['lb', 'kg']),
   "photoUrl": zod.string().url().nullable(),
   "notes": zod.string().nullable(),
+  "allergies": zod.string().nullable(),
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
   "vetPhone": zod.string().nullable(),

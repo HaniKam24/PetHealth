@@ -510,6 +510,22 @@ paths:
                 $ref: "#/components/schemas/PetTrends"
         "404":
           $ref: "#/components/responses/NotFound"
+  /pets/{petId}/vaccines:
+    get:
+      operationId: getPetVaccines
+      tags: [pets]
+      summary: Get per-vaccine-type status (current/overdue/never recorded) for a pet
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          description: Vaccine statuses
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PetVaccines"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /pets/{petId}/reminders:
     get:
       operationId: listReminders
@@ -1011,11 +1027,12 @@ components:
         weightUnit: { type: string, enum: [lb, kg] }
         photoUrl: { type: ["string", "null"], format: uri }
         notes: { type: ["string", "null"] }
+        allergies: { type: ["string", "null"] }
         vetName: { type: ["string", "null"] }
         vetClinic: { type: ["string", "null"] }
         vetPhone: { type: ["string", "null"] }
         vetAddress: { type: ["string", "null"] }
-      required: [id, name, species, breed, color, microchipId, sex, birthDate, gotchaDate, weight, weightUnit, photoUrl, notes, vetName, vetClinic, vetPhone, vetAddress]
+      required: [id, name, species, breed, color, microchipId, sex, birthDate, gotchaDate, weight, weightUnit, photoUrl, notes, allergies, vetName, vetClinic, vetPhone, vetAddress]
     PetInput:
       type: object
       properties:
@@ -1031,6 +1048,7 @@ components:
         weightUnit: { type: string, enum: [lb, kg] }
         photoUrl: { type: ["string", "null"], format: uri }
         notes: { type: ["string", "null"] }
+        allergies: { type: ["string", "null"] }
         vetName: { type: ["string", "null"] }
         vetClinic: { type: ["string", "null"] }
         vetPhone: { type: ["string", "null"] }
@@ -1256,6 +1274,22 @@ components:
           type: array
           items: { $ref: "#/components/schemas/MedicationAdherence" }
       required: [weightLogs, medicationAdherence]
+    VaccineStatus:
+      type: object
+      properties:
+        key: { type: string }
+        label: { type: string }
+        status: { type: string, enum: [current, overdue, never_recorded] }
+        lastGivenDate: { type: ["string", "null"], format: date }
+        dueDate: { type: ["string", "null"], format: date }
+      required: [key, label, status, lastGivenDate, dueDate]
+    PetVaccines:
+      type: object
+      properties:
+        vaccines:
+          type: array
+          items: { $ref: "#/components/schemas/VaccineStatus" }
+      required: [vaccines]
     Reminder:
       type: object
       properties:
