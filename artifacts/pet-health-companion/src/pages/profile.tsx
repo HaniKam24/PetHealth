@@ -15,9 +15,10 @@ import { useLocation, useSearch } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trash2, HeartPulse, Check, Camera, Loader2 } from 'lucide-react';
+import { Trash2, HeartPulse, Check, Camera, Loader2, X } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -41,8 +42,11 @@ const profileSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   species: z.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
   breed: z.string().optional().nullable(),
+  color: z.string().optional().nullable(),
+  microchipId: z.string().optional().nullable(),
   sex: z.enum(['female', 'male', 'unknown']),
   birthDate: z.string().optional().nullable(),
+  gotchaDate: z.string().optional().nullable(),
   weight: z.coerce.number().optional().nullable(),
   weightUnit: z.enum(['lb', 'kg']),
   photoUrl: z.string().optional().nullable(),
@@ -54,6 +58,62 @@ const profileSchema = z.object({
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
+
+// Age is never stored — it's either derived from birthDate, or (when there's
+// no birthDate) a free-standing number the user can type in for their own
+// reference, which isn't part of the form's zod schema and isn't sent to the
+// server at all.
+function computeAgeYearsFromBirthDate(birthDate: string): string {
+  const birth = new Date(birthDate);
+  if (Number.isNaN(birth.getTime())) return '';
+  const now = new Date();
+  let years = now.getFullYear() - birth.getFullYear();
+  const monthDiff = now.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) years -= 1;
+  return String(Math.max(years, 0));
+}
+
+// A native <input type="date"> plus a clear button, since native date
+// inputs don't reliably show one across browsers.
+//
+// Deliberately does NOT open the picker on a generic click into the field —
+// that was tried and reverted: showPicker() popped the calendar open even
+// when the click was meant to focus a specific mm/dd/yyyy segment for
+// keyboard typing, and the calendar then intercepted the keystrokes instead
+// of the field, so a typed date silently never registered.
+function DateField({
+  value,
+  onChange,
+  className,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        type="date"
+        className={cn(className, !value && 'text-muted-foreground', value && 'pr-9')}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onChange('');
+          }}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label="Clear date"
+        >
+          <X size={14} />
+        </button>
+      )}
+    </div>
+  );
+}
 
 type BreedOption = {
   value: string;
@@ -237,8 +297,11 @@ export default function Profile() {
       name: '',
       species: 'dog',
       breed: '',
+      color: '',
+      microchipId: '',
       sex: 'unknown',
       birthDate: '',
+      gotchaDate: '',
       weight: null,
       weightUnit: 'lb',
       photoUrl: '',
@@ -249,6 +312,13 @@ export default function Profile() {
       vetAddress: '',
     },
   });
+
+  // Age is never stored in the form — see computeAgeYearsFromBirthDate's
+  // comment. manualAge only matters once the user actually types their own
+  // value (ageEdited); until then, the displayed value is derived fresh from
+  // birthDate on every render below (no effect, so no stale-value races).
+  const [manualAge, setManualAge] = useState('');
+  const [ageEdited, setAgeEdited] = useState(false);
 
   // Guarded by isDirty rather than a one-shot "have we ever synced" flag —
   // the latter meant that once this page had synced the form once, a pet
@@ -263,8 +333,11 @@ export default function Profile() {
         name: pet.name,
         species: pet.species,
         breed: pet.breed || '',
+        color: pet.color || '',
+        microchipId: pet.microchipId || '',
         sex: pet.sex,
         birthDate: pet.birthDate ? pet.birthDate.split('T')[0] : '',
+        gotchaDate: pet.gotchaDate ? pet.gotchaDate.split('T')[0] : '',
         weight: pet.weight,
         weightUnit: pet.weightUnit,
          photoUrl: pet.photoUrl?.startsWith('preset:') ? '' : pet.photoUrl || '',
@@ -274,6 +347,8 @@ export default function Profile() {
         vetPhone: pet.vetPhone || '',
         vetAddress: pet.vetAddress || '',
       });
+      setManualAge('');
+      setAgeEdited(false);
     }
   }, [pet, isNew, form]);
 
@@ -281,12 +356,15 @@ export default function Profile() {
   useEffect(() => {
     if (isNew) {
       form.reset({
-        name: '', species: 'dog', breed: '', sex: 'unknown', birthDate: '',
+        name: '', species: 'dog', breed: '', color: '', microchipId: '', sex: 'unknown', birthDate: '', gotchaDate: '',
         weight: null, weightUnit: 'lb', photoUrl: '', notes: '',
         vetName: '', vetClinic: '', vetPhone: '', vetAddress: '',
       });
+      setManualAge('');
+      setAgeEdited(false);
     }
   }, [isNew, form]);
+
 
 
   const updatePet = useUpdatePet({
@@ -392,7 +470,10 @@ export default function Profile() {
       ...data,
       photoUrl: pet?.photoUrl ?? null,
       birthDate: data.birthDate || null,
+      gotchaDate: data.gotchaDate || null,
       breed: data.breed || null,
+      color: data.color || null,
+      microchipId: data.microchipId || null,
       notes: data.notes || null,
       vetName: data.vetName || null,
       vetClinic: data.vetClinic || null,
@@ -410,6 +491,8 @@ export default function Profile() {
   if (isLoading && !isNew) return <div className="p-10 animate-pulse text-center text-muted-foreground">Loading profile...</div>;
 
   const name = form.watch('name');
+  const watchedBirthDate = form.watch('birthDate');
+  const displayedAge = ageEdited ? manualAge : watchedBirthDate ? computeAgeYearsFromBirthDate(watchedBirthDate) : manualAge;
   const selectedSpecies = form.watch('species');
   const currentPhotoSrc = resolvePetAvatar(isNew ? null : pet?.photoUrl ?? null, selectedSpecies);
   const hasUploadedPhoto = !isNew && !!pet?.photoUrl && !pet.photoUrl.startsWith('preset:');
@@ -604,23 +687,91 @@ export default function Profile() {
                 />
                 <p className="mt-1.5 text-xs text-muted-foreground">{breedOptions.length} {selectedSpecies} breeds listed, or type your own.</p>
               </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="color"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Color</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Black and white" className={fieldClass} {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="microchipId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Microchip ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="985141000000000" className={fieldClass} {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             <div className="bg-card border border-border rounded-3xl p-6">
               <div className="font-serif text-lg font-extrabold mb-4">Vitals</div>
-              <FormField
-                control={form.control}
-                name="birthDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Birthday or gotcha day</FormLabel>
-                    <FormControl>
-                      <Input type="date" className={fieldClass} {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="gotchaDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gotcha day</FormLabel>
+                      <FormControl>
+                        <DateField value={field.value || ''} onChange={field.onChange} className={fieldClass} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="birthDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Birthday</FormLabel>
+                      <FormControl>
+                        <DateField value={field.value || ''} onChange={field.onChange} className={fieldClass} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_6rem] items-end gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="pet-age">Age</Label>
+                  <Input
+                    id="pet-age"
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputMode="numeric"
+                    placeholder="0"
+                    className={cn(fieldClass, !ageEdited && 'text-muted-foreground')}
+                    value={displayedAge}
+                    onChange={(e) => {
+                      setAgeEdited(true);
+                      setManualAge(e.target.value);
+                    }}
+                  />
+                </div>
+                <div className={cn(fieldClass, 'flex items-center justify-center text-muted-foreground')}>years</div>
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {watchedBirthDate ? "Filled in from birthday — edit it to override." : "Not saved — just for your own reference until a birthday's set."}
+              </p>
 
               <div className="mt-3 grid grid-cols-[minmax(0,1fr)_6rem] items-start gap-3">
                 <FormField
@@ -727,10 +878,10 @@ export default function Profile() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-serif text-lg font-extrabold">Things worth remembering</FormLabel>
-                  <p className="text-sm text-muted-foreground mb-1">Microchip number, allergies, what frightens them, where they hide.</p>
+                  <p className="text-sm text-muted-foreground mb-1">Allergies, what frightens them, where they hide.</p>
                   <FormControl>
                     <Textarea
-                      placeholder="Allergies, microchip number, favorite hiding spots, fears..."
+                      placeholder="Allergies, favorite hiding spots, fears..."
                       className="resize-none rounded-2xl bg-accent/40 min-h-[130px]"
                       {...field}
                       value={field.value || ''}

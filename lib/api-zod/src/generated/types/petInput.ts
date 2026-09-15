@@ -15,9 +15,15 @@ export interface PetInput {
   species: PetInputSpecies;
   /** @nullable */
   breed?: string | null;
+  /** @nullable */
+  color?: string | null;
+  /** @nullable */
+  microchipId?: string | null;
   sex: PetInputSex;
   /** @nullable */
   birthDate?: Date | null;
+  /** @nullable */
+  gotchaDate?: Date | null;
   /** @nullable */
   weight?: number | null;
   weightUnit: PetInputWeightUnit;
