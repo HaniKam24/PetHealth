@@ -86,6 +86,8 @@ export interface Pet {
   /** @nullable */
   notes: string | null;
   /** @nullable */
+  allergies: string | null;
+  /** @nullable */
   vetName: string | null;
   /** @nullable */
   vetClinic: string | null;
@@ -151,6 +153,8 @@ export interface PetInput {
   photoUrl?: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  allergies?: string | null;
   /** @nullable */
   vetName?: string | null;
   /** @nullable */

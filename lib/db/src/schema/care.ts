@@ -23,6 +23,7 @@ export const pets = pgTable("pets", {
   weightUnit: text("weight_unit").notNull().default("lb"),
   photoUrl: text("photo_url"),
   notes: text("notes"),
+  allergies: text("allergies"),
   vetName: text("vet_name"),
   vetClinic: text("vet_clinic"),
   vetPhone: text("vet_phone"),
