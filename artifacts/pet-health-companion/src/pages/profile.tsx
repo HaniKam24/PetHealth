@@ -15,12 +15,15 @@ import { useLocation, useSearch } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trash2, HeartPulse, Check, Camera, Loader2, X } from 'lucide-react';
+import { Trash2, HeartPulse, Check, Camera, Loader2, X, CalendarDays } from 'lucide-react';
+import { format } from 'date-fns';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,14 +77,17 @@ function computeAgeYearsFromBirthDate(birthDate: string): string {
   return String(Math.max(years, 0));
 }
 
-// A native <input type="date"> plus a clear button, since native date
-// inputs don't reliably show one across browsers.
+// A native <input type="date"> (so typing mm/dd/yyyy directly always works)
+// plus: a clear button, since native date inputs don't reliably show one
+// across browsers, and a dedicated calendar-icon button that opens a bigger,
+// easier-to-browse picker for jumping across months/years by click instead.
 //
-// Deliberately does NOT open the picker on a generic click into the field —
-// that was tried and reverted: showPicker() popped the calendar open even
-// when the click was meant to focus a specific mm/dd/yyyy segment for
-// keyboard typing, and the calendar then intercepted the keystrokes instead
-// of the field, so a typed date silently never registered.
+// The calendar button is deliberately separate from the input itself and
+// never attached to the input's own onClick — that was tried and reverted:
+// showPicker() on a generic click popped the calendar open even when the
+// click was meant to focus a specific mm/dd/yyyy segment for keyboard
+// typing, and the calendar then intercepted the keystrokes instead of the
+// field, so a typed date silently never registered.
 function DateField({
   value,
   onChange,
@@ -91,14 +97,69 @@ function DateField({
   onChange: (value: string) => void;
   className?: string;
 }) {
+  const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const selected = value ? new Date(`${value}T00:00:00`) : undefined;
+  // The formatted overlay (real date, or a "Month DD, YYYY" placeholder when
+  // empty) only replaces the native mm/dd/yyyy display while the field is at
+  // rest — while focused/being edited, the native segments show through as
+  // normal. Tried hiding them unconditionally too: the browser's own
+  // highlight for the focused segment ignores an author `color`, so it bled
+  // through as garbled overlapping text with the overlay.
+  const showOverlay = !focused;
   return (
     <div className="relative">
       <Input
         type="date"
-        className={cn(className, !value && 'text-muted-foreground', value && 'pr-9')}
+        className={cn(
+          className,
+          'pl-9',
+          value && 'pr-9',
+          showOverlay && 'text-transparent caret-transparent',
+        )}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
       />
+      {showOverlay && (
+        <span
+          className={cn(
+            'pointer-events-none absolute left-9 top-1/2 -translate-y-1/2 text-sm',
+            !selected && 'text-muted-foreground',
+          )}
+        >
+          {selected ? format(selected, 'MMM d, yyyy') : 'Month DD, YYYY'}
+        </span>
+      )}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Open calendar"
+          >
+            <CalendarDays size={16} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-auto p-4 text-base"
+          align="start"
+          style={{ '--cell-size': '3rem' } as React.CSSProperties}
+        >
+          <Calendar
+            mode="single"
+            selected={selected}
+            defaultMonth={selected}
+            captionLayout="dropdown"
+            onSelect={(date) => {
+              onChange(date ? format(date, 'yyyy-MM-dd') : '');
+              setOpen(false);
+            }}
+            autoFocus
+          />
+        </PopoverContent>
+      </Popover>
       {value && (
         <button
           type="button"
@@ -522,7 +583,7 @@ export default function Profile() {
                 />
               </div>
 
-              <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="mt-3 space-y-3">
                 <FormField
                   control={form.control}
                   name="color"
@@ -554,7 +615,7 @@ export default function Profile() {
 
             <div className="bg-card border border-border rounded-3xl p-6">
               <div className="font-serif text-lg font-extrabold mb-4">Vitals</div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-3">
                 <FormField
                   control={form.control}
                   name="gotchaDate"
