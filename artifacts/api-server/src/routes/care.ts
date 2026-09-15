@@ -250,6 +250,7 @@ router.post("/pets", async (req, res, next) => {
       .values({
         ...body,
         birthDate: asDateString(body.birthDate),
+        gotchaDate: asDateString(body.gotchaDate),
         weight: asWeightString(body.weight),
         // Starts the one-time Smart Document Upload onboarding-import window
         // (see lib/document-import-quota.ts) — first 30 days of this pet existing.
@@ -301,6 +302,7 @@ router.patch("/pets/:petId", async (req, res, next) => {
       .set({
         ...body,
         birthDate: asDateString(body.birthDate),
+        gotchaDate: asDateString(body.gotchaDate),
         weight: asWeightString(body.weight),
       })
       .where(eq(pets.id, petId))
