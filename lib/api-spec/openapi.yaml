@@ -18,6 +18,8 @@ tags:
     description: AI-assisted care guidance
   - name: smart-upload
     description: Smart Document Upload — AI-extracted, owner-reviewed record proposals
+  - name: share
+    description: Public, unauthenticated sitter/boarding care-report links
 paths:
   /healthz:
     get:
@@ -790,6 +792,82 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           $ref: "#/components/responses/NotFound"
+  /pets/{petId}/share-link:
+    get:
+      operationId: getShareLink
+      tags: [pets]
+      summary: Get the pet's current active sitter/boarding share link, if any
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          description: The active share link, or null if none is active
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ShareLink"
+                  - type: "null"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createShareLink
+      tags: [pets]
+      summary: Create a new sitter/boarding share link — revokes any existing active link for this pet first
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateShareLinkBody"
+      responses:
+        "201":
+          description: The created share link, including its full shareable URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareLink"
+        "400":
+          description: expiresAt isn't after startsAt, or the range exceeds the maximum allowed duration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: revokeShareLink
+      tags: [pets]
+      summary: Revoke the pet's current active share link
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "204":
+          description: Revoked (or there was nothing active to revoke)
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /share/{token}:
+    get:
+      operationId: getSitterReport
+      tags: [share]
+      summary: Public, unauthenticated read of a sitter/boarding care report — the token itself is the only credential
+      parameters:
+        - $ref: "#/components/parameters/ShareToken"
+      responses:
+        "200":
+          description: The care report for the pet this token was issued for
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SitterReport"
+        "404":
+          description: The token doesn't exist, was revoked, or is outside its valid date range
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   parameters:
     PetId:
@@ -868,6 +946,13 @@ components:
       schema:
         type: integer
         minimum: 1
+    ShareToken:
+      name: token
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
   responses:
     NotFound:
       description: Resource not found
@@ -949,6 +1034,50 @@ components:
       allOf:
         - $ref: "#/components/schemas/PetInput"
       description: Updated pet fields
+    ShareLink:
+      type: object
+      description: An owner-facing view of a sitter/boarding share link — includes the full shareable URL, never the raw token alone (the URL is what gets copied/sent).
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        url: { type: string, format: uri }
+        startsAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        lastViewedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+      required: [id, petId, url, startsAt, expiresAt, lastViewedAt, createdAt]
+    CreateShareLinkBody:
+      type: object
+      properties:
+        startsAt: { type: ["string", "null"], format: date-time, description: "Defaults to now if omitted" }
+        expiresAt: { type: string, format: date-time }
+      required: [expiresAt]
+    SitterReportMedication:
+      type: object
+      properties:
+        name: { type: string }
+        dose: { type: string }
+        frequency: { type: string }
+        instructions: { type: ["string", "null"] }
+      required: [name, dose, frequency, instructions]
+    SitterReport:
+      type: object
+      description: Deliberately narrow — only what a sitter/boarding facility needs. Never health records, symptom journal, insights/chat history, weight logs, other pets, or owner account info.
+      properties:
+        petName: { type: string }
+        species: { type: string, enum: [dog, cat, bird, rabbit, other] }
+        photoUrl: { type: ["string", "null"], format: uri }
+        vetName: { type: ["string", "null"] }
+        vetClinic: { type: ["string", "null"] }
+        vetPhone: { type: ["string", "null"] }
+        vetAddress: { type: ["string", "null"] }
+        medications:
+          type: array
+          items:
+            $ref: "#/components/schemas/SitterReportMedication"
+        notes: { type: ["string", "null"] }
+        expiresAt: { type: string, format: date-time }
+      required: [petName, species, photoUrl, vetName, vetClinic, vetPhone, vetAddress, medications, notes, expiresAt]
     HealthRecord:
       type: object
       properties:

@@ -21,8 +21,10 @@ import Profile from '@/pages/profile';
 import Onboarding from '@/pages/onboarding';
 import Login from '@/pages/login';
 import Signup from '@/pages/signup';
+import ShareView from '@/pages/share-view';
 
 const ONBOARDING_PATH = '/onboarding';
+const SHARE_PATH_PREFIX = '/share/';
 
 const queryClient = new QueryClient();
 const AUTH_PAGES = new Set(['/login', '/signup']);
@@ -92,15 +94,23 @@ function Router() {
   const { data: session, isPending } = useSession();
   const [location, setLocation] = useLocation();
   const isAuthPage = AUTH_PAGES.has(location);
+  // A sitter/boarding facility opening a share link has no account and
+  // never will — this path must never bounce through the login redirect
+  // below, regardless of session state.
+  const isSharePage = location.startsWith(SHARE_PATH_PREFIX);
 
   useEffect(() => {
-    if (isPending) return;
+    if (isPending || isSharePage) return;
     if (!session && !isAuthPage) {
       setLocation('/login');
     } else if (session && isAuthPage) {
       setLocation('/');
     }
-  }, [session, isPending, isAuthPage, setLocation]);
+  }, [session, isPending, isAuthPage, isSharePage, setLocation]);
+
+  if (isSharePage) {
+    return <ShareView />;
+  }
 
   if (isPending) {
     return <FullPageLoader />;

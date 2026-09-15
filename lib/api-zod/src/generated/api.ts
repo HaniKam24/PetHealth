@@ -1376,3 +1376,92 @@ export const CancelAiActionResponse = zod.object({
 }).describe('A conversational edit Pawlie proposed — deliberately parallel to DocumentImportItem\'s review-gated shape. Nothing is written until the owner confirms.')
 
 
+/**
+ * @summary Get the pet's current active sitter/boarding share link, if any
+ */
+
+
+
+export const GetShareLinkParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+export const GetShareLinkResponse = zod.union([zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "url": zod.string().url(),
+  "startsAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "lastViewedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('An owner-facing view of a sitter\/boarding share link — includes the full shareable URL, never the raw token alone (the URL is what gets copied\/sent).'),zod.null()])
+
+
+/**
+ * @summary Create a new sitter/boarding share link — revokes any existing active link for this pet first
+ */
+
+
+
+export const CreateShareLinkParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+export const CreateShareLinkBody = zod.object({
+  "startsAt": zod.coerce.date().nullish().describe('Defaults to now if omitted'),
+  "expiresAt": zod.coerce.date()
+})
+
+export const CreateShareLinkResponse = zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "url": zod.string().url(),
+  "startsAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "lastViewedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('An owner-facing view of a sitter\/boarding share link — includes the full shareable URL, never the raw token alone (the URL is what gets copied\/sent).')
+
+
+/**
+ * @summary Revoke the pet's current active share link
+ */
+
+
+
+export const RevokeShareLinkParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
+})
+
+export const RevokeShareLinkResponse = zod.void()
+
+
+/**
+ * @summary Public, unauthenticated read of a sitter/boarding care report — the token itself is the only credential
+ */
+
+
+
+export const GetSitterReportParams = zod.object({
+  "token": zod.coerce.string().min(1)
+})
+
+export const GetSitterReportResponse = zod.object({
+  "petName": zod.string(),
+  "species": zod.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  "photoUrl": zod.string().url().nullable(),
+  "vetName": zod.string().nullable(),
+  "vetClinic": zod.string().nullable(),
+  "vetPhone": zod.string().nullable(),
+  "vetAddress": zod.string().nullable(),
+  "medications": zod.array(zod.object({
+  "name": zod.string(),
+  "dose": zod.string(),
+  "frequency": zod.string(),
+  "instructions": zod.string().nullable()
+})),
+  "notes": zod.string().nullable(),
+  "expiresAt": zod.coerce.date()
+}).describe('Deliberately narrow — only what a sitter\/boarding facility needs. Never health records, symptom journal, insights\/chat history, weight logs, other pets, or owner account info.')
+
+
