@@ -58,6 +58,7 @@ const profileSchema = z.object({
   color: z.string().optional().nullable(),
   microchipId: z.string().optional().nullable(),
   sex: z.enum(['female', 'male', 'unknown']),
+  spayNeuterStatus: z.enum(['spayed_neutered', 'intact', 'unknown']),
   birthDate: z.string().optional().nullable(),
   gotchaDate: z.string().optional().nullable(),
   weight: z.coerce.number().optional().nullable(),
@@ -258,6 +259,7 @@ export default function Profile() {
       color: '',
       microchipId: '',
       sex: 'unknown',
+      spayNeuterStatus: 'unknown',
       birthDate: '',
       gotchaDate: '',
       weight: null,
@@ -288,6 +290,7 @@ export default function Profile() {
         color: pet.color || '',
         microchipId: pet.microchipId || '',
         sex: pet.sex,
+        spayNeuterStatus: pet.spayNeuterStatus,
         birthDate: pet.birthDate ? pet.birthDate.split('T')[0] : '',
         gotchaDate: pet.gotchaDate ? pet.gotchaDate.split('T')[0] : '',
         weight: pet.weight,
@@ -307,7 +310,7 @@ export default function Profile() {
   useEffect(() => {
     if (isNew) {
       form.reset({
-        name: '', species: 'dog', breed: '', color: '', microchipId: '', sex: 'unknown', birthDate: '', gotchaDate: '',
+        name: '', species: 'dog', breed: '', color: '', microchipId: '', sex: 'unknown', spayNeuterStatus: 'unknown', birthDate: '', gotchaDate: '',
         weight: null, weightUnit: 'lb', photoUrl: '', notes: '', allergies: '',
         vetName: '', vetClinic: '', vetPhone: '', vetAddress: '',
       });
@@ -716,13 +719,22 @@ export default function Profile() {
               <div className="mt-3">
                 <FormField
                   control={form.control}
-                  name="microchipId"
+                  name="spayNeuterStatus"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Microchip ID</FormLabel>
-                      <FormControl>
-                        <Input placeholder="985141000000000" className={fieldClass} {...field} value={field.value || ''} />
-                      </FormControl>
+                      <FormLabel>Spay/Neuter status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className={fieldClass}>
+                            <SelectValue placeholder="Spay/Neuter status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="spayed_neutered">Spayed/Neutered</SelectItem>
+                          <SelectItem value="intact">Intact</SelectItem>
+                          <SelectItem value="unknown">Unknown</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -846,6 +858,19 @@ export default function Profile() {
                       <FormLabel>Gotcha day</FormLabel>
                       <FormControl>
                         <DateField value={field.value || ''} onChange={field.onChange} className={fieldClass} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="microchipId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Microchip ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="985141000000000" className={fieldClass} {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
