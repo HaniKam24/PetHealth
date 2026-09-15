@@ -10,6 +10,7 @@ import {
   useListSymptomLogs,
   getListSymptomLogsQueryKey,
   useListPets,
+  getGetPetVaccinesQueryKey,
   type HealthRecord,
 } from '@workspace/api-client-react';
 import { cn } from '@/lib/utils';
@@ -126,6 +127,9 @@ export default function Records() {
   const invalidateRecords = () => {
     if (activePetId) {
       queryClient.invalidateQueries({ queryKey: getListHealthRecordsQueryKey(activePetId) });
+      // A record of type "vaccine" can change which vaccines are current/
+      // overdue — cheaper to always invalidate than to check the type here.
+      queryClient.invalidateQueries({ queryKey: getGetPetVaccinesQueryKey(activePetId) });
     }
   };
 
