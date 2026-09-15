@@ -159,13 +159,6 @@ export default function Profile() {
     },
   });
 
-  // Age is never stored in the form — see computeAgeYearsFromBirthDate's
-  // comment. manualAge only matters once the user actually types their own
-  // value (ageEdited); until then, the displayed value is derived fresh from
-  // birthDate on every render below (no effect, so no stale-value races).
-  const [manualAge, setManualAge] = useState('');
-  const [ageEdited, setAgeEdited] = useState(false);
-
   // Guarded by isDirty rather than a one-shot "have we ever synced" flag —
   // the latter meant that once this page had synced the form once, a pet
   // update accepted from *elsewhere* (e.g. a Smart Document Upload proposal
@@ -193,8 +186,6 @@ export default function Profile() {
         vetPhone: pet.vetPhone || '',
         vetAddress: pet.vetAddress || '',
       });
-      setManualAge('');
-      setAgeEdited(false);
     }
   }, [pet, isNew, form]);
 
@@ -206,8 +197,6 @@ export default function Profile() {
         weight: null, weightUnit: 'lb', photoUrl: '', notes: '',
         vetName: '', vetClinic: '', vetPhone: '', vetAddress: '',
       });
-      setManualAge('');
-      setAgeEdited(false);
     }
   }, [isNew, form]);
 
@@ -338,7 +327,7 @@ export default function Profile() {
 
   const name = form.watch('name');
   const watchedBirthDate = form.watch('birthDate');
-  const displayedAge = ageEdited ? manualAge : watchedBirthDate ? computeAgeYearsFromBirthDate(watchedBirthDate) : manualAge;
+  const displayedAge = watchedBirthDate ? computeAgeYearsFromBirthDate(watchedBirthDate) : '';
   const selectedSpecies = form.watch('species');
   const currentPhotoSrc = resolvePetAvatar(isNew ? null : pet?.photoUrl ?? null, selectedSpecies);
   const hasUploadedPhoto = !isNew && !!pet?.photoUrl && !pet.photoUrl.startsWith('preset:');
@@ -512,7 +501,7 @@ export default function Profile() {
                   name="breed"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Breed (Optional)</FormLabel>
+                      <FormLabel>Breed</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value ?? ''}>
                         <FormControl>
                           <SelectTrigger className={fieldClass}>
@@ -531,7 +520,6 @@ export default function Profile() {
                     </FormItem>
                   )}
                 />
-                <p className="mt-1.5 text-xs text-muted-foreground">{breedOptions.length} {selectedSpecies} breeds listed, or type your own.</p>
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-3">
@@ -595,29 +583,15 @@ export default function Profile() {
                 />
               </div>
 
-              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_6rem] items-end gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="pet-age">Age</Label>
-                  <Input
-                    id="pet-age"
-                    type="number"
-                    min="0"
-                    step="1"
-                    inputMode="numeric"
-                    placeholder="0"
-                    className={cn(fieldClass, !ageEdited && 'text-muted-foreground')}
-                    value={displayedAge}
-                    onChange={(e) => {
-                      setAgeEdited(true);
-                      setManualAge(e.target.value);
-                    }}
-                  />
-                </div>
-                <div className={cn(fieldClass, 'flex items-center justify-center text-muted-foreground')}>years</div>
+              <div className="mt-3 space-y-1">
+                <Label>Age</Label>
+                <p className="text-[15px] font-medium">
+                  {displayedAge ? `${displayedAge} ${displayedAge === '1' ? 'year' : 'years'}` : <span className="text-muted-foreground">—</span>}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {watchedBirthDate ? 'Calculated automatically from birthday.' : 'Set a birthday to calculate age.'}
+                </p>
               </div>
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                {watchedBirthDate ? "Filled in from birthday — edit it to override." : "Not saved — just for your own reference until a birthday's set."}
-              </p>
 
               <div className="mt-3 grid grid-cols-[minmax(0,1fr)_6rem] items-start gap-3">
                 <FormField
