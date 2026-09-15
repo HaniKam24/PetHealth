@@ -36,7 +36,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background">
-      <header className="h-[72px] shrink-0 px-6 md:px-10 flex items-center justify-between bg-card border-b border-border">
+      <header className="print:hidden h-[72px] shrink-0 px-6 md:px-10 flex items-center justify-between bg-card border-b border-border">
         <div className="flex items-center gap-4 md:gap-7 min-w-0">
           <Link href="/" className="flex items-center gap-2.5 shrink-0 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 rounded-[10px] bg-primary flex items-center justify-center text-primary-foreground shrink-0">

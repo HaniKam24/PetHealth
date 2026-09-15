@@ -52,6 +52,7 @@ import type {
   PetLimitReachedResponse,
   PetTrends,
   PetUpdate,
+  PetVaccines,
   Reminder,
   ReminderInput,
   ShareLink,
@@ -1961,6 +1962,83 @@ export function useGetPetTrends<TData = Awaited<ReturnType<typeof getPetTrends>>
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPetTrendsQueryOptions(petId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPetVaccinesUrl = (petId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/vaccines`
+}
+
+/**
+ * @summary Get per-vaccine-type status (current/overdue/never recorded) for a pet
+ */
+export const getPetVaccines = async (petId: number, options?: Parameters<typeof customFetch>[1]): Promise<PetVaccines> => {
+
+  return customFetch<PetVaccines>(getGetPetVaccinesUrl(petId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPetVaccinesQueryKey = (petId: number,) => {
+    return [
+    `/api/pets/${petId}/vaccines`
+    ] as const;
+    }
+
+
+export const getGetPetVaccinesQueryOptions = <TData = Awaited<ReturnType<typeof getPetVaccines>>, TError = ErrorType<NotFoundResponse>>(petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPetVaccines>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPetVaccinesQueryKey(petId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPetVaccines>>> = ({ signal }) => getPetVaccines(petId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: petId !== null && petId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPetVaccines>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPetVaccinesQueryResult = NonNullable<Awaited<ReturnType<typeof getPetVaccines>>>
+export type GetPetVaccinesQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Get per-vaccine-type status (current/overdue/never recorded) for a pet
+ */
+
+export function useGetPetVaccines<TData = Awaited<ReturnType<typeof getPetVaccines>>, TError = ErrorType<NotFoundResponse>>(
+ petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPetVaccines>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPetVaccinesQueryOptions(petId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

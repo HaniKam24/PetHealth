@@ -13,6 +13,7 @@ import {
   getListMedicationsQueryKey,
   getListHealthRecordsQueryKey,
   getListRemindersQueryKey,
+  getGetPetVaccinesQueryKey,
   ApiError,
   type DocumentImport,
   type DocumentImportItem,
@@ -491,6 +492,9 @@ export default function SmartUpload() {
       queryClient.invalidateQueries({ queryKey: getListMedicationsQueryKey(activePetId) });
       queryClient.invalidateQueries({ queryKey: getListHealthRecordsQueryKey(activePetId) });
       queryClient.invalidateQueries({ queryKey: getListRemindersQueryKey(activePetId) });
+      // An accepted "vaccine" health record can change per-vaccine
+      // current/overdue status shown on the passport.
+      queryClient.invalidateQueries({ queryKey: getGetPetVaccinesQueryKey(activePetId) });
     }
   };
 

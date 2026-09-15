@@ -22,6 +22,7 @@ import {
   GetHealthRecordDocumentUrlParams,
   GetPetParams,
   GetPetTrendsParams,
+  GetPetVaccinesParams,
   ListHealthRecordsParams,
   ListInsightsQueryParams,
   ListMedicationsParams,
@@ -55,7 +56,7 @@ import {
 } from "@workspace/db";
 import { anthropic } from "@workspace/integrations-anthropic-ai-server";
 import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument, uploadPetPhoto } from "../lib/storage";
-import { runCareRecommendationsEngine, suppressRedundantSystemReminder } from "../lib/care-recommendations";
+import { computeVaccineStatuses, runCareRecommendationsEngine, suppressRedundantSystemReminder } from "../lib/care-recommendations";
 import { buildEscalationMessage, isRedFlagQuestion, extractZipCode } from "../lib/symptom-escalation";
 import { lookupEmergencyVets } from "../lib/emergency-vet-lookup";
 import { assertChatQuotaAvailable, ChatQuotaExceededError, getChatQuota, recordChatUsage } from "../lib/chat-quota";
@@ -730,6 +731,25 @@ router.get("/pets/:petId/trends", async (req, res, next) => {
       return;
     }
     res.json(await computePetTrends(petId));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/pets/:petId/vaccines", async (req, res, next) => {
+  try {
+    const userId = requireUserId(req);
+    const { petId } = GetPetVaccinesParams.parse(req.params);
+    if (!(await isPetOwnedByUser(userId, petId))) {
+      res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+    const [pet] = await db.select().from(pets).where(eq(pets.id, petId));
+    if (!pet) {
+      res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+    res.json({ vaccines: await computeVaccineStatuses(pet) });
   } catch (error) {
     next(error);
   }

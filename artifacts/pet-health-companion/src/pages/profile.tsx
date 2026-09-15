@@ -7,12 +7,12 @@ import {
   useDeletePet,
   useUploadPetPhoto,
   useRemovePetPhoto,
-  useGetShareLink,
-  getGetShareLinkQueryKey,
-  useCreateShareLink,
-  useRevokeShareLink,
   useListMedications,
   getListMedicationsQueryKey,
+  useGetPetTrends,
+  getGetPetTrendsQueryKey,
+  useGetPetVaccines,
+  getGetPetVaccinesQueryKey,
   getListPetsQueryKey,
   type Pet,
 } from '@workspace/api-client-react';
@@ -21,7 +21,7 @@ import { useLocation, useSearch } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trash2, HeartPulse, Check, Camera, Loader2, Share2, Copy, X, CalendarDays } from 'lucide-react';
+import { Trash2, HeartPulse, Check, Camera, Loader2, Share2, Printer, X, CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -40,11 +40,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
 import { SPECIES_VALUES, SPECIES_OPTIONS, BREEDS_BY_SPECIES } from '@/lib/pet-species';
+import { ShareLinkCard } from '@/components/share-link-card';
+import { PetPassportCard } from '@/components/pet-passport-card';
 
 const ALLOWED_PHOTO_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 
@@ -61,6 +64,7 @@ const profileSchema = z.object({
   weightUnit: z.enum(['lb', 'kg']),
   photoUrl: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  allergies: z.string().optional().nullable(),
   vetName: z.string().optional().nullable(),
   vetClinic: z.string().optional().nullable(),
   vetPhone: z.string().optional().nullable(),
@@ -183,120 +187,6 @@ function DateField({
   );
 }
 
-// Standalone card, not part of the profile form — creating/revoking a link
-// takes effect immediately, same reasoning as the delete-pet action, rather
-// than being staged behind "Save changes".
-function ShareLinkCard({ petId, petName }: { petId: number; petName: string }) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [endDate, setEndDate] = useState('');
-
-  const { data: shareLink, isLoading } = useGetShareLink(petId, {
-    query: { queryKey: getGetShareLinkQueryKey(petId) },
-  });
-
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: getGetShareLinkQueryKey(petId) });
-
-  const createLink = useCreateShareLink({
-    mutation: {
-      onSuccess: () => {
-        invalidate();
-        setEndDate('');
-        toast({ title: 'Share link created' });
-      },
-      onError: (error) => toast({ title: "Couldn't create link", description: error.message, variant: 'destructive' }),
-    },
-  });
-
-  const revokeLink = useRevokeShareLink({
-    mutation: {
-      onSuccess: () => {
-        invalidate();
-        toast({ title: 'Share link revoked' });
-      },
-      onError: (error) => toast({ title: "Couldn't revoke link", description: error.message, variant: 'destructive' }),
-    },
-  });
-
-  const handleCreate = () => {
-    if (!endDate) return;
-    createLink.mutate({ petId, data: { expiresAt: new Date(`${endDate}T23:59:59`).toISOString() } });
-  };
-
-  const handleCopy = async () => {
-    if (!shareLink) return;
-    try {
-      await navigator.clipboard.writeText(shareLink.url);
-      toast({ title: 'Link copied' });
-    } catch {
-      toast({ title: "Couldn't copy", description: 'Your browser blocked clipboard access.', variant: 'destructive' });
-    }
-  };
-
-  return (
-    <div className="bg-card border border-border rounded-3xl p-6">
-      <div className="flex items-center gap-2 mb-1">
-        <Share2 size={18} className="text-primary" />
-        <div className="font-serif text-lg font-extrabold">Share care info with a sitter</div>
-      </div>
-      <p className="text-sm text-muted-foreground mb-4">
-        A read-only link with {petName}'s vet contact, active medications, and notes — no account needed to view it.
-      </p>
-
-      {isLoading ? null : shareLink ? (
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <input
-              readOnly
-              value={shareLink.url}
-              className="flex-1 h-11 px-3.5 rounded-xl bg-accent/40 border border-border text-sm truncate"
-            />
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="h-11 px-4 flex items-center gap-1.5 rounded-xl border border-border text-sm font-bold hover:bg-accent transition-colors shrink-0"
-            >
-              <Copy size={14} /> Copy
-            </button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Active until {format(new Date(shareLink.expiresAt), 'MMMM d, yyyy')} ·{' '}
-            {shareLink.lastViewedAt
-              ? `last viewed ${format(new Date(shareLink.lastViewedAt), 'MMM d, h:mm a')}`
-              : 'not yet opened'}
-          </p>
-          <button
-            type="button"
-            onClick={() => revokeLink.mutate({ petId })}
-            disabled={revokeLink.isPending}
-            className="self-start text-sm font-bold text-destructive hover:underline disabled:opacity-50"
-          >
-            Revoke link
-          </button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="h-11 px-3.5 rounded-xl bg-accent/40 border border-border text-sm"
-            aria-label="Share link valid through"
-          />
-          <button
-            type="button"
-            onClick={handleCreate}
-            disabled={!endDate || createLink.isPending}
-            className="h-11 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            Create link
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function Profile() {
   const { activePetId, setActivePetId } = usePetContext();
   const queryClient = useQueryClient();
@@ -329,7 +219,35 @@ export default function Profile() {
       },
     },
   );
-  const activeMedicationNames = (medications ?? []).filter((m) => m.active).map((m) => m.name);
+  const activeMedications = (medications ?? []).filter((m) => m.active);
+  const activeMedicationNames = activeMedications.map((m) => m.name);
+
+  // Same weight-trend hook/derivation dashboard.tsx uses for its weight
+  // delta — reused here rather than re-fetched or recomputed differently.
+  const { data: trends } = useGetPetTrends(activePetId!, {
+    query: {
+      enabled: !!activePetId && !isNew,
+      queryKey: activePetId ? getGetPetTrendsQueryKey(activePetId) : ['no-pet', 'trends'],
+    },
+  });
+  const weightLogs = trends?.weightLogs ?? [];
+  const hasWeightTrend = weightLogs.length >= 2;
+  const weightDelta = hasWeightTrend ? weightLogs[weightLogs.length - 1].weight - weightLogs[0].weight : 0;
+  const lastWeighedAt = weightLogs.length > 0 ? new Date(weightLogs[weightLogs.length - 1].recordedAt) : null;
+
+  const { data: petVaccines } = useGetPetVaccines(activePetId!, {
+    query: {
+      enabled: !!activePetId && !isNew,
+      queryKey: activePetId ? getGetPetVaccinesQueryKey(activePetId) : ['no-pet', 'vaccines'],
+    },
+  });
+  const vaccines = petVaccines?.vaccines ?? [];
+
+  // Passport (read-only summary) is the default landing view; 'edit' reuses
+  // the existing full form below. A brand-new pet has no passport to show
+  // yet, so it always starts in edit mode.
+  const [mode, setMode] = useState<'passport' | 'edit'>(isNew ? 'edit' : 'passport');
+  const [shareOpen, setShareOpen] = useState(false);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -346,6 +264,7 @@ export default function Profile() {
       weightUnit: 'lb',
       photoUrl: '',
       notes: '',
+      allergies: '',
       vetName: '',
       vetClinic: '',
       vetPhone: '',
@@ -375,6 +294,7 @@ export default function Profile() {
         weightUnit: pet.weightUnit,
          photoUrl: pet.photoUrl?.startsWith('preset:') ? '' : pet.photoUrl || '',
         notes: pet.notes || '',
+        allergies: pet.allergies || '',
         vetName: pet.vetName || '',
         vetClinic: pet.vetClinic || '',
         vetPhone: pet.vetPhone || '',
@@ -388,7 +308,7 @@ export default function Profile() {
     if (isNew) {
       form.reset({
         name: '', species: 'dog', breed: '', color: '', microchipId: '', sex: 'unknown', birthDate: '', gotchaDate: '',
-        weight: null, weightUnit: 'lb', photoUrl: '', notes: '',
+        weight: null, weightUnit: 'lb', photoUrl: '', notes: '', allergies: '',
         vetName: '', vetClinic: '', vetPhone: '', vetAddress: '',
       });
     }
@@ -402,6 +322,7 @@ export default function Profile() {
         queryClient.invalidateQueries({ queryKey: getGetPetQueryKey(data.id) });
         queryClient.invalidateQueries({ queryKey: getListPetsQueryKey() });
         toast({ title: "Profile updated successfully" });
+        setMode('passport');
       },
       onError: (error) => {
         toast({ title: "Couldn't save changes", description: error.message, variant: "destructive" });
@@ -504,6 +425,7 @@ export default function Profile() {
       color: data.color || null,
       microchipId: data.microchipId || null,
       notes: data.notes || null,
+      allergies: data.allergies || null,
       vetName: data.vetName || null,
       vetClinic: data.vetClinic || null,
       vetPhone: data.vetPhone || null,
@@ -518,6 +440,52 @@ export default function Profile() {
   };
 
   if (isLoading && !isNew) return <div className="p-10 animate-pulse text-center text-muted-foreground">Loading profile...</div>;
+
+  if (mode === 'passport' && pet) {
+    return (
+      <div className="p-6 md:p-10 max-w-6xl mx-auto pb-16">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="font-serif text-[34px] font-extrabold tracking-tight">{pet.name}</h1>
+          </div>
+          <div className="print:hidden flex items-center gap-2">
+            <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+              <DialogTrigger asChild>
+                <button
+                  type="button"
+                  className="h-10 px-4 flex items-center gap-1.5 rounded-full bg-foreground text-background text-sm font-bold hover:opacity-90 transition-opacity"
+                >
+                  <Share2 size={16} /> Share
+                </button>
+              </DialogTrigger>
+              <DialogContent className="rounded-3xl">
+                {activePetId && <ShareLinkCard petId={activePetId} petName={pet.name} />}
+              </DialogContent>
+            </Dialog>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="h-10 px-4 flex items-center gap-1.5 rounded-full border border-border text-sm font-bold hover:bg-accent transition-colors"
+            >
+              <Printer size={16} /> Print
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <PetPassportCard
+            pet={pet}
+            activeMedications={activeMedications}
+            hasWeightTrend={hasWeightTrend}
+            weightDelta={weightDelta}
+            lastWeighedAt={lastWeighedAt}
+            vaccines={vaccines}
+            onEditAll={() => setMode('edit')}
+          />
+        </div>
+      </div>
+    );
+  }
 
   const name = form.watch('name');
   const watchedBirthDate = form.watch('birthDate');
@@ -536,12 +504,25 @@ export default function Profile() {
 
   return (
     <div className="p-6 md:p-10 max-w-3xl mx-auto pb-16">
-      <h1 className="font-serif text-[34px] font-extrabold tracking-tight">
-        {isNew ? "Let's add your pet" : `${pet?.name ?? 'Pet'}'s details`}
-      </h1>
-      <p className="mt-1 mb-6 text-[16.5px] text-muted-foreground">
-        {isNew ? 'Tell us about your furry, feathered, or scaly friend.' : 'The bits a vet always asks for. Keep them current and everything else gets smarter.'}
-      </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-[34px] font-extrabold tracking-tight">
+            {isNew ? "Let's add your pet" : `${pet?.name ?? 'Pet'}'s details`}
+          </h1>
+          <p className="mt-1 mb-6 text-[16.5px] text-muted-foreground">
+            {isNew ? 'Tell us about your furry, feathered, or scaly friend.' : 'The bits a vet always asks for. Keep them current and everything else gets smarter.'}
+          </p>
+        </div>
+        {!isNew && (
+          <button
+            type="button"
+            onClick={() => setMode('passport')}
+            className="shrink-0 text-sm font-bold text-primary hover:underline"
+          >
+            Back to passport
+          </button>
+        )}
+      </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-5">
@@ -632,7 +613,7 @@ export default function Profile() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="bg-card border border-border rounded-3xl p-6">
-              <div className="font-serif text-lg font-extrabold mb-4">Basics</div>
+              <div className="font-serif text-lg font-extrabold mb-4">Identity</div>
               <div className="grid grid-cols-2 gap-3">
                 <FormField
                   control={form.control}
@@ -735,6 +716,22 @@ export default function Profile() {
               <div className="mt-3">
                 <FormField
                   control={form.control}
+                  name="microchipId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Microchip ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="985141000000000" className={fieldClass} {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="mt-3">
+                <FormField
+                  control={form.control}
                   name="birthDate"
                   render={({ field }) => (
                     <FormItem>
@@ -800,6 +797,22 @@ export default function Profile() {
                 />
               </div>
 
+              <div className="mt-3">
+                <FormField
+                  control={form.control}
+                  name="allergies"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Allergies</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Chicken, pollen…" className={fieldClass} {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <div className="mt-3 space-y-1">
                 <Label>Medication</Label>
                 {activeMedicationNames.length > 0 ? (
@@ -833,19 +846,6 @@ export default function Profile() {
                       <FormLabel>Gotcha day</FormLabel>
                       <FormControl>
                         <DateField value={field.value || ''} onChange={field.onChange} className={fieldClass} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="microchipId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Microchip ID</FormLabel>
-                      <FormControl>
-                        <Input placeholder="985141000000000" className={fieldClass} {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -959,12 +959,6 @@ export default function Profile() {
           </div>
         </form>
       </Form>
-
-      {!isNew && activePetId && (
-        <div className="mt-5">
-          <ShareLinkCard petId={activePetId} petName={pet?.name ?? 'your pet'} />
-        </div>
-      )}
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="rounded-3xl">

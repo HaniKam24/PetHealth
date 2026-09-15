@@ -623,14 +623,16 @@ export default function Dashboard() {
                   <span className="text-[15px] font-bold">{format(new Date(nextAppointment.dueDate), 'MMM d')}</span>
                 </div>
               )}
-              {summary.activeMedications.length > 0 && (
-                <div className="flex items-baseline justify-between gap-3 py-2.5 border-t border-border">
-                  <span className="text-sm text-muted-foreground">On medicine</span>
-                  <span className="text-[15px] font-bold truncate max-w-[60%] text-right">
-                    {summary.activeMedications.map((m) => m.name).join(', ')}
-                  </span>
-                </div>
-              )}
+              <div className="flex items-baseline justify-between gap-3 py-2.5 border-t border-border">
+                <span className="text-sm text-muted-foreground">On medicine</span>
+                {summary.activeMedications.length > 0 ? (
+                  <Link href="/medications" className="text-[15px] font-bold text-primary hover:underline">
+                    View
+                  </Link>
+                ) : (
+                  <span className="text-[15px] font-bold">None</span>
+                )}
+              </div>
             </div>
 
             {hasWeightTrend && (
