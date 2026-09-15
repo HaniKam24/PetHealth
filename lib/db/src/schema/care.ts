@@ -17,6 +17,9 @@ export const pets = pgTable("pets", {
   color: text("color"),
   microchipId: text("microchip_id"),
   sex: text("sex").notNull().default("unknown"),
+  spayNeuterStatus: text("spay_neuter_status", { enum: ["spayed_neutered", "intact", "unknown"] })
+    .notNull()
+    .default("unknown"),
   birthDate: text("birth_date"),
   gotchaDate: text("gotcha_date"),
   weight: numeric("weight"),

@@ -55,6 +55,15 @@ export const PetSex = {
   unknown: 'unknown',
 } as const;
 
+export type PetSpayNeuterStatus = typeof PetSpayNeuterStatus[keyof typeof PetSpayNeuterStatus];
+
+
+export const PetSpayNeuterStatus = {
+  spayed_neutered: 'spayed_neutered',
+  intact: 'intact',
+  unknown: 'unknown',
+} as const;
+
 export type PetWeightUnit = typeof PetWeightUnit[keyof typeof PetWeightUnit];
 
 
@@ -74,6 +83,7 @@ export interface Pet {
   /** @nullable */
   microchipId: string | null;
   sex: PetSex;
+  spayNeuterStatus: PetSpayNeuterStatus;
   /** @nullable */
   birthDate: string | null;
   /** @nullable */
@@ -123,6 +133,15 @@ export const PetInputSex = {
   unknown: 'unknown',
 } as const;
 
+export type PetInputSpayNeuterStatus = typeof PetInputSpayNeuterStatus[keyof typeof PetInputSpayNeuterStatus];
+
+
+export const PetInputSpayNeuterStatus = {
+  spayed_neutered: 'spayed_neutered',
+  intact: 'intact',
+  unknown: 'unknown',
+} as const;
+
 export type PetInputWeightUnit = typeof PetInputWeightUnit[keyof typeof PetInputWeightUnit];
 
 
@@ -142,6 +161,7 @@ export interface PetInput {
   /** @nullable */
   microchipId?: string | null;
   sex: PetInputSex;
+  spayNeuterStatus: PetInputSpayNeuterStatus;
   /** @nullable */
   birthDate?: string | null;
   /** @nullable */
