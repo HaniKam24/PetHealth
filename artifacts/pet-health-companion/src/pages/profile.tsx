@@ -7,6 +7,8 @@ import {
   useDeletePet,
   useUploadPetPhoto,
   useRemovePetPhoto,
+  useListMedications,
+  getListMedicationsQueryKey,
   getListPetsQueryKey,
   type Pet,
 } from '@workspace/api-client-react';
@@ -197,6 +199,19 @@ export default function Profile() {
       }
     }
   );
+
+  // Read-only — medications are managed on the Medicines page, this is just
+  // a quick "what are they currently on" glance shown in the Health card.
+  const { data: medications } = useListMedications(
+    activePetId!,
+    {
+      query: {
+        enabled: !!activePetId && !isNew,
+        queryKey: activePetId ? getListMedicationsQueryKey(activePetId) : ['no-pet-medications'],
+      },
+    },
+  );
+  const activeMedicationNames = (medications ?? []).filter((m) => m.active).map((m) => m.name);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -499,7 +514,7 @@ export default function Profile() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="bg-card border border-border rounded-3xl p-6">
-              <div className="font-serif text-lg font-extrabold mb-4">The basics</div>
+              <div className="font-serif text-lg font-extrabold mb-4">Basics</div>
               <div className="grid grid-cols-2 gap-3">
                 <FormField
                   control={form.control}
@@ -583,7 +598,7 @@ export default function Profile() {
                 />
               </div>
 
-              <div className="mt-3 space-y-3">
+              <div className="mt-3">
                 <FormField
                   control={form.control}
                   name="color"
@@ -597,38 +612,9 @@ export default function Profile() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="microchipId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Microchip ID</FormLabel>
-                      <FormControl>
-                        <Input placeholder="985141000000000" className={fieldClass} {...field} value={field.value || ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
-            </div>
 
-            <div className="bg-card border border-border rounded-3xl p-6">
-              <div className="font-serif text-lg font-extrabold mb-4">Vitals</div>
-              <div className="space-y-3">
-                <FormField
-                  control={form.control}
-                  name="gotchaDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Gotcha day</FormLabel>
-                      <FormControl>
-                        <DateField value={field.value || ''} onChange={field.onChange} className={fieldClass} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="mt-3">
                 <FormField
                   control={form.control}
                   name="birthDate"
@@ -653,8 +639,12 @@ export default function Profile() {
                   {watchedBirthDate ? 'Calculated automatically from birthday.' : 'Set a birthday to calculate age.'}
                 </p>
               </div>
+            </div>
 
-              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_6rem] items-start gap-3">
+            <div className="flex flex-col gap-5">
+            <div className="bg-card border border-border rounded-3xl p-6">
+              <div className="font-serif text-lg font-extrabold mb-4">Health</div>
+              <div className="grid grid-cols-[minmax(0,1fr)_6rem] items-start gap-3">
                 <FormField
                   control={form.control}
                   name="weight"
@@ -691,11 +681,65 @@ export default function Profile() {
                   )}
                 />
               </div>
+
+              <div className="mt-3 space-y-1">
+                <Label>Medication</Label>
+                {activeMedicationNames.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeMedicationNames.map((name) => (
+                      <span
+                        key={name}
+                        className="rounded-full bg-accent/60 px-2.5 py-1 text-xs font-medium text-foreground"
+                      >
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">None on file.</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Read from the Medicines page — manage medications there.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-3xl p-6">
+              <div className="font-serif text-lg font-extrabold mb-4">Details</div>
+              <div className="space-y-3">
+                <FormField
+                  control={form.control}
+                  name="gotchaDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gotcha day</FormLabel>
+                      <FormControl>
+                        <DateField value={field.value || ''} onChange={field.onChange} className={fieldClass} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="microchipId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Microchip ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="985141000000000" className={fieldClass} {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
             </div>
           </div>
 
           <div className="bg-card border border-border rounded-3xl p-6">
-            <div className="font-serif text-lg font-extrabold mb-4">Their vet</div>
+            <div className="font-serif text-lg font-extrabold mb-4">My Vet</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
