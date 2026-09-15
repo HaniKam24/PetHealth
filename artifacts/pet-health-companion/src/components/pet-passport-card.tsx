@@ -1,4 +1,4 @@
-import { HeartPulse, ShieldCheck, Phone } from 'lucide-react';
+import { HeartPulse, Phone } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
@@ -53,72 +53,87 @@ export function PetPassportCard({
 
   return (
     <>
-      <div className="bg-foreground text-background rounded-3xl p-7">
-        {/* flex-wrap, not a fixed-width sibling next to the name column —
-            that's what caused the earlier bug (a rigid-width stats block
-            collapsed the name column to 0). Each item below carries its own
-            min-width and wraps its own text instead of truncating, so on a
-            wide card everything sits on one row (matching the original
-            design), and on a narrower one items drop to their own line as
-            whole blocks rather than squeezing/cutting text off. */}
-        <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
+      <div className="relative bg-foreground text-background rounded-3xl overflow-hidden">
+        {/* Faint passport-style watermark texture, matching the reference
+            design — pure CSS, no image asset. */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.05]"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(135deg, currentColor 0, currentColor 1px, transparent 1px, transparent 14px)',
+          }}
+        />
+
+        <div className="relative p-10 flex items-start gap-8">
           <div className="shrink-0">
-            <div className="w-20 h-20 rounded-2xl bg-background/10 overflow-hidden flex items-center justify-center">
+            <div className="w-32 h-32 rounded-2xl bg-background/10 overflow-hidden flex items-center justify-center">
               {avatarSrc ? (
                 <img src={avatarSrc} alt={pet.name} className="w-full h-full object-cover" />
               ) : (
-                <HeartPulse size={32} className="text-background/60" />
+                <HeartPulse size={44} className="text-background/60" />
               )}
             </div>
             {pet.microchipId && (
-              <div className="mt-2 text-[11px] tracking-wide text-background/60">CHIP {pet.microchipId}</div>
+              <div className="mt-3 text-[11px] tracking-wide text-background/60 break-words w-32">
+                CHIP {pet.microchipId}
+              </div>
             )}
           </div>
 
-          <div className="min-w-[160px]">
-            <div className={cn(statLabelClass, 'flex items-center gap-1.5')}>
-              <ShieldCheck size={13} /> Health Hub · Pet Passport
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-[5px] bg-primary flex items-center justify-center text-primary-foreground shrink-0">
+                <HeartPulse size={10} strokeWidth={2.5} />
+              </div>
+              <span className={statLabelClass}>Health Hub · Pet Passport</span>
             </div>
-            <div className="mt-1 font-serif text-3xl font-extrabold tracking-tight break-words">{pet.name}</div>
-            <div className="mt-0.5 text-sm text-background/70 break-words">
+            <div className="mt-2 font-serif text-3xl font-extrabold tracking-tight break-words">{pet.name}</div>
+            <div className="mt-1 text-sm text-background/70 break-words">
               {[pet.breed, pet.sex !== 'unknown' ? pet.sex : null].filter(Boolean).join(' · ') || 'No details yet'}
             </div>
-          </div>
 
-          <div className="min-w-[90px]">
-            <div className={statLabelClass}>Born</div>
-            <div className="mt-0.5 text-sm font-bold break-words">
-              {pet.birthDate ? format(new Date(`${pet.birthDate}T00:00:00`), 'd MMM yyyy') : '—'}
+            {/* Its own row below the name, spanning the rest of the card's
+                width (not squeezed next to the name) — each cell wraps its
+                own text instead of truncating, so a long allergy list or
+                several medications grow the cell taller rather than being
+                cut off or forcing the whole row onto a new line. */}
+            <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-x-10 gap-y-5">
+              <div>
+                <div className={statLabelClass}>Born</div>
+                <div className="mt-1 text-sm font-bold break-words">
+                  {pet.birthDate ? format(new Date(`${pet.birthDate}T00:00:00`), 'd MMM yyyy') : '—'}
+                </div>
+              </div>
+              <div>
+                <div className={statLabelClass}>Weight</div>
+                <div className="mt-1 text-sm font-bold break-words">
+                  {pet.weight != null ? `${pet.weight} ${pet.weightUnit}` : '—'}
+                </div>
+              </div>
+              <div>
+                <div className={statLabelClass}>Allergies</div>
+                <div className="mt-1 text-sm font-bold break-words">{pet.allergies || 'None on file'}</div>
+              </div>
+              <div>
+                <div className={statLabelClass}>Medicine</div>
+                {activeMedications.length === 0 ? (
+                  <div className="mt-1 text-sm font-bold">None</div>
+                ) : (
+                  <ul className="mt-1 list-disc pl-4 space-y-0.5">
+                    {activeMedications.map((m) => (
+                      <li key={m.id} className="text-sm font-bold break-words">
+                        {m.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="min-w-[90px]">
-            <div className={statLabelClass}>Weight</div>
-            <div className="mt-0.5 text-sm font-bold break-words">
-              {pet.weight != null ? `${pet.weight} ${pet.weightUnit}` : '—'}
-            </div>
-          </div>
-          <div className="min-w-[110px]">
-            <div className={statLabelClass}>Allergies</div>
-            <div className="mt-0.5 text-sm font-bold break-words">{pet.allergies || 'None on file'}</div>
-          </div>
-          <div className="min-w-[130px]">
-            <div className={statLabelClass}>Medicine</div>
-            {activeMedications.length === 0 ? (
-              <div className="mt-0.5 text-sm font-bold">None</div>
-            ) : (
-              <ul className="mt-0.5 list-disc pl-4 space-y-0.5">
-                {activeMedications.map((m) => (
-                  <li key={m.id} className="text-sm font-bold break-words">
-                    {m.name}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
         </div>
 
         {hasVetInfo && (
-          <div className="mt-6 pt-5 border-t border-background/15 flex flex-wrap items-center justify-between gap-3">
+          <div className="relative bg-primary/20 px-9 py-7 flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className={statLabelClass}>Primary vet</div>
               <div className="mt-0.5 text-sm font-bold">
@@ -137,8 +152,7 @@ export function PetPassportCard({
         )}
       </div>
 
-      <div className="mt-5 flex items-center justify-between">
-        <div className="text-xs font-bold tracking-wide text-muted-foreground uppercase">What's on the card</div>
+      <div className="mt-5 flex items-center justify-end">
         <button type="button" onClick={onEditAll} className="text-sm font-bold text-primary hover:underline">
           Edit all
         </button>
@@ -224,7 +238,9 @@ export function PetPassportCard({
 
       <div className="mt-5 bg-card border border-border rounded-3xl p-6">
         <div className="font-serif text-lg font-extrabold mb-2">Things worth remembering</div>
-        <p className="text-[15px]">{pet.notes || <span className="text-muted-foreground">Nothing on file yet.</span>}</p>
+        <p className="text-[15px] whitespace-pre-wrap">
+          {pet.notes || <span className="text-muted-foreground">Nothing on file yet.</span>}
+        </p>
       </div>
     </>
   );

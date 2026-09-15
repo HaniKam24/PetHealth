@@ -443,7 +443,7 @@ export default function Profile() {
 
   if (mode === 'passport' && pet) {
     return (
-      <div className="p-6 md:p-10 max-w-7xl mx-auto pb-16">
+      <div className="p-6 md:p-10 max-w-6xl mx-auto pb-16">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="font-serif text-[34px] font-extrabold tracking-tight">{pet.name}</h1>
@@ -613,7 +613,7 @@ export default function Profile() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="bg-card border border-border rounded-3xl p-6">
-              <div className="font-serif text-lg font-extrabold mb-4">Basics</div>
+              <div className="font-serif text-lg font-extrabold mb-4">Identity</div>
               <div className="grid grid-cols-2 gap-3">
                 <FormField
                   control={form.control}
@@ -706,6 +706,22 @@ export default function Profile() {
                       <FormLabel>Color</FormLabel>
                       <FormControl>
                         <Input placeholder="Black and white" className={fieldClass} {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="mt-3">
+                <FormField
+                  control={form.control}
+                  name="microchipId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Microchip ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="985141000000000" className={fieldClass} {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -830,19 +846,6 @@ export default function Profile() {
                       <FormLabel>Gotcha day</FormLabel>
                       <FormControl>
                         <DateField value={field.value || ''} onChange={field.onChange} className={fieldClass} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="microchipId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Microchip ID</FormLabel>
-                      <FormControl>
-                        <Input placeholder="985141000000000" className={fieldClass} {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
