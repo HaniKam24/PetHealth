@@ -1,16 +1,24 @@
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
+
+// Vite only auto-loads .env into process.env once it resolves the config's
+// envDir, which happens AFTER this file's top-level code runs — so reading
+// process.env directly here would always miss this directory's own .env
+// (a plain `defineConfig({...})` object literal, as this used to be, saw
+// only real OS environment variables, never .env file contents). Loading it
+// explicitly up front is what makes the .env overrides below actually apply.
+const env = loadEnv('development', import.meta.dirname, '');
 
 // Defaults match local dev; override for other hosting targets.
-const port = Number(process.env.PORT ?? 5173);
+const port = Number(env.PORT ?? 5173);
 
 if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${process.env.PORT}"`);
+  throw new Error(`Invalid PORT value: "${env.PORT}"`);
 }
 
-const basePath = process.env.BASE_PATH ?? '/';
+const basePath = env.BASE_PATH ?? '/';
 
 export default defineConfig({
   base: basePath,
@@ -45,7 +53,7 @@ export default defineConfig({
     // the app's relative `/api/...` fetches work without extra CORS setup).
     proxy: {
       '/api': {
-        target: process.env.API_PROXY_TARGET ?? 'http://localhost:5050',
+        target: env.API_PROXY_TARGET ?? 'http://localhost:5050',
         changeOrigin: true,
       },
     },
