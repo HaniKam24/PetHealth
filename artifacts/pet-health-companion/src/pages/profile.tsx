@@ -449,7 +449,10 @@ export default function Profile() {
       <div className="p-6 md:p-10 max-w-6xl mx-auto pb-16">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="font-serif text-[34px] font-extrabold tracking-tight">{pet.name}</h1>
+            <h1 className="font-serif text-[34px] font-extrabold tracking-tight">{pet.name}&#39;s passport</h1>
+            <p className="mt-1 text-[16px] text-muted-foreground">
+              Everything a vet, sitter or boarding kennel asks for, on one badge.
+            </p>
           </div>
           <div className="print:hidden flex items-center gap-2">
             <Dialog open={shareOpen} onOpenChange={setShareOpen}>
@@ -484,8 +487,18 @@ export default function Profile() {
             lastWeighedAt={lastWeighedAt}
             vaccines={vaccines}
             onEditAll={() => setMode('edit')}
+            onChangePhoto={() => photoInputRef.current?.click()}
+            isUploadingPhoto={uploadPhoto.isPending}
           />
         </div>
+
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic"
+          onChange={handlePhotoSelect}
+          className="hidden"
+        />
       </div>
     );
   }
