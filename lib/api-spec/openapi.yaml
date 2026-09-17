@@ -1041,7 +1041,12 @@ components:
         species: { type: string, enum: [dog, cat, rabbit, bird, fish, hamster, pig, horse, reptile, ferret, other] }
         breed: { type: ["string", "null"] }
         color: { type: ["string", "null"] }
-        microchipId: { type: ["string", "null"] }
+        # Basic format check only (not a real registry lookup, see the
+        # microchipId field on Pet above) — real chip numbers are 9-15
+        # alphanumeric characters (15-digit ISO 11784/11785 is the most
+        # common, but 9-digit and 10-character alphanumeric formats from
+        # older registries like AVID/HomeAgain still exist in the wild).
+        microchipId: { type: ["string", "null"], pattern: "^[A-Za-z0-9]{9,15}$" }
         sex: { type: string, enum: [female, male, unknown] }
         spayNeuterStatus: { type: string, enum: [spayed_neutered, intact, unknown] }
         birthDate: { type: ["string", "null"], format: date }

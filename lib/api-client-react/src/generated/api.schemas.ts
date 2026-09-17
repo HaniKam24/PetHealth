@@ -158,7 +158,10 @@ export interface PetInput {
   breed?: string | null;
   /** @nullable */
   color?: string | null;
-  /** @nullable */
+  /**
+     * @nullable
+     * @pattern ^[A-Za-z0-9]{9,15}$
+     */
   microchipId?: string | null;
   sex: PetInputSex;
   spayNeuterStatus: PetInputSpayNeuterStatus;
