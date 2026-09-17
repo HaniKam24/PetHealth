@@ -72,20 +72,13 @@ export function ShareLinkCard({ petId, petName }: { petId: number; petName: stri
 
       {isLoading ? null : shareLink ? (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <input
-              readOnly
-              value={shareLink.url}
-              className="flex-1 h-11 px-3.5 rounded-xl bg-accent/40 border border-border text-sm truncate"
-            />
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="h-11 px-4 flex items-center gap-1.5 rounded-xl border border-border text-sm font-bold hover:bg-accent transition-colors shrink-0"
-            >
-              <Copy size={14} /> Copy
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="h-11 px-4 flex items-center justify-center gap-1.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors"
+          >
+            <Copy size={14} /> Copy link
+          </button>
           <p className="text-xs text-muted-foreground">
             Active until {format(new Date(shareLink.expiresAt), 'MMMM d, yyyy')} ·{' '}
             {shareLink.lastViewedAt
@@ -102,22 +95,27 @@ export function ShareLinkCard({ petId, petName }: { petId: number; petName: stri
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="h-11 px-3.5 rounded-xl bg-accent/40 border border-border text-sm"
-            aria-label="Share link valid through"
-          />
-          <button
-            type="button"
-            onClick={handleCreate}
-            disabled={!endDate || createLink.isPending}
-            className="h-11 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            Create link
-          </button>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="share-link-expiration" className="text-xs font-bold text-muted-foreground">
+            Link expires on
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id="share-link-expiration"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="h-11 px-3.5 rounded-xl bg-accent/40 border border-border text-sm"
+            />
+            <button
+              type="button"
+              onClick={handleCreate}
+              disabled={!endDate || createLink.isPending}
+              className="h-11 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              Create link
+            </button>
+          </div>
         </div>
       )}
     </div>
