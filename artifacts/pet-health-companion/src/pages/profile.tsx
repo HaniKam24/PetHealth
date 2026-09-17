@@ -9,8 +9,6 @@ import {
   useRemovePetPhoto,
   useListMedications,
   getListMedicationsQueryKey,
-  useGetPetTrends,
-  getGetPetTrendsQueryKey,
   useGetPetVaccines,
   getGetPetVaccinesQueryKey,
   getListPetsQueryKey,
@@ -21,7 +19,7 @@ import { useLocation, useSearch } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trash2, HeartPulse, Check, Camera, Loader2, Share2, Printer, X, CalendarDays } from 'lucide-react';
+import { Trash2, HeartPulse, Check, Camera, Loader2, Share2, Printer, Pencil, X, CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -222,19 +220,6 @@ export default function Profile() {
   );
   const activeMedications = (medications ?? []).filter((m) => m.active);
   const activeMedicationNames = activeMedications.map((m) => m.name);
-
-  // Same weight-trend hook/derivation dashboard.tsx uses for its weight
-  // delta — reused here rather than re-fetched or recomputed differently.
-  const { data: trends } = useGetPetTrends(activePetId!, {
-    query: {
-      enabled: !!activePetId && !isNew,
-      queryKey: activePetId ? getGetPetTrendsQueryKey(activePetId) : ['no-pet', 'trends'],
-    },
-  });
-  const weightLogs = trends?.weightLogs ?? [];
-  const hasWeightTrend = weightLogs.length >= 2;
-  const weightDelta = hasWeightTrend ? weightLogs[weightLogs.length - 1].weight - weightLogs[0].weight : 0;
-  const lastWeighedAt = weightLogs.length > 0 ? new Date(weightLogs[weightLogs.length - 1].recordedAt) : null;
 
   const { data: petVaccines } = useGetPetVaccines(activePetId!, {
     query: {
@@ -455,6 +440,13 @@ export default function Profile() {
             </p>
           </div>
           <div className="print:hidden flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMode('edit')}
+              className="h-10 px-4 flex items-center gap-1.5 rounded-full border border-border text-sm font-bold hover:bg-accent transition-colors"
+            >
+              <Pencil size={16} /> Edit
+            </button>
             <Dialog open={shareOpen} onOpenChange={setShareOpen}>
               <DialogTrigger asChild>
                 <button
@@ -482,11 +474,7 @@ export default function Profile() {
           <PetPassportCard
             pet={pet}
             activeMedications={activeMedications}
-            hasWeightTrend={hasWeightTrend}
-            weightDelta={weightDelta}
-            lastWeighedAt={lastWeighedAt}
             vaccines={vaccines}
-            onEditAll={() => setMode('edit')}
             onChangePhoto={() => photoInputRef.current?.click()}
             isUploadingPhoto={uploadPhoto.isPending}
           />
