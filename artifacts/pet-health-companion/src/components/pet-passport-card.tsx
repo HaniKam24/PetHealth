@@ -118,6 +118,11 @@ export function PetPassportCard({
 
             {(hasAnyVaccineRecord || pet.allergies) && (
               <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {pet.allergies && (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-bold bg-destructive/25 text-destructive">
+                    <AlertTriangle size={13} /> {pet.allergies}
+                  </span>
+                )}
                 {hasAnyVaccineRecord && (
                   <span
                     className={cn(
@@ -127,11 +132,6 @@ export function PetPassportCard({
                   >
                     {hasOverdueVaccine ? <AlertTriangle size={13} /> : <ShieldCheck size={13} />}
                     {hasOverdueVaccine ? 'Vaccine overdue' : 'Vaccines current'}
-                  </span>
-                )}
-                {pet.allergies && (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-bold bg-destructive/25 text-destructive">
-                    <AlertTriangle size={13} /> {pet.allergies}
                   </span>
                 )}
               </div>
@@ -286,21 +286,7 @@ export function PetPassportCard({
         </div>
 
         <div className="bg-card border border-border rounded-3xl p-5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-[26px] h-[26px] rounded-lg bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
-              <AlertTriangle size={15} />
-            </div>
-            <div className="font-serif text-base font-extrabold">Allergies</div>
-          </div>
-          {pet.allergies ? (
-            <p className="mt-2.5 text-[15px] whitespace-pre-wrap leading-relaxed">{pet.allergies}</p>
-          ) : (
-            <p className="mt-3 text-sm text-muted-foreground">None on file.</p>
-          )}
-        </div>
-
-        <div className="bg-card border border-border rounded-3xl p-5">
-          <div className="font-serif text-base font-extrabold">Things worth remembering</div>
+          <div className="font-serif text-base font-extrabold">About {pet.name}</div>
           <p className="mt-1 text-[13.5px] text-muted-foreground">Shows on the back of the badge when you share it.</p>
           <p className="mt-2.5 text-[15px] whitespace-pre-wrap leading-relaxed">
             {pet.notes || <span className="text-muted-foreground">Nothing on file yet.</span>}

@@ -434,7 +434,7 @@ export default function Profile() {
       <div className="p-6 md:p-10 max-w-6xl mx-auto pb-16">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="font-serif text-[34px] font-extrabold tracking-tight">{pet.name}&#39;s passport</h1>
+            <h1 className="font-serif text-[34px] font-extrabold tracking-tight">{pet.name}&#39;s Profile</h1>
             <p className="mt-1 text-[16px] text-muted-foreground">
               Everything a vet, sitter or boarding kennel asks for, on one badge.
             </p>
@@ -946,7 +946,7 @@ export default function Profile() {
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="font-serif text-lg font-extrabold">Things worth remembering</FormLabel>
+                  <FormLabel className="font-serif text-lg font-extrabold">About {name || 'your pet'}</FormLabel>
                   <p className="text-sm text-muted-foreground mb-1">Allergies, what frightens them, where they hide.</p>
                   <FormControl>
                     <Textarea
