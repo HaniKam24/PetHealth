@@ -598,6 +598,18 @@ export default function SmartUpload() {
     setBusyItemId(null);
   };
 
+  const handleRejectAll = async (imp: DocumentImport) => {
+    for (const item of imp.items.filter((i) => i.status === 'pending')) {
+      setBusyItemId(item.id);
+      try {
+        await rejectMutation.mutateAsync({ petId: activePetId, importId: imp.id, itemId: item.id });
+      } catch {
+        // Individual failure already toasted by the mutation's onError — keep going with the rest.
+      }
+    }
+    setBusyItemId(null);
+  };
+
   const imports = data?.imports ?? [];
   const quota = data?.quota;
 
@@ -708,6 +720,14 @@ export default function SmartUpload() {
                         className="h-9 px-3 text-sm font-bold text-primary flex items-center gap-1.5 disabled:opacity-60"
                       >
                         {openingDocId === imp.id ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />} Source
+                      </button>
+                    )}
+                    {pendingItems.length > 1 && (
+                      <button
+                        onClick={() => handleRejectAll(imp)}
+                        className="h-9 px-4 text-sm font-bold rounded-full border border-border text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        Reject all
                       </button>
                     )}
                     {pendingItems.length > 1 && (
