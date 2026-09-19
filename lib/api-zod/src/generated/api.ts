@@ -48,6 +48,7 @@ export const ListPetsResponse = zod.array(ListPetsResponseItem)
  * @summary Create a pet
  */
 
+export const createPetBodyMicrochipIdRegExp = new RegExp('^[A-Za-z0-9]{9,15}$');
 
 
 export const CreatePetBody = zod.object({
@@ -55,7 +56,7 @@ export const CreatePetBody = zod.object({
   "species": zod.enum(['dog', 'cat', 'rabbit', 'bird', 'fish', 'hamster', 'pig', 'horse', 'reptile', 'ferret', 'other']),
   "breed": zod.string().nullish(),
   "color": zod.string().nullish(),
-  "microchipId": zod.string().nullish(),
+  "microchipId": zod.string().regex(createPetBodyMicrochipIdRegExp).nullish(),
   "sex": zod.enum(['female', 'male', 'unknown']),
   "spayNeuterStatus": zod.enum(['spayed_neutered', 'intact', 'unknown']),
   "birthDate": zod.coerce.date().nullish(),
@@ -138,6 +139,7 @@ export const UpdatePetParams = zod.object({
 })
 
 
+export const updatePetBodyOneMicrochipIdRegExp = new RegExp('^[A-Za-z0-9]{9,15}$');
 
 
 export const UpdatePetBody = zod.object({
@@ -145,7 +147,7 @@ export const UpdatePetBody = zod.object({
   "species": zod.enum(['dog', 'cat', 'rabbit', 'bird', 'fish', 'hamster', 'pig', 'horse', 'reptile', 'ferret', 'other']),
   "breed": zod.string().nullish(),
   "color": zod.string().nullish(),
-  "microchipId": zod.string().nullish(),
+  "microchipId": zod.string().regex(updatePetBodyOneMicrochipIdRegExp).nullish(),
   "sex": zod.enum(['female', 'male', 'unknown']),
   "spayNeuterStatus": zod.enum(['spayed_neutered', 'intact', 'unknown']),
   "birthDate": zod.coerce.date().nullish(),

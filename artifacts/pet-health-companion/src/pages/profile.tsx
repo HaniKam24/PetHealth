@@ -56,7 +56,14 @@ const profileSchema = z.object({
   species: z.enum(SPECIES_VALUES),
   breed: z.string().optional().nullable(),
   color: z.string().optional().nullable(),
-  microchipId: z.string().optional().nullable(),
+  // Must match the `microchipId` pattern on PetInput in lib/api-spec/openapi.yaml
+  // (this form schema isn't generated, so a change on one side needs the other).
+  microchipId: z
+    .string()
+    .regex(/^[A-Za-z0-9]{9,15}$/, 'Microchip ID should be 9-15 letters/numbers, with no spaces or dashes')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
   sex: z.enum(['female', 'male', 'unknown']),
   spayNeuterStatus: z.enum(['spayed_neutered', 'intact', 'unknown']),
   birthDate: z.string().optional().nullable(),
