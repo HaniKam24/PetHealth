@@ -103,10 +103,22 @@ const SEX_DISPLAY_LABELS: Record<string, string> = {
 const MEDICATION_DOSE_PLACEHOLDER = 'Not stated in document';
 const MEDICATION_FREQUENCY_PLACEHOLDER = 'Not stated in document — please confirm';
 
-function medicationNeedsDoseInfo(item: DocumentImportItem): boolean {
+function medicationDoseMissing(item: DocumentImportItem): boolean {
   if (item.itemType !== 'medication') return false;
   const d = item.proposedData as Record<string, unknown>;
-  return d.dose === MEDICATION_DOSE_PLACEHOLDER || d.frequency === MEDICATION_FREQUENCY_PLACEHOLDER;
+  return d.dose === MEDICATION_DOSE_PLACEHOLDER;
+}
+
+function medicationFrequencyMissing(item: DocumentImportItem): boolean {
+  if (item.itemType !== 'medication') return false;
+  const d = item.proposedData as Record<string, unknown>;
+  return d.frequency === MEDICATION_FREQUENCY_PLACEHOLDER;
+}
+
+// True if either piece is missing — a document can state one without the
+// other (e.g. a pharmacy receipt line states the dose but never a schedule).
+function medicationNeedsDoseInfo(item: DocumentImportItem): boolean {
+  return medicationDoseMissing(item) || medicationFrequencyMissing(item);
 }
 
 function str(v: unknown): string {
@@ -139,12 +151,22 @@ function ItemSummary({ item }: { item: DocumentImportItem }) {
     // are never rendered as their own text, only used to decide whether dose
     // logging is offered. Appending them here too just repeated the same
     // wording a second time (e.g. "150mg · every 12 hours · every 12 hours").
-    const needsDoseInfo = medicationNeedsDoseInfo(item);
+    const doseMissing = medicationDoseMissing(item);
+    const frequencyMissing = medicationFrequencyMissing(item);
+    const needsDoseInfo = doseMissing || frequencyMissing;
     return (
       <div className="bg-accent/40 rounded-2xl p-4">
         <div className="font-serif text-lg font-extrabold">{str(d.name)}</div>
         {needsDoseInfo ? (
-          <div className="text-sm text-amber-700 mt-0.5">Dose &amp; frequency weren't stated in this document</div>
+          <div className="text-sm mt-0.5">
+            <span className={doseMissing ? 'text-amber-700' : 'text-muted-foreground'}>
+              {doseMissing ? "Dose wasn't stated" : str(d.dose)}
+            </span>
+            {' · '}
+            <span className={frequencyMissing ? 'text-amber-700' : 'text-muted-foreground'}>
+              {frequencyMissing ? "Frequency wasn't stated" : str(d.frequency)}
+            </span>
+          </div>
         ) : (
           <div className="text-sm text-muted-foreground mt-0.5">{str(d.dose)} · {str(d.frequency)}</div>
         )}
@@ -781,7 +803,12 @@ export default function SmartUpload() {
                                 )}
                                 {medicationNeedsDoseInfo(item) && (
                                   <span className="flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-100 rounded-full px-2.5 py-1">
-                                    <AlertTriangle size={11} /> Needs dose &amp; frequency
+                                    <AlertTriangle size={11} />
+                                    {medicationDoseMissing(item) && medicationFrequencyMissing(item)
+                                      ? 'Needs dose & frequency'
+                                      : medicationDoseMissing(item)
+                                        ? 'Needs dose'
+                                        : 'Needs frequency'}
                                   </span>
                                 )}
                               </div>
@@ -805,7 +832,12 @@ export default function SmartUpload() {
                                         disabled={isBusy}
                                         className="h-10 flex items-center gap-1.5 px-4 text-sm font-bold rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
                                       >
-                                        <Pencil size={14} /> Add dose &amp; frequency
+                                        <Pencil size={14} />
+                                        {medicationDoseMissing(item) && medicationFrequencyMissing(item)
+                                          ? 'Add dose & frequency'
+                                          : medicationDoseMissing(item)
+                                            ? 'Add dose'
+                                            : 'Add frequency'}
                                       </button>
                                     ) : (
                                       <>
