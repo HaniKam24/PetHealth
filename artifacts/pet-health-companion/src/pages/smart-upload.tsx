@@ -739,9 +739,9 @@ export default function SmartUpload() {
                       <button
                         onClick={() => handleViewSource(imp)}
                         disabled={openingDocId === imp.id}
-                        className="h-9 px-3 text-sm font-bold text-primary flex items-center gap-1.5 disabled:opacity-60"
+                        className="h-9 px-3 text-sm font-bold text-primary flex items-center gap-1.5 hover:underline disabled:opacity-60"
                       >
-                        {openingDocId === imp.id ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />} Source
+                        {openingDocId === imp.id ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />} View file
                       </button>
                     )}
                     {pendingItems.length > 1 && (
