@@ -1824,6 +1824,79 @@ export const useUpdateMedication = <TError = ErrorType<NotFoundResponse>,
       return useMutation(getUpdateMedicationMutationOptions(options));
     }
 
+export const getDeleteMedicationUrl = (petId: number,
+    medicationId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/medications/${medicationId}`
+}
+
+/**
+ * @summary Delete a medication
+ */
+export const deleteMedication = async (petId: number,
+    medicationId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteMedicationUrl(petId,medicationId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteMedicationMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMedication>>, TError,{petId: number;medicationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMedication>>, TError,{petId: number;medicationId: number}, TContext> => {
+
+const mutationKey = ['deleteMedication'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMedication>>, {petId: number;medicationId: number}> = (props) => {
+          const {petId,medicationId} = props ?? {};
+
+          return  deleteMedication(petId,medicationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMedicationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMedication>>>
+
+    export type DeleteMedicationMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Delete a medication
+ */
+export const useDeleteMedication = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMedication>>, TError,{petId: number;medicationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMedication>>,
+        TError,
+        {petId: number;medicationId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteMedicationMutationOptions(options));
+    }
+
 export const getLogMedicationDoseUrl = (petId: number,
     medicationId: number,) => {
 

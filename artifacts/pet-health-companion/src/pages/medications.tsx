@@ -4,6 +4,7 @@ import {
   getListMedicationsQueryKey,
   useCreateMedication,
   useUpdateMedication,
+  useDeleteMedication,
   useLogMedicationDose,
   useListPets,
   type Medication,
@@ -13,9 +14,33 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Pill, Clock, AlertCircle, Syringe, Ban, RotateCcw, Loader2, ChevronsUpDown, Check, Info } from 'lucide-react';
+import {
+  Plus,
+  Pill,
+  Clock,
+  AlertCircle,
+  Syringe,
+  Ban,
+  RotateCcw,
+  Loader2,
+  ChevronsUpDown,
+  Check,
+  Info,
+  MoreVertical,
+  Trash2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,6 +48,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 
@@ -142,6 +168,8 @@ export default function Medications() {
   const [frequencyPreset, setFrequencyPreset] = useState(DEFAULT_PRESET.key);
   const [nameOpen, setNameOpen] = useState(false);
   const [nameSearch, setNameSearch] = useState('');
+  const [detailMedication, setDetailMedication] = useState<Medication | null>(null);
+  const [medicationPendingDelete, setMedicationPendingDelete] = useState<Medication | null>(null);
   const { toast } = useToast();
 
   const { data: pets } = useListPets();
@@ -204,6 +232,20 @@ export default function Medications() {
     }
   });
 
+  const deleteMedication = useDeleteMedication({
+    mutation: {
+      onSuccess: (_data, variables) => {
+        invalidateMedications();
+        setMedicationPendingDelete(null);
+        setDetailMedication((current) => (current?.id === variables.medicationId ? null : current));
+        toast({ title: "Medication deleted" });
+      },
+      onError: (error) => {
+        toast({ title: "Couldn't delete medication", description: error.message, variant: "destructive" });
+      }
+    }
+  });
+
   const setMedicationActive = (med: Medication, active: boolean) => {
     updateMedication.mutate({
       petId: activePetId!,
@@ -249,6 +291,18 @@ export default function Medications() {
   const activeMeds = medications?.filter(m => m.active) || [];
   const pastMeds = medications?.filter(m => !m.active) || [];
 
+  // Re-looked-up from the live list (not the snapshot captured on click) so
+  // the dialog reflects a stop/resume/log-dose that happens while it's open.
+  const detailMed = detailMedication
+    ? medications?.find((m) => m.id === detailMedication.id) ?? detailMedication
+    : null;
+
+  // Same curated lookup the "Add a medicine" search uses — surfaces a plain-
+  // English description when the medication matches one of our known names.
+  const detailMedInfo = detailMed
+    ? COMMON_MEDICATIONS.find((m) => m.name.toLowerCase() === detailMed.name.toLowerCase())
+    : null;
+
   return (
     <div className="p-6 md:p-10 max-w-5xl mx-auto pb-16">
       <div className="flex items-end justify-between gap-6 mb-7">
@@ -293,52 +347,81 @@ export default function Medications() {
       ) : (
         <div className="space-y-9">
           {activeMeds.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch">
               {activeMeds.map((med) => (
-                <div key={med.id} className="bg-card border border-border rounded-3xl p-6">
-                  <div className="flex justify-between items-start gap-3">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-[52px] h-[52px] rounded-2xl bg-accent text-primary flex items-center justify-center shrink-0">
-                        <Pill size={24} />
-                      </div>
-                      <div>
-                        <div className="font-serif text-[22px] font-extrabold leading-tight">{med.name}</div>
-                        <div className="text-[15px] text-muted-foreground">{med.dose} · {med.frequency}</div>
+                <div
+                  key={med.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setDetailMedication(med)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setDetailMedication(med);
+                    }
+                  }}
+                  className="relative flex flex-col text-left bg-card border border-border rounded-3xl p-5 cursor-pointer transition-colors hover:border-primary/40 hover:shadow-sm"
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMedicationPendingDelete(med);
+                    }}
+                    aria-label={`Delete ${med.name}`}
+                    className="absolute top-3.5 right-3.5 h-8 w-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+
+                  <div className="flex items-center gap-3 pr-9">
+                    <div className="w-11 h-11 rounded-2xl bg-accent text-primary flex items-center justify-center shrink-0">
+                      <Pill size={20} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-serif text-[19px] font-extrabold leading-tight">{med.name}</div>
+                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground">
+                        <span>{med.dose} · {med.frequency}</span>
+                        {med.nextDoseAt && (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                            <Clock size={11} /> {format(parseISO(med.nextDoseAt), 'MMM d, h:mm a')}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    {med.nextDoseAt && (
-                      <span className="shrink-0 flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-100 px-3 py-1.5 rounded-full">
-                        <Clock size={13} /> {format(parseISO(med.nextDoseAt), 'MMM d, h:mm a')}
-                      </span>
-                    )}
                   </div>
 
                   {med.instructions && (
-                    <div className="mt-4 flex gap-2.5 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3">
-                      <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-700" />
+                    <div className="mt-3 flex gap-2 bg-amber-50 border border-amber-100 rounded-2xl px-3.5 py-2.5">
+                      <AlertCircle size={15} className="shrink-0 mt-0.5 text-amber-700" />
                       <span className="text-sm leading-relaxed text-amber-900">{med.instructions}</span>
                     </div>
                   )}
 
-                  <div className="mt-5 flex gap-2">
+                  <div className="mt-auto pt-4 flex items-center gap-2">
                     {med.doseIntervalValue && med.doseIntervalUnit ? (
                       <button
-                        onClick={() => logDose.mutate({ petId: activePetId, medicationId: med.id })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          logDose.mutate({ petId: activePetId, medicationId: med.id });
+                        }}
                         disabled={logDose.isPending}
-                        className="flex-1 h-11 flex items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm shadow-primary/20 hover:bg-primary/90 transition-colors disabled:opacity-50"
+                        className="flex-1 h-10 flex items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm shadow-primary/20 hover:bg-primary/90 transition-colors disabled:opacity-50"
                       >
                         {logDose.isPending ? <Loader2 size={16} className="animate-spin" /> : <Syringe size={16} />}
-                        I've given this
+                        Given
                       </button>
                     ) : (
-                      <span className="flex-1 text-xs text-muted-foreground italic self-center">
+                      <span className="flex-1 text-xs text-muted-foreground italic">
                         Add a schedule to enable one-tap logging.
                       </span>
                     )}
                     <button
-                      onClick={() => setMedicationActive(med, false)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMedicationActive(med, false);
+                      }}
                       disabled={updateMedication.isPending}
-                      className="h-11 px-4 flex items-center gap-1.5 rounded-full border border-border text-sm font-bold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                      className="h-10 px-3.5 flex items-center gap-1.5 rounded-full border border-border text-sm font-bold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 shrink-0"
                     >
                       <Ban size={15} /> Stop
                     </button>
@@ -353,7 +436,22 @@ export default function Medications() {
               <div className="font-serif text-xl font-extrabold mb-3">Stopped</div>
               <div className="bg-card border border-border rounded-3xl overflow-hidden">
                 {pastMeds.map((med, i) => (
-                  <div key={med.id} className={cn('flex items-center gap-4 p-4', i > 0 && 'border-t border-border')}>
+                  <div
+                    key={med.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setDetailMedication(med)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setDetailMedication(med);
+                      }
+                    }}
+                    className={cn(
+                      'flex items-center gap-4 p-4 cursor-pointer transition-colors hover:bg-accent/40',
+                      i > 0 && 'border-t border-border',
+                    )}
+                  >
                     <div className="w-[42px] h-[42px] rounded-2xl bg-accent text-muted-foreground flex items-center justify-center shrink-0">
                       <Pill size={19} />
                     </div>
@@ -362,12 +460,34 @@ export default function Medications() {
                       <span className="text-[15px] text-muted-foreground">· {med.dose}, {med.frequency}</span>
                     </div>
                     <button
-                      onClick={() => setMedicationActive(med, true)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMedicationActive(med, true);
+                      }}
                       disabled={updateMedication.isPending}
                       className="h-10 px-4 flex items-center gap-1.5 rounded-full bg-accent text-primary text-sm font-bold hover:bg-accent/70 transition-colors disabled:opacity-50 shrink-0"
                     >
                       <RotateCcw size={14} /> He's taking this again
                     </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`More options for ${med.name}`}
+                          className="h-9 w-9 flex items-center justify-center rounded-full text-muted-foreground hover:bg-accent transition-colors shrink-0"
+                        >
+                          <MoreVertical size={16} />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onSelect={() => setMedicationPendingDelete(med)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 size={14} className="mr-2" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 ))}
               </div>
@@ -628,6 +748,134 @@ export default function Medications() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!detailMedication} onOpenChange={(open) => !open && setDetailMedication(null)}>
+        <DialogContent className="sm:max-w-md rounded-3xl">
+          {detailMed && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-accent text-primary flex items-center justify-center shrink-0">
+                    <Pill size={22} />
+                  </div>
+                  <div className="min-w-0">
+                    <DialogTitle className="font-serif text-2xl font-extrabold leading-tight">
+                      {detailMed.name}
+                    </DialogTitle>
+                    <span
+                      className={cn(
+                        'inline-flex items-center text-xs font-bold px-2.5 py-0.5 rounded-full mt-1',
+                        detailMed.active ? 'bg-emerald-100 text-emerald-700' : 'bg-accent text-muted-foreground',
+                      )}
+                    >
+                      {detailMed.active ? 'Active' : 'Stopped'}
+                    </span>
+                  </div>
+                </div>
+                <DialogDescription className="sr-only">Medication details</DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 mt-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Dose</div>
+                    <div className="text-[15px] font-medium mt-0.5">{detailMed.dose}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Frequency</div>
+                    <div className="text-[15px] font-medium mt-0.5">{detailMed.frequency}</div>
+                  </div>
+                </div>
+
+                {detailMedInfo && (
+                  <p className="flex items-start gap-2 text-sm text-muted-foreground bg-accent/40 rounded-2xl px-4 py-3">
+                    <Info size={15} className="shrink-0 mt-0.5" />
+                    {detailMedInfo.uses}
+                  </p>
+                )}
+
+                {detailMed.active && detailMed.nextDoseAt && (
+                  <div className="flex items-center gap-2 text-sm font-bold text-amber-700 bg-amber-100 px-4 py-2.5 rounded-2xl">
+                    <Clock size={15} /> Next dose {format(parseISO(detailMed.nextDoseAt), 'MMM d, h:mm a')}
+                  </div>
+                )}
+
+                {detailMed.instructions && (
+                  <div className="flex gap-2.5 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3">
+                    <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-700" />
+                    <span className="text-sm leading-relaxed text-amber-900">{detailMed.instructions}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-5 mt-2 border-t border-border">
+                <button
+                  onClick={() => setMedicationPendingDelete(detailMed)}
+                  className="h-10 px-4 flex items-center gap-1.5 rounded-full text-sm font-bold text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <Trash2 size={15} /> Delete
+                </button>
+                <div className="flex items-center gap-2">
+                  {detailMed.active ? (
+                    <button
+                      onClick={() => setMedicationActive(detailMed, false)}
+                      disabled={updateMedication.isPending}
+                      className="h-10 px-4 flex items-center gap-1.5 rounded-full border border-border text-sm font-bold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                    >
+                      <Ban size={14} /> Stop taking
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setMedicationActive(detailMed, true)}
+                      disabled={updateMedication.isPending}
+                      className="h-10 px-4 flex items-center gap-1.5 rounded-full bg-accent text-primary text-sm font-bold hover:bg-accent/70 transition-colors disabled:opacity-50"
+                    >
+                      <RotateCcw size={14} /> He's taking this again
+                    </button>
+                  )}
+                  {detailMed.active && detailMed.doseIntervalValue && detailMed.doseIntervalUnit && (
+                    <button
+                      onClick={() => logDose.mutate({ petId: activePetId, medicationId: detailMed.id })}
+                      disabled={logDose.isPending}
+                      className="h-10 px-4 flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {logDose.isPending ? <Loader2 size={14} className="animate-spin" /> : <Syringe size={14} />}
+                      I've given this
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!medicationPendingDelete} onOpenChange={(open) => !open && setMedicationPendingDelete(null)}>
+        <AlertDialogContent className="rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {medicationPendingDelete?.name || 'this medication'}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes it from {activePet?.name || "this pet"}'s medicine list. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-full" disabled={deleteMedication.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMedication.isPending}
+              onClick={() => {
+                if (medicationPendingDelete && activePetId) {
+                  deleteMedication.mutate({ petId: activePetId, medicationId: medicationPendingDelete.id });
+                }
+              }}
+            >
+              {deleteMedication.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

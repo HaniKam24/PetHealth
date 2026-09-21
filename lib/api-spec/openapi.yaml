@@ -471,6 +471,18 @@ paths:
                 $ref: "#/components/schemas/Medication"
         "404":
           $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteMedication
+      tags: [pets]
+      summary: Delete a medication
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/MedicationId"
+      responses:
+        "204":
+          description: Medication deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
   /pets/{petId}/medications/{medicationId}/log-dose:
     post:
       operationId: logMedicationDose
