@@ -750,6 +750,21 @@ export const UpdateMedicationResponse = zod.object({
 
 
 /**
+ * @summary Delete a medication
+ */
+
+
+
+
+export const DeleteMedicationParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "medicationId": zod.coerce.number().int().min(1)
+})
+
+export const DeleteMedicationResponse = zod.void()
+
+
+/**
  * @summary Mark a dose given and auto-calculate the next dose from the medication's interval
  */
 

@@ -17,6 +17,7 @@ import {
   CreateSymptomLogBody,
   CreateSymptomLogParams,
   DeleteHealthRecordParams,
+  DeleteMedicationParams,
   DeletePetParams,
   GetDashboardSummaryQueryParams,
   GetHealthRecordDocumentUrlParams,
@@ -623,6 +624,28 @@ router.patch("/pets/:petId/medications/:medicationId", async (req, res, next) =>
       return;
     }
     res.json(asMedication(updated));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/pets/:petId/medications/:medicationId", async (req, res, next) => {
+  try {
+    const userId = requireUserId(req);
+    const { petId, medicationId } = DeleteMedicationParams.parse(req.params);
+    if (!(await isPetOwnedByUser(userId, petId))) {
+      res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+    const [deleted] = await db
+      .delete(medications)
+      .where(and(eq(medications.id, medicationId), eq(medications.petId, petId)))
+      .returning();
+    if (!deleted) {
+      res.status(404).json({ error: "Medication not found" });
+      return;
+    }
+    res.status(204).end();
   } catch (error) {
     next(error);
   }
