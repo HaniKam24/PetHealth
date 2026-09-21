@@ -579,8 +579,12 @@ export default function SmartUpload() {
 
   const handleViewSource = async (imp: DocumentImport) => {
     // Open the tab synchronously within the click gesture so browsers don't
-    // treat the post-await redirect as a blocked popup.
-    const tab = window.open('', '_blank', 'noopener,noreferrer');
+    // treat the post-await redirect as a blocked popup. Passing 'noopener'
+    // (or 'noreferrer', which implies it) here would make window.open return
+    // null, leaving no reference to navigate once the URL is fetched — so
+    // the opener link is severed manually below instead.
+    const tab = window.open('', '_blank');
+    if (tab) tab.opener = null;
     setOpeningDocId(imp.id);
     try {
       const { url } = await getDocumentImportDocumentUrl(activePetId, imp.id);
