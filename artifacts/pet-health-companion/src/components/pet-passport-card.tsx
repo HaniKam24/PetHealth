@@ -1,4 +1,4 @@
-import { HeartPulse, Phone, ShieldCheck, AlertTriangle, IdCard, Pill, ImagePlus } from 'lucide-react';
+import { HeartPulse, Phone, ShieldCheck, AlertTriangle, Pill, ImagePlus } from 'lucide-react';
 import { Link } from 'wouter';
 import { format, differenceInCalendarDays, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -34,13 +34,13 @@ const SPAY_NEUTER_STATUS_LABELS: Record<Pet['spayNeuterStatus'], string> = {
   unknown: 'Unknown',
 };
 
-const rowClass = 'flex items-center justify-between gap-3 py-2.5 border-t border-border/70 text-sm';
-
-function AboutRow({ label, value }: { label: string; value: React.ReactNode }) {
+// A single labeled stat in the badge's ID-card field grid — small caps label
+// over a bold value, styled like a driver's-license/passport data field.
+function IdField({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) {
   return (
-    <div className={rowClass}>
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-bold text-right">{value}</span>
+    <div className={className}>
+      <div className="text-[9.5px] font-extrabold tracking-[0.14em] text-background/50 uppercase">{label}</div>
+      <div className="mt-0.5 text-[13.5px] font-bold break-words">{value}</div>
     </div>
   );
 }
@@ -48,21 +48,13 @@ function AboutRow({ label, value }: { label: string; value: React.ReactNode }) {
 export function PetPassportCard({
   pet,
   activeMedications,
-  hasWeightTrend,
-  weightDelta,
-  lastWeighedAt,
   vaccines,
-  onEditAll,
   onChangePhoto,
   isUploadingPhoto,
 }: {
   pet: Pet;
   activeMedications: Medication[];
-  hasWeightTrend: boolean;
-  weightDelta: number;
-  lastWeighedAt: Date | null;
   vaccines: VaccineStatus[];
-  onEditAll: () => void;
   onChangePhoto: () => void;
   isUploadingPhoto: boolean;
 }) {
@@ -78,9 +70,6 @@ export function PetPassportCard({
     <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-6 items-start">
       {/* Badge */}
       <div className="flex flex-col items-center gap-4 lg:sticky lg:top-6">
-        <div className="w-14 h-5 rounded-md bg-border" />
-        <div className="w-3.5 h-6 border-x-2 border-border -mt-4" />
-
         <div className="relative w-full rounded-3xl overflow-hidden bg-foreground text-background shadow-xl shadow-foreground/20">
           {/* Faint passport-style watermark texture — pure CSS, no image asset. */}
           <div
@@ -114,12 +103,26 @@ export function PetPassportCard({
             </div>
 
             <div className="mt-3.5 font-serif text-4xl font-extrabold tracking-tight break-words">{pet.name}</div>
-            <div className="mt-1 text-sm text-background/75 break-words">
-              {[pet.breed, sexLabel, spayNeuterLabel].filter(Boolean).join(' · ') || 'No details yet'}
+            <div className="mt-1 text-sm text-background/75 break-words capitalize">
+              {[pet.species, pet.breed].filter(Boolean).join(' · ')}
+            </div>
+
+            <div className="mt-5 w-full grid grid-cols-2 gap-x-5 gap-y-3.5 text-left border-t border-background/10 pt-4">
+              <IdField label="Sex" value={sexLabel} />
+              <IdField label="Spayed/Neutered" value={spayNeuterLabel ?? 'Unknown'} />
+              <IdField label="Birthday" value={pet.birthDate ? format(new Date(`${pet.birthDate}T00:00:00`), 'MMM d, yyyy') : '—'} />
+              <IdField label="Age" value={pet.birthDate ? formatAgeYearsMonths(pet.birthDate) : '—'} />
+              <IdField label="Color" value={pet.color || '—'} />
+              <IdField label="Weight" value={pet.weight != null ? `${pet.weight} ${pet.weightUnit}` : '—'} />
             </div>
 
             {(hasAnyVaccineRecord || pet.allergies) && (
               <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {pet.allergies && (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-bold bg-destructive/25 text-destructive">
+                    <AlertTriangle size={13} /> {pet.allergies}
+                  </span>
+                )}
                 {hasAnyVaccineRecord && (
                   <span
                     className={cn(
@@ -129,11 +132,6 @@ export function PetPassportCard({
                   >
                     {hasOverdueVaccine ? <AlertTriangle size={13} /> : <ShieldCheck size={13} />}
                     {hasOverdueVaccine ? 'Vaccine overdue' : 'Vaccines current'}
-                  </span>
-                )}
-                {pet.allergies && (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-bold bg-destructive/25 text-destructive">
-                    <AlertTriangle size={13} /> {pet.allergies}
                   </span>
                 )}
               </div>
@@ -184,46 +182,6 @@ export function PetPassportCard({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="w-[26px] h-[26px] rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <IdCard size={15} />
-              </div>
-              <div className="font-serif text-base font-extrabold">About {pet.name}</div>
-            </div>
-            <button type="button" onClick={onEditAll} className="text-[13px] font-bold text-primary hover:underline shrink-0">
-              Edit
-            </button>
-          </div>
-          <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-9">
-            <AboutRow label="Species" value={<span className="capitalize">{pet.species}</span>} />
-            <AboutRow
-              label="Birthday"
-              value={pet.birthDate ? format(new Date(`${pet.birthDate}T00:00:00`), 'd MMM yyyy') : '—'}
-            />
-            <AboutRow label="Breed" value={pet.breed || '—'} />
-            <AboutRow label="Age" value={pet.birthDate ? formatAgeYearsMonths(pet.birthDate) : '—'} />
-            <AboutRow label="Sex" value={[sexLabel, spayNeuterLabel].filter(Boolean).join(' · ')} />
-            <AboutRow
-              label="Weight"
-              value={
-                <>
-                  {pet.weight != null ? `${pet.weight} ${pet.weightUnit}` : '—'}
-                  {hasWeightTrend && weightDelta !== 0 && (
-                    <span className={cn('ml-1.5', weightDelta > 0 ? 'text-destructive' : 'text-primary')}>
-                      {weightDelta > 0 ? '↑' : '↓'}
-                      {Math.abs(weightDelta).toFixed(1)}
-                    </span>
-                  )}
-                </>
-              }
-            />
-            <AboutRow label="Microchip" value={pet.microchipId || '—'} />
-            <AboutRow label="Last weighed" value={lastWeighedAt ? format(lastWeighedAt, 'MMM d') : '—'} />
-          </div>
-        </div>
-
-        <div className="bg-card border border-border rounded-3xl p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-[26px] h-[26px] rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                 <ShieldCheck size={15} />
               </div>
               <div className="font-serif text-base font-extrabold">Vaccines</div>
@@ -236,7 +194,7 @@ export function PetPassportCard({
             <p className="mt-3 text-sm text-muted-foreground">No vaccine records yet.</p>
           ) : (
             <>
-              <div className="mt-3.5 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {vaccines.map((v) => {
                   const daysUntilDue = v.dueDate
                     ? differenceInCalendarDays(new Date(`${v.dueDate}T00:00:00`), new Date())
@@ -248,32 +206,32 @@ export function PetPassportCard({
                     <div
                       key={v.key}
                       className={cn(
-                        'rounded-2xl border p-3.5',
+                        'flex items-center gap-3 rounded-xl border px-3 py-2.5',
                         urgent ? 'border-destructive/30 bg-destructive/5' : 'border-border/70 bg-accent/40',
                       )}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[15px] font-bold">{v.label}</span>
-                        <span
-                          className={cn(
-                            'h-[22px] px-2.5 rounded-full text-[11.5px] font-extrabold flex items-center whitespace-nowrap',
-                            urgent ? 'bg-destructive/15 text-destructive' : v.status === 'current' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
-                          )}
-                        >
-                          {label.toUpperCase()}
-                        </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[14.5px] font-bold truncate">{v.label}</div>
+                        <div className="text-[13px] text-muted-foreground truncate">
+                          {v.lastGivenDate
+                            ? `Given ${format(new Date(`${v.lastGivenDate}T00:00:00`), 'MMM d, yyyy')}`
+                            : 'No record yet'}
+                          {v.dueDate ? ` · due ${format(new Date(`${v.dueDate}T00:00:00`), 'MMM yyyy')}` : ''}
+                        </div>
                       </div>
-                      <div className="mt-1.5 text-[13.5px] text-muted-foreground">
-                        {v.lastGivenDate
-                          ? `Given ${format(new Date(`${v.lastGivenDate}T00:00:00`), 'MMM d, yyyy')}`
-                          : 'No record yet'}
-                        {v.dueDate ? ` · due ${format(new Date(`${v.dueDate}T00:00:00`), 'MMM yyyy')}` : ''}
-                      </div>
+                      <span
+                        className={cn(
+                          'h-[22px] px-2.5 rounded-full text-[11.5px] font-extrabold flex items-center shrink-0 whitespace-nowrap',
+                          urgent ? 'bg-destructive/15 text-destructive' : v.status === 'current' ? 'bg-primary/15 text-primary' : 'bg-accent border border-border text-muted-foreground',
+                        )}
+                      >
+                        {label.toUpperCase()}
+                      </span>
                     </div>
                   );
                 })}
               </div>
-              <p className="mt-3 text-xs text-muted-foreground">General guideline — confirm with your vet.</p>
+              <p className="mt-2.5 text-xs text-muted-foreground">General guideline — confirm with your vet.</p>
             </>
           )}
         </div>
@@ -328,7 +286,7 @@ export function PetPassportCard({
         </div>
 
         <div className="bg-card border border-border rounded-3xl p-5">
-          <div className="font-serif text-base font-extrabold">Things worth remembering</div>
+          <div className="font-serif text-base font-extrabold">About {pet.name}</div>
           <p className="mt-1 text-[13.5px] text-muted-foreground">Shows on the back of the badge when you share it.</p>
           <p className="mt-2.5 text-[15px] whitespace-pre-wrap leading-relaxed">
             {pet.notes || <span className="text-muted-foreground">Nothing on file yet.</span>}
