@@ -175,6 +175,10 @@ router.get("/share/:token", async (req, res, next) => {
     res.json({
       petName: pet.name,
       species: pet.species,
+      sex: pet.sex,
+      weight: pet.weight === null ? null : Number(pet.weight),
+      weightUnit: pet.weightUnit,
+      microchipId: pet.microchipId,
       photoUrl: pet.photoUrl,
       vetName: pet.vetName,
       vetClinic: pet.vetClinic,
@@ -187,6 +191,17 @@ router.get("/share/:token", async (req, res, next) => {
         instructions: m.instructions,
       })),
       notes: pet.notes,
+      criticalInfoSummary: pet.criticalInfoSummary,
+      criticalInfoDetails: pet.criticalInfoDetails,
+      feedingInstructions: pet.feedingInstructions,
+      whereThingsAre: pet.whereThingsAre,
+      walksAndTriggers: pet.walksAndTriggers,
+      handlingNotes: pet.handlingNotes,
+      whatNormalLooksLike: pet.whatNormalLooksLike,
+      caretakingPreference: pet.caretakingPreference,
+      emergencyVetName: pet.emergencyVetName,
+      emergencyVetPhone: pet.emergencyVetPhone,
+      emergencyVetHours: pet.emergencyVetHours,
       expiresAt: link.expiresAt.toISOString(),
     });
   } catch (error) {

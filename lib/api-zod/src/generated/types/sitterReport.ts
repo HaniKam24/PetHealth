@@ -6,14 +6,22 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SitterReportMedication } from './sitterReportMedication';
+import type { SitterReportSex } from './sitterReportSex';
 import type { SitterReportSpecies } from './sitterReportSpecies';
+import type { SitterReportWeightUnit } from './sitterReportWeightUnit';
 
 /**
- * Deliberately narrow — only what a sitter/boarding facility needs. Never health records, symptom journal, insights/chat history, weight logs, other pets, or owner account info.
+ * Still narrow — no health records, symptom journal, insights/chat history, weight logs, other pets, or owner account info. Widened once, deliberately, for the Sitter Brief fields below (criticalInfo* through emergencyVet*) plus a few identity facts (microchipId, sex, weight) a sitter/boarding facility genuinely needs, not anything about the owner's account.
  */
 export interface SitterReport {
   petName: string;
   species: SitterReportSpecies;
+  sex: SitterReportSex;
+  /** @nullable */
+  weight: number | null;
+  weightUnit: SitterReportWeightUnit;
+  /** @nullable */
+  microchipId: string | null;
   /** @nullable */
   photoUrl: string | null;
   /** @nullable */
@@ -27,5 +35,27 @@ export interface SitterReport {
   medications: SitterReportMedication[];
   /** @nullable */
   notes: string | null;
+  /** @nullable */
+  criticalInfoSummary: string | null;
+  /** @nullable */
+  criticalInfoDetails: string | null;
+  /** @nullable */
+  feedingInstructions: string | null;
+  /** @nullable */
+  whereThingsAre: string | null;
+  /** @nullable */
+  walksAndTriggers: string | null;
+  /** @nullable */
+  handlingNotes: string | null;
+  /** @nullable */
+  whatNormalLooksLike: string | null;
+  /** @nullable */
+  caretakingPreference: string | null;
+  /** @nullable */
+  emergencyVetName: string | null;
+  /** @nullable */
+  emergencyVetPhone: string | null;
+  /** @nullable */
+  emergencyVetHours: string | null;
   expiresAt: Date;
 }
