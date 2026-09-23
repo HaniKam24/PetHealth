@@ -31,6 +31,22 @@ export const pets = pgTable("pets", {
   vetClinic: text("vet_clinic"),
   vetPhone: text("vet_phone"),
   vetAddress: text("vet_address"),
+  // Sitter Brief — persistent, owner-editable caretaking instructions shown
+  // on the unauthenticated /share/:token page. Edited as a group from the
+  // passport's "Things worth remembering" card, not part of the main
+  // profile edit form. Every field is optional; the share page only shows
+  // whichever ones the owner actually filled in.
+  criticalInfoSummary: text("critical_info_summary"),
+  criticalInfoDetails: text("critical_info_details"),
+  feedingInstructions: text("feeding_instructions"),
+  whereThingsAre: text("where_things_are"),
+  walksAndTriggers: text("walks_and_triggers"),
+  handlingNotes: text("handling_notes"),
+  whatNormalLooksLike: text("what_normal_looks_like"),
+  caretakingPreference: text("caretaking_preference"),
+  emergencyVetName: text("emergency_vet_name"),
+  emergencyVetPhone: text("emergency_vet_phone"),
+  emergencyVetHours: text("emergency_vet_hours"),
   // One-time Smart Document Upload "onboarding" import allowance (20 docs,
   // first 30 days) — see lib/document-import-quota.ts. Null on pets created
   // before this existed, which simply means that lane isn't available for

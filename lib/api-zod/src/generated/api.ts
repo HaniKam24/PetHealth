@@ -39,7 +39,18 @@ export const ListPetsResponseItem = zod.object({
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
   "vetPhone": zod.string().nullable(),
-  "vetAddress": zod.string().nullable()
+  "vetAddress": zod.string().nullable(),
+  "criticalInfoSummary": zod.string().nullable(),
+  "criticalInfoDetails": zod.string().nullable(),
+  "feedingInstructions": zod.string().nullable(),
+  "whereThingsAre": zod.string().nullable(),
+  "walksAndTriggers": zod.string().nullable(),
+  "handlingNotes": zod.string().nullable(),
+  "whatNormalLooksLike": zod.string().nullable(),
+  "caretakingPreference": zod.string().nullable(),
+  "emergencyVetName": zod.string().nullable(),
+  "emergencyVetPhone": zod.string().nullable(),
+  "emergencyVetHours": zod.string().nullable()
 })
 export const ListPetsResponse = zod.array(ListPetsResponseItem)
 
@@ -69,7 +80,18 @@ export const CreatePetBody = zod.object({
   "vetName": zod.string().nullish(),
   "vetClinic": zod.string().nullish(),
   "vetPhone": zod.string().nullish(),
-  "vetAddress": zod.string().nullish()
+  "vetAddress": zod.string().nullish(),
+  "criticalInfoSummary": zod.string().nullish(),
+  "criticalInfoDetails": zod.string().nullish(),
+  "feedingInstructions": zod.string().nullish(),
+  "whereThingsAre": zod.string().nullish(),
+  "walksAndTriggers": zod.string().nullish(),
+  "handlingNotes": zod.string().nullish(),
+  "whatNormalLooksLike": zod.string().nullish(),
+  "caretakingPreference": zod.string().nullish(),
+  "emergencyVetName": zod.string().nullish(),
+  "emergencyVetPhone": zod.string().nullish(),
+  "emergencyVetHours": zod.string().nullish()
 })
 
 export const CreatePetResponse = zod.object({
@@ -91,7 +113,18 @@ export const CreatePetResponse = zod.object({
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
   "vetPhone": zod.string().nullable(),
-  "vetAddress": zod.string().nullable()
+  "vetAddress": zod.string().nullable(),
+  "criticalInfoSummary": zod.string().nullable(),
+  "criticalInfoDetails": zod.string().nullable(),
+  "feedingInstructions": zod.string().nullable(),
+  "whereThingsAre": zod.string().nullable(),
+  "walksAndTriggers": zod.string().nullable(),
+  "handlingNotes": zod.string().nullable(),
+  "whatNormalLooksLike": zod.string().nullable(),
+  "caretakingPreference": zod.string().nullable(),
+  "emergencyVetName": zod.string().nullable(),
+  "emergencyVetPhone": zod.string().nullable(),
+  "emergencyVetHours": zod.string().nullable()
 })
 
 
@@ -124,7 +157,18 @@ export const GetPetResponse = zod.object({
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
   "vetPhone": zod.string().nullable(),
-  "vetAddress": zod.string().nullable()
+  "vetAddress": zod.string().nullable(),
+  "criticalInfoSummary": zod.string().nullable(),
+  "criticalInfoDetails": zod.string().nullable(),
+  "feedingInstructions": zod.string().nullable(),
+  "whereThingsAre": zod.string().nullable(),
+  "walksAndTriggers": zod.string().nullable(),
+  "handlingNotes": zod.string().nullable(),
+  "whatNormalLooksLike": zod.string().nullable(),
+  "caretakingPreference": zod.string().nullable(),
+  "emergencyVetName": zod.string().nullable(),
+  "emergencyVetPhone": zod.string().nullable(),
+  "emergencyVetHours": zod.string().nullable()
 })
 
 
@@ -160,7 +204,18 @@ export const UpdatePetBody = zod.object({
   "vetName": zod.string().nullish(),
   "vetClinic": zod.string().nullish(),
   "vetPhone": zod.string().nullish(),
-  "vetAddress": zod.string().nullish()
+  "vetAddress": zod.string().nullish(),
+  "criticalInfoSummary": zod.string().nullish(),
+  "criticalInfoDetails": zod.string().nullish(),
+  "feedingInstructions": zod.string().nullish(),
+  "whereThingsAre": zod.string().nullish(),
+  "walksAndTriggers": zod.string().nullish(),
+  "handlingNotes": zod.string().nullish(),
+  "whatNormalLooksLike": zod.string().nullish(),
+  "caretakingPreference": zod.string().nullish(),
+  "emergencyVetName": zod.string().nullish(),
+  "emergencyVetPhone": zod.string().nullish(),
+  "emergencyVetHours": zod.string().nullish()
 }).describe('Updated pet fields')
 
 export const UpdatePetResponse = zod.object({
@@ -182,7 +237,18 @@ export const UpdatePetResponse = zod.object({
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
   "vetPhone": zod.string().nullable(),
-  "vetAddress": zod.string().nullable()
+  "vetAddress": zod.string().nullable(),
+  "criticalInfoSummary": zod.string().nullable(),
+  "criticalInfoDetails": zod.string().nullable(),
+  "feedingInstructions": zod.string().nullable(),
+  "whereThingsAre": zod.string().nullable(),
+  "walksAndTriggers": zod.string().nullable(),
+  "handlingNotes": zod.string().nullable(),
+  "whatNormalLooksLike": zod.string().nullable(),
+  "caretakingPreference": zod.string().nullable(),
+  "emergencyVetName": zod.string().nullable(),
+  "emergencyVetPhone": zod.string().nullable(),
+  "emergencyVetHours": zod.string().nullable()
 })
 
 
@@ -372,7 +438,18 @@ export const UploadPetPhotoResponse = zod.object({
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
   "vetPhone": zod.string().nullable(),
-  "vetAddress": zod.string().nullable()
+  "vetAddress": zod.string().nullable(),
+  "criticalInfoSummary": zod.string().nullable(),
+  "criticalInfoDetails": zod.string().nullable(),
+  "feedingInstructions": zod.string().nullable(),
+  "whereThingsAre": zod.string().nullable(),
+  "walksAndTriggers": zod.string().nullable(),
+  "handlingNotes": zod.string().nullable(),
+  "whatNormalLooksLike": zod.string().nullable(),
+  "caretakingPreference": zod.string().nullable(),
+  "emergencyVetName": zod.string().nullable(),
+  "emergencyVetPhone": zod.string().nullable(),
+  "emergencyVetHours": zod.string().nullable()
 })
 
 
@@ -405,7 +482,18 @@ export const RemovePetPhotoResponse = zod.object({
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
   "vetPhone": zod.string().nullable(),
-  "vetAddress": zod.string().nullable()
+  "vetAddress": zod.string().nullable(),
+  "criticalInfoSummary": zod.string().nullable(),
+  "criticalInfoDetails": zod.string().nullable(),
+  "feedingInstructions": zod.string().nullable(),
+  "whereThingsAre": zod.string().nullable(),
+  "walksAndTriggers": zod.string().nullable(),
+  "handlingNotes": zod.string().nullable(),
+  "whatNormalLooksLike": zod.string().nullable(),
+  "caretakingPreference": zod.string().nullable(),
+  "emergencyVetName": zod.string().nullable(),
+  "emergencyVetPhone": zod.string().nullable(),
+  "emergencyVetHours": zod.string().nullable()
 })
 
 
@@ -1146,7 +1234,18 @@ export const GetDashboardSummaryResponse = zod.object({
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
   "vetPhone": zod.string().nullable(),
-  "vetAddress": zod.string().nullable()
+  "vetAddress": zod.string().nullable(),
+  "criticalInfoSummary": zod.string().nullable(),
+  "criticalInfoDetails": zod.string().nullable(),
+  "feedingInstructions": zod.string().nullable(),
+  "whereThingsAre": zod.string().nullable(),
+  "walksAndTriggers": zod.string().nullable(),
+  "handlingNotes": zod.string().nullable(),
+  "whatNormalLooksLike": zod.string().nullable(),
+  "caretakingPreference": zod.string().nullable(),
+  "emergencyVetName": zod.string().nullable(),
+  "emergencyVetPhone": zod.string().nullable(),
+  "emergencyVetHours": zod.string().nullable()
 }),
   "upcomingReminders": zod.array(zod.object({
   "id": zod.number().int(),
@@ -1532,6 +1631,10 @@ export const GetSitterReportParams = zod.object({
 export const GetSitterReportResponse = zod.object({
   "petName": zod.string(),
   "species": zod.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
+  "sex": zod.enum(['female', 'male', 'unknown']),
+  "weight": zod.number().nullable(),
+  "weightUnit": zod.enum(['lb', 'kg']),
+  "microchipId": zod.string().nullable(),
   "photoUrl": zod.string().url().nullable(),
   "vetName": zod.string().nullable(),
   "vetClinic": zod.string().nullable(),
@@ -1544,7 +1647,18 @@ export const GetSitterReportResponse = zod.object({
   "instructions": zod.string().nullable()
 })),
   "notes": zod.string().nullable(),
+  "criticalInfoSummary": zod.string().nullable(),
+  "criticalInfoDetails": zod.string().nullable(),
+  "feedingInstructions": zod.string().nullable(),
+  "whereThingsAre": zod.string().nullable(),
+  "walksAndTriggers": zod.string().nullable(),
+  "handlingNotes": zod.string().nullable(),
+  "whatNormalLooksLike": zod.string().nullable(),
+  "caretakingPreference": zod.string().nullable(),
+  "emergencyVetName": zod.string().nullable(),
+  "emergencyVetPhone": zod.string().nullable(),
+  "emergencyVetHours": zod.string().nullable(),
   "expiresAt": zod.coerce.date()
-}).describe('Deliberately narrow — only what a sitter\/boarding facility needs. Never health records, symptom journal, insights\/chat history, weight logs, other pets, or owner account info.')
+}).describe('Still narrow — no health records, symptom journal, insights\/chat history, weight logs, other pets, or owner account info. Widened once, deliberately, for the Sitter Brief fields below (criticalInfo\* through emergencyVet\*) plus a few identity facts (microchipId, sex, weight) a sitter\/boarding facility genuinely needs, not anything about the owner\'s account.')
 
 

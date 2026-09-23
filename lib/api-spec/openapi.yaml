@@ -1045,7 +1045,18 @@ components:
         vetClinic: { type: ["string", "null"] }
         vetPhone: { type: ["string", "null"] }
         vetAddress: { type: ["string", "null"] }
-      required: [id, name, species, breed, color, microchipId, sex, spayNeuterStatus, birthDate, gotchaDate, weight, weightUnit, photoUrl, notes, allergies, vetName, vetClinic, vetPhone, vetAddress]
+        criticalInfoSummary: { type: ["string", "null"] }
+        criticalInfoDetails: { type: ["string", "null"] }
+        feedingInstructions: { type: ["string", "null"] }
+        whereThingsAre: { type: ["string", "null"] }
+        walksAndTriggers: { type: ["string", "null"] }
+        handlingNotes: { type: ["string", "null"] }
+        whatNormalLooksLike: { type: ["string", "null"] }
+        caretakingPreference: { type: ["string", "null"] }
+        emergencyVetName: { type: ["string", "null"] }
+        emergencyVetPhone: { type: ["string", "null"] }
+        emergencyVetHours: { type: ["string", "null"] }
+      required: [id, name, species, breed, color, microchipId, sex, spayNeuterStatus, birthDate, gotchaDate, weight, weightUnit, photoUrl, notes, allergies, vetName, vetClinic, vetPhone, vetAddress, criticalInfoSummary, criticalInfoDetails, feedingInstructions, whereThingsAre, walksAndTriggers, handlingNotes, whatNormalLooksLike, caretakingPreference, emergencyVetName, emergencyVetPhone, emergencyVetHours]
     PetInput:
       type: object
       properties:
@@ -1072,6 +1083,17 @@ components:
         vetClinic: { type: ["string", "null"] }
         vetPhone: { type: ["string", "null"] }
         vetAddress: { type: ["string", "null"] }
+        criticalInfoSummary: { type: ["string", "null"] }
+        criticalInfoDetails: { type: ["string", "null"] }
+        feedingInstructions: { type: ["string", "null"] }
+        whereThingsAre: { type: ["string", "null"] }
+        walksAndTriggers: { type: ["string", "null"] }
+        handlingNotes: { type: ["string", "null"] }
+        whatNormalLooksLike: { type: ["string", "null"] }
+        caretakingPreference: { type: ["string", "null"] }
+        emergencyVetName: { type: ["string", "null"] }
+        emergencyVetPhone: { type: ["string", "null"] }
+        emergencyVetHours: { type: ["string", "null"] }
       required: [name, species, sex, spayNeuterStatus, weightUnit]
     PetUpdate:
       allOf:
@@ -1105,10 +1127,14 @@ components:
       required: [name, dose, frequency, instructions]
     SitterReport:
       type: object
-      description: Deliberately narrow — only what a sitter/boarding facility needs. Never health records, symptom journal, insights/chat history, weight logs, other pets, or owner account info.
+      description: Still narrow — no health records, symptom journal, insights/chat history, weight logs, other pets, or owner account info. Widened once, deliberately, for the Sitter Brief fields below (criticalInfo* through emergencyVet*) plus a few identity facts (microchipId, sex, weight) a sitter/boarding facility genuinely needs, not anything about the owner's account.
       properties:
         petName: { type: string }
         species: { type: string, enum: [dog, cat, bird, rabbit, other] }
+        sex: { type: string, enum: [female, male, unknown] }
+        weight: { type: ["number", "null"] }
+        weightUnit: { type: string, enum: [lb, kg] }
+        microchipId: { type: ["string", "null"] }
         photoUrl: { type: ["string", "null"], format: uri }
         vetName: { type: ["string", "null"] }
         vetClinic: { type: ["string", "null"] }
@@ -1119,8 +1145,19 @@ components:
           items:
             $ref: "#/components/schemas/SitterReportMedication"
         notes: { type: ["string", "null"] }
+        criticalInfoSummary: { type: ["string", "null"] }
+        criticalInfoDetails: { type: ["string", "null"] }
+        feedingInstructions: { type: ["string", "null"] }
+        whereThingsAre: { type: ["string", "null"] }
+        walksAndTriggers: { type: ["string", "null"] }
+        handlingNotes: { type: ["string", "null"] }
+        whatNormalLooksLike: { type: ["string", "null"] }
+        caretakingPreference: { type: ["string", "null"] }
+        emergencyVetName: { type: ["string", "null"] }
+        emergencyVetPhone: { type: ["string", "null"] }
+        emergencyVetHours: { type: ["string", "null"] }
         expiresAt: { type: string, format: date-time }
-      required: [petName, species, photoUrl, vetName, vetClinic, vetPhone, vetAddress, medications, notes, expiresAt]
+      required: [petName, species, sex, weight, weightUnit, microchipId, photoUrl, vetName, vetClinic, vetPhone, vetAddress, medications, notes, criticalInfoSummary, criticalInfoDetails, feedingInstructions, whereThingsAre, walksAndTriggers, handlingNotes, whatNormalLooksLike, caretakingPreference, emergencyVetName, emergencyVetPhone, emergencyVetHours, expiresAt]
     HealthRecord:
       type: object
       properties:

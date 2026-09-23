@@ -1,4 +1,4 @@
-import { HeartPulse, Phone, ShieldCheck, AlertTriangle, IdCard, Pill, ImagePlus } from 'lucide-react';
+import { HeartPulse, Phone, ShieldCheck, AlertTriangle, IdCard, Pill, ImagePlus, NotebookPen } from 'lucide-react';
 import { Link } from 'wouter';
 import { format, differenceInCalendarDays, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -53,6 +53,7 @@ export function PetPassportCard({
   lastWeighedAt,
   vaccines,
   onEditAll,
+  onEditBrief,
   onChangePhoto,
   isUploadingPhoto,
 }: {
@@ -63,6 +64,7 @@ export function PetPassportCard({
   lastWeighedAt: Date | null;
   vaccines: VaccineStatus[];
   onEditAll: () => void;
+  onEditBrief: () => void;
   onChangePhoto: () => void;
   isUploadingPhoto: boolean;
 }) {
@@ -328,7 +330,17 @@ export function PetPassportCard({
         </div>
 
         <div className="bg-card border border-border rounded-3xl p-5">
-          <div className="font-serif text-base font-extrabold">Things worth remembering</div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-[26px] h-[26px] rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <NotebookPen size={15} />
+              </div>
+              <div className="font-serif text-base font-extrabold">Things worth remembering</div>
+            </div>
+            <button type="button" onClick={onEditBrief} className="text-[13px] font-bold text-primary hover:underline shrink-0">
+              Edit
+            </button>
+          </div>
           <p className="mt-1 text-[13.5px] text-muted-foreground">Shows on the back of the badge when you share it.</p>
           <p className="mt-2.5 text-[15px] whitespace-pre-wrap leading-relaxed">
             {pet.notes || <span className="text-muted-foreground">Nothing on file yet.</span>}

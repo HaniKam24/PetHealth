@@ -46,4 +46,26 @@ export interface PetInput {
   vetPhone?: string | null;
   /** @nullable */
   vetAddress?: string | null;
+  /** @nullable */
+  criticalInfoSummary?: string | null;
+  /** @nullable */
+  criticalInfoDetails?: string | null;
+  /** @nullable */
+  feedingInstructions?: string | null;
+  /** @nullable */
+  whereThingsAre?: string | null;
+  /** @nullable */
+  walksAndTriggers?: string | null;
+  /** @nullable */
+  handlingNotes?: string | null;
+  /** @nullable */
+  whatNormalLooksLike?: string | null;
+  /** @nullable */
+  caretakingPreference?: string | null;
+  /** @nullable */
+  emergencyVetName?: string | null;
+  /** @nullable */
+  emergencyVetPhone?: string | null;
+  /** @nullable */
+  emergencyVetHours?: string | null;
 }
