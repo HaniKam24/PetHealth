@@ -273,7 +273,6 @@ export default function Profile() {
   const weightLogs = trends?.weightLogs ?? [];
   const hasWeightTrend = weightLogs.length >= 2;
   const weightDelta = hasWeightTrend ? weightLogs[weightLogs.length - 1].weight - weightLogs[0].weight : 0;
-  const lastWeighedAt = weightLogs.length > 0 ? new Date(weightLogs[weightLogs.length - 1].recordedAt) : null;
 
   const { data: petVaccines } = useGetPetVaccines(activePetId!, {
     query: {
@@ -580,10 +579,8 @@ export default function Profile() {
         <div className="mt-6">
           <PetPassportCard
             pet={pet}
-            activeMedications={activeMedications}
             hasWeightTrend={hasWeightTrend}
             weightDelta={weightDelta}
-            lastWeighedAt={lastWeighedAt}
             vaccines={vaccines}
             onEditAll={() => setMode('edit')}
             onEditBrief={() => setEditBriefOpen(true)}

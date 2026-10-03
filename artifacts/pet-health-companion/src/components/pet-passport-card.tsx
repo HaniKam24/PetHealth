@@ -1,9 +1,9 @@
-import { HeartPulse, Phone, ShieldCheck, AlertTriangle, IdCard, Pill, ImagePlus, NotebookPen } from 'lucide-react';
+import { HeartPulse, Phone, ShieldCheck, ShieldAlert, AlertTriangle, IdCard, ImagePlus, NotebookPen, PawPrint, Utensils, Footprints } from 'lucide-react';
 import { Link } from 'wouter';
 import { format, differenceInCalendarDays, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
-import type { Pet, Medication, VaccineStatus } from '@workspace/api-client-react';
+import type { Pet, VaccineStatus } from '@workspace/api-client-react';
 
 // Mirrors profile.tsx's computeAgeYearsFromBirthDate, but the passport's
 // About card wants "4 yr 2 mo" precision rather than just whole years.
@@ -47,10 +47,8 @@ function AboutRow({ label, value }: { label: string; value: React.ReactNode }) {
 
 export function PetPassportCard({
   pet,
-  activeMedications,
   hasWeightTrend,
   weightDelta,
-  lastWeighedAt,
   vaccines,
   onEditAll,
   onEditBrief,
@@ -58,10 +56,8 @@ export function PetPassportCard({
   isUploadingPhoto,
 }: {
   pet: Pet;
-  activeMedications: Medication[];
   hasWeightTrend: boolean;
   weightDelta: number;
-  lastWeighedAt: Date | null;
   vaccines: VaccineStatus[];
   onEditAll: () => void;
   onEditBrief: () => void;
@@ -134,8 +130,8 @@ export function PetPassportCard({
                   </span>
                 )}
                 {pet.allergies && (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-bold bg-destructive/25 text-destructive">
-                    <AlertTriangle size={13} /> {pet.allergies}
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-bold bg-amber-500/25 text-amber-400">
+                    <ShieldAlert size={13} /> {pet.allergies}
                   </span>
                 )}
               </div>
@@ -196,13 +192,14 @@ export function PetPassportCard({
           </div>
           <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-9">
             <AboutRow label="Species" value={<span className="capitalize">{pet.species}</span>} />
+            <AboutRow label="Sex" value={sexLabel} />
+            <AboutRow label="Breed" value={pet.breed || '—'} />
+            <AboutRow label="Color" value={pet.color || '—'} />
             <AboutRow
               label="Birthday"
               value={pet.birthDate ? format(new Date(`${pet.birthDate}T00:00:00`), 'd MMM yyyy') : '—'}
             />
-            <AboutRow label="Breed" value={pet.breed || '—'} />
             <AboutRow label="Age" value={pet.birthDate ? formatAgeYearsMonths(pet.birthDate) : '—'} />
-            <AboutRow label="Sex" value={[sexLabel, spayNeuterLabel].filter(Boolean).join(' · ')} />
             <AboutRow
               label="Weight"
               value={
@@ -217,8 +214,12 @@ export function PetPassportCard({
                 </>
               }
             />
+            <AboutRow label="Spay/Neuter Status" value={spayNeuterLabel || '—'} />
+            <AboutRow
+              label="Gotcha day"
+              value={pet.gotchaDate ? format(new Date(`${pet.gotchaDate}T00:00:00`), 'd MMM yyyy') : '—'}
+            />
             <AboutRow label="Microchip" value={pet.microchipId || '—'} />
-            <AboutRow label="Last weighed" value={lastWeighedAt ? format(lastWeighedAt, 'MMM d') : '—'} />
           </div>
         </div>
 
@@ -228,7 +229,7 @@ export function PetPassportCard({
               <div className="w-[26px] h-[26px] rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                 <ShieldCheck size={15} />
               </div>
-              <div className="font-serif text-base font-extrabold">Vaccines</div>
+              <div className="font-serif text-base font-extrabold">Vaccination Status</div>
             </div>
             <Link href="/records?new=true" className="text-[13px] font-bold text-primary hover:underline shrink-0">
               Add record
@@ -284,49 +285,34 @@ export function PetPassportCard({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="w-[26px] h-[26px] rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <Pill size={15} />
+                <PawPrint size={15} />
               </div>
-              <div className="font-serif text-base font-extrabold">Medication</div>
+              <div className="font-serif text-base font-extrabold">Care Routine</div>
             </div>
-            <Link href="/medications?new=true" className="text-[13px] font-bold text-primary hover:underline shrink-0">
-              Add medicine
-            </Link>
+            <button type="button" onClick={onEditBrief} className="text-[13px] font-bold text-primary hover:underline shrink-0">
+              Edit
+            </button>
           </div>
-          {activeMedications.length === 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">None on file.</p>
-          ) : (
-            <div className="mt-1 flex flex-col">
-              {activeMedications.map((m, i) => {
-                const isOngoing = m.doseIntervalValue != null && m.doseIntervalUnit != null;
-                return (
-                  <div
-                    key={m.id}
-                    className={cn('flex items-center gap-3.5 py-3', i > 0 && 'border-t border-border/70')}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[15.5px] font-bold truncate">{m.name}</div>
-                      <div className="text-[13.5px] text-muted-foreground truncate">
-                        {[m.dose, m.frequency].filter(Boolean).join(' · ')}
-                      </div>
-                    </div>
-                    <span
-                      className={cn(
-                        'h-[26px] px-2.5 rounded-full text-[12px] font-extrabold flex items-center shrink-0 whitespace-nowrap',
-                        isOngoing ? 'bg-primary/15 text-primary' : 'bg-accent border border-border text-muted-foreground',
-                      )}
-                    >
-                      {isOngoing ? 'ONGOING' : 'AS NEEDED'}
-                    </span>
-                    {isOngoing && m.nextDoseAt && (
-                      <span className="text-[13.5px] text-muted-foreground shrink-0 text-right whitespace-nowrap">
-                        Next {format(parseISO(m.nextDoseAt), 'MMM d')}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
+          <div className="mt-3 space-y-3.5">
+            <div className="flex gap-2.5">
+              <Utensils size={15} className="text-muted-foreground shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <div className="text-[13px] font-bold">Feeding schedule &amp; food</div>
+                <p className="mt-0.5 text-[14.5px] whitespace-pre-wrap leading-relaxed">
+                  {pet.feedingInstructions || <span className="text-muted-foreground">Nothing on file yet.</span>}
+                </p>
+              </div>
             </div>
-          )}
+            <div className="flex gap-2.5 pt-3.5 border-t border-border/70">
+              <Footprints size={15} className="text-muted-foreground shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <div className="text-[13px] font-bold">Exercise &amp; bathroom habits</div>
+                <p className="mt-0.5 text-[14.5px] whitespace-pre-wrap leading-relaxed">
+                  {pet.walksAndTriggers || <span className="text-muted-foreground">Nothing on file yet.</span>}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="bg-card border border-border rounded-3xl p-5">
@@ -335,13 +321,13 @@ export function PetPassportCard({
               <div className="w-[26px] h-[26px] rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                 <NotebookPen size={15} />
               </div>
-              <div className="font-serif text-base font-extrabold">Things worth remembering</div>
+              <div className="font-serif text-base font-extrabold">Notes</div>
             </div>
-            <button type="button" onClick={onEditBrief} className="text-[13px] font-bold text-primary hover:underline shrink-0">
+            <button type="button" onClick={onEditAll} className="text-[13px] font-bold text-primary hover:underline shrink-0">
               Edit
             </button>
           </div>
-          <p className="mt-1 text-[13.5px] text-muted-foreground">Shows on the back of the badge when you share it.</p>
+          <p className="mt-1 text-[13.5px] text-muted-foreground">Also shown on your shared sitter report.</p>
           <p className="mt-2.5 text-[15px] whitespace-pre-wrap leading-relaxed">
             {pet.notes || <span className="text-muted-foreground">Nothing on file yet.</span>}
           </p>
