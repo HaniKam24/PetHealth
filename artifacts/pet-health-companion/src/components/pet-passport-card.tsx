@@ -1,4 +1,4 @@
-import { HeartPulse, Phone, ShieldCheck, ShieldAlert, AlertTriangle, IdCard, ImagePlus, NotebookPen, PawPrint, Utensils, Footprints } from 'lucide-react';
+import { HeartPulse, Phone, ShieldCheck, ShieldAlert, AlertTriangle, IdCard, ImagePlus, NotebookPen, PawPrint, Utensils, Footprints, Mars, Venus } from 'lucide-react';
 import { Link } from 'wouter';
 import { format, differenceInCalendarDays, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -52,6 +52,7 @@ export function PetPassportCard({
   vaccines,
   onEditAll,
   onEditBrief,
+  onEditNotes,
   onChangePhoto,
   isUploadingPhoto,
 }: {
@@ -61,6 +62,7 @@ export function PetPassportCard({
   vaccines: VaccineStatus[];
   onEditAll: () => void;
   onEditBrief: () => void;
+  onEditNotes: () => void;
   onChangePhoto: () => void;
   isUploadingPhoto: boolean;
 }) {
@@ -70,6 +72,7 @@ export function PetPassportCard({
   const hasAnyVaccineRecord = vaccines.some((v) => v.status !== 'never_recorded');
 
   const sexLabel = pet.sex !== 'unknown' ? pet.sex.charAt(0).toUpperCase() + pet.sex.slice(1) : 'Unknown sex';
+  const SexIcon = pet.sex === 'male' ? Mars : pet.sex === 'female' ? Venus : null;
   const spayNeuterLabel = pet.spayNeuterStatus !== 'unknown' ? SPAY_NEUTER_STATUS_LABELS[pet.spayNeuterStatus] : null;
 
   return (
@@ -111,9 +114,12 @@ export function PetPassportCard({
               )}
             </div>
 
-            <div className="mt-3.5 font-serif text-4xl font-extrabold tracking-tight break-words">{pet.name}</div>
+            <div className="mt-3.5 flex items-center justify-center gap-2">
+              <div className="font-serif text-4xl font-extrabold tracking-tight break-words">{pet.name}</div>
+              {SexIcon && <SexIcon size={22} className="shrink-0 text-background/70" />}
+            </div>
             <div className="mt-1 text-sm text-background/75 break-words">
-              {[pet.breed, sexLabel, spayNeuterLabel].filter(Boolean).join(' · ') || 'No details yet'}
+              {pet.breed || pet.color ? [pet.breed, pet.color].filter(Boolean).join(' · ') : 'No details yet'}
             </div>
 
             {(hasAnyVaccineRecord || pet.allergies) && (
@@ -238,46 +244,40 @@ export function PetPassportCard({
           {vaccines.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">No vaccine records yet.</p>
           ) : (
-            <>
-              <div className="mt-3.5 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {vaccines.map((v) => {
-                  const daysUntilDue = v.dueDate
-                    ? differenceInCalendarDays(new Date(`${v.dueDate}T00:00:00`), new Date())
-                    : null;
-                  const dueSoon = v.status === 'current' && daysUntilDue !== null && daysUntilDue <= DUE_SOON_WINDOW_DAYS;
-                  const urgent = v.status === 'overdue' || dueSoon;
-                  const label = v.status === 'overdue' ? 'Overdue' : dueSoon ? 'Due soon' : v.status === 'current' ? 'Current' : 'Not on file';
-                  return (
-                    <div
-                      key={v.key}
-                      className={cn(
-                        'rounded-2xl border p-3.5',
-                        urgent ? 'border-destructive/30 bg-destructive/5' : 'border-border/70 bg-accent/40',
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[15px] font-bold">{v.label}</span>
-                        <span
-                          className={cn(
-                            'h-[22px] px-2.5 rounded-full text-[11.5px] font-extrabold flex items-center whitespace-nowrap',
-                            urgent ? 'bg-destructive/15 text-destructive' : v.status === 'current' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
-                          )}
-                        >
-                          {label.toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="mt-1.5 text-[13.5px] text-muted-foreground">
+            <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-5">
+              {vaccines.map((v) => {
+                const daysUntilDue = v.dueDate
+                  ? differenceInCalendarDays(new Date(`${v.dueDate}T00:00:00`), new Date())
+                  : null;
+                const dueSoon = v.status === 'current' && daysUntilDue !== null && daysUntilDue <= DUE_SOON_WINDOW_DAYS;
+                const urgent = v.status === 'overdue' || dueSoon;
+                const label = v.status === 'overdue' ? 'Overdue' : dueSoon ? 'Due soon' : v.status === 'current' ? 'Current' : 'Not on file';
+                return (
+                  <div
+                    key={v.key}
+                    className="flex items-center justify-between gap-2.5 py-1.5 border-t border-border/70"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-[13.5px] font-bold truncate">{v.label}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
                         {v.lastGivenDate
                           ? `Given ${format(new Date(`${v.lastGivenDate}T00:00:00`), 'MMM d, yyyy')}`
                           : 'No record yet'}
                         {v.dueDate ? ` · due ${format(new Date(`${v.dueDate}T00:00:00`), 'MMM yyyy')}` : ''}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-              <p className="mt-3 text-xs text-muted-foreground">General guideline — confirm with your vet.</p>
-            </>
+                    <span
+                      className={cn(
+                        'h-[19px] px-2 rounded-full text-[10.5px] font-extrabold flex items-center shrink-0 whitespace-nowrap',
+                        urgent ? 'bg-destructive/15 text-destructive' : v.status === 'current' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
+                      )}
+                    >
+                      {label.toUpperCase()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 
@@ -323,7 +323,7 @@ export function PetPassportCard({
               </div>
               <div className="font-serif text-base font-extrabold">Notes</div>
             </div>
-            <button type="button" onClick={onEditAll} className="text-[13px] font-bold text-primary hover:underline shrink-0">
+            <button type="button" onClick={onEditNotes} className="text-[13px] font-bold text-primary hover:underline shrink-0">
               Edit
             </button>
           </div>
