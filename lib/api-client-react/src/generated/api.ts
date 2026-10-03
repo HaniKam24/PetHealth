@@ -26,6 +26,7 @@ import type {
   CreateDocumentImportBody,
   CreateShareLinkBody,
   DashboardSummary,
+  DocumentImport,
   DocumentImportItem,
   DocumentImportListResponse,
   DocumentImportResponse,
@@ -61,6 +62,7 @@ import type {
   SymptomEntryInput,
   SymptomLog,
   SymptomLogInput,
+  UpdateDocumentImportBody,
   UploadHealthRecordDocumentBody,
   UploadPetPhotoBody
 } from './api.schemas';
@@ -1367,6 +1369,153 @@ export function useGetDocumentImport<TData = Awaited<ReturnType<typeof getDocume
 
 
 
+
+export const getUpdateDocumentImportUrl = (petId: number,
+    importId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/document-imports/${importId}`
+}
+
+/**
+ * @summary Rename a document import
+ */
+export const updateDocumentImport = async (petId: number,
+    importId: number,
+    updateDocumentImportBody: UpdateDocumentImportBody, options?: Parameters<typeof customFetch>[1]): Promise<DocumentImport> => {
+
+  return customFetch<DocumentImport>(getUpdateDocumentImportUrl(petId,importId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateDocumentImportBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateDocumentImportMutationOptions = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDocumentImport>>, TError,{petId: number;importId: number;data: BodyType<UpdateDocumentImportBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateDocumentImport>>, TError,{petId: number;importId: number;data: BodyType<UpdateDocumentImportBody>}, TContext> => {
+
+const mutationKey = ['updateDocumentImport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateDocumentImport>>, {petId: number;importId: number;data: BodyType<UpdateDocumentImportBody>}> = (props) => {
+          const {petId,importId,data} = props ?? {};
+
+          return  updateDocumentImport(petId,importId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateDocumentImportMutationResult = NonNullable<Awaited<ReturnType<typeof updateDocumentImport>>>
+    export type UpdateDocumentImportMutationBody = BodyType<UpdateDocumentImportBody>
+    export type UpdateDocumentImportMutationError = ErrorType<Error | NotFoundResponse>
+
+    /**
+ * @summary Rename a document import
+ */
+export const useUpdateDocumentImport = <TError = ErrorType<Error | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDocumentImport>>, TError,{petId: number;importId: number;data: BodyType<UpdateDocumentImportBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateDocumentImport>>,
+        TError,
+        {petId: number;importId: number;data: BodyType<UpdateDocumentImportBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateDocumentImportMutationOptions(options));
+    }
+
+export const getDeleteDocumentImportUrl = (petId: number,
+    importId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/document-imports/${importId}`
+}
+
+/**
+ * @summary Delete a document import — removes its source file and review history. Does not undo any records already accepted from it.
+ */
+export const deleteDocumentImport = async (petId: number,
+    importId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteDocumentImportUrl(petId,importId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteDocumentImportMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDocumentImport>>, TError,{petId: number;importId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteDocumentImport>>, TError,{petId: number;importId: number}, TContext> => {
+
+const mutationKey = ['deleteDocumentImport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteDocumentImport>>, {petId: number;importId: number}> = (props) => {
+          const {petId,importId} = props ?? {};
+
+          return  deleteDocumentImport(petId,importId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteDocumentImportMutationResult = NonNullable<Awaited<ReturnType<typeof deleteDocumentImport>>>
+
+    export type DeleteDocumentImportMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Delete a document import — removes its source file and review history. Does not undo any records already accepted from it.
+ */
+export const useDeleteDocumentImport = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDocumentImport>>, TError,{petId: number;importId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteDocumentImport>>,
+        TError,
+        {petId: number;importId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteDocumentImportMutationOptions(options));
+    }
 
 export const getGetDocumentImportDocumentUrlUrl = (petId: number,
     importId: number,) => {

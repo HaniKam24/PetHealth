@@ -348,6 +348,46 @@ paths:
                 $ref: "#/components/schemas/DocumentImportResponse"
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateDocumentImport
+      tags: [smart-upload]
+      summary: Rename a document import
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/DocumentImportId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDocumentImportBody"
+      responses:
+        "200":
+          description: Updated import
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentImport"
+        "400":
+          description: documentName was blank
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteDocumentImport
+      tags: [smart-upload]
+      summary: Delete a document import — removes its source file and review history. Does not undo any records already accepted from it.
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/DocumentImportId"
+      responses:
+        "204":
+          description: Document import deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
   /pets/{petId}/document-imports/{importId}/document-url:
     get:
       operationId: getDocumentImportDocumentUrl
@@ -1270,6 +1310,11 @@ components:
         proposedData:
           type: object
       required: []
+    UpdateDocumentImportBody:
+      type: object
+      properties:
+        documentName: { type: string, minLength: 1 }
+      required: [documentName]
     Medication:
       type: object
       properties:
