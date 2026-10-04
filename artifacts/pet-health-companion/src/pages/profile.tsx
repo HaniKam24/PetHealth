@@ -7,8 +7,6 @@ import {
   useDeletePet,
   useUploadPetPhoto,
   useRemovePetPhoto,
-  useListMedications,
-  getListMedicationsQueryKey,
   useGetPetTrends,
   getGetPetTrendsQueryKey,
   useGetPetVaccines,
@@ -71,7 +69,6 @@ const profileSchema = z.object({
   weight: z.coerce.number().optional().nullable(),
   weightUnit: z.enum(['lb', 'kg']),
   photoUrl: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
   allergies: z.string().optional().nullable(),
   vetName: z.string().optional().nullable(),
   vetClinic: z.string().optional().nullable(),
@@ -82,9 +79,9 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 // Sitter Brief — a separate, smaller form from the main profile edit form
-// above. Edited as its own group from the "Things worth remembering" card
-// rather than folded into "Edit all", since it's caretaking info for
-// whoever's watching the pet, not core profile identity.
+// above. Edited as its own group from the Care Routine card rather than
+// folded into "Edit all", since it's caretaking info for whoever's
+// watching the pet, not core profile identity.
 const briefSchema = z.object({
   criticalInfoSummary: z.string().optional().nullable(),
   criticalInfoDetails: z.string().optional().nullable(),
@@ -112,6 +109,15 @@ const EMPTY_BRIEF: BriefFormValues = {
   emergencyVetPhone: '',
   emergencyVetHours: '',
 };
+
+// Also its own small form, edited from the Notes card — separate from the
+// main profile form so that editing a quick note doesn't open the whole
+// "Edit all" screen.
+const notesSchema = z.object({
+  notes: z.string().optional().nullable(),
+});
+type NotesFormValues = z.infer<typeof notesSchema>;
+const EMPTY_NOTES: NotesFormValues = { notes: '' };
 
 // Age is never stored — it's either derived from birthDate, or (when there's
 // no birthDate) a free-standing number the user can type in for their own
@@ -248,19 +254,6 @@ export default function Profile() {
     }
   );
 
-  // Read-only — medications are managed on the Medicines page, this is just
-  // a quick "what are they currently on" glance shown in the Health card.
-  const { data: medications } = useListMedications(
-    activePetId!,
-    {
-      query: {
-        enabled: !!activePetId && !isNew,
-        queryKey: activePetId ? getListMedicationsQueryKey(activePetId) : ['no-pet-medications'],
-      },
-    },
-  );
-  const activeMedications = (medications ?? []).filter((m) => m.active);
-  const activeMedicationNames = activeMedications.map((m) => m.name);
 
   // Same weight-trend hook/derivation dashboard.tsx uses for its weight
   // delta — reused here rather than re-fetched or recomputed differently.
@@ -273,7 +266,6 @@ export default function Profile() {
   const weightLogs = trends?.weightLogs ?? [];
   const hasWeightTrend = weightLogs.length >= 2;
   const weightDelta = hasWeightTrend ? weightLogs[weightLogs.length - 1].weight - weightLogs[0].weight : 0;
-  const lastWeighedAt = weightLogs.length > 0 ? new Date(weightLogs[weightLogs.length - 1].recordedAt) : null;
 
   const { data: petVaccines } = useGetPetVaccines(activePetId!, {
     query: {
@@ -289,6 +281,7 @@ export default function Profile() {
   const [mode, setMode] = useState<'passport' | 'edit'>(isNew ? 'edit' : 'passport');
   const [shareOpen, setShareOpen] = useState(false);
   const [editBriefOpen, setEditBriefOpen] = useState(false);
+  const [editNotesOpen, setEditNotesOpen] = useState(false);
 
   const briefForm = useForm<BriefFormValues>({
     resolver: zodResolver(briefSchema),
@@ -316,6 +309,17 @@ export default function Profile() {
     }
   }, [editBriefOpen, pet, briefForm]);
 
+  const notesForm = useForm<NotesFormValues>({
+    resolver: zodResolver(notesSchema),
+    defaultValues: EMPTY_NOTES,
+  });
+
+  useEffect(() => {
+    if (editNotesOpen && pet) {
+      notesForm.reset({ notes: pet.notes || '' });
+    }
+  }, [editNotesOpen, pet, notesForm]);
+
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
@@ -331,7 +335,6 @@ export default function Profile() {
       weight: null,
       weightUnit: 'lb',
       photoUrl: '',
-      notes: '',
       allergies: '',
       vetName: '',
       vetClinic: '',
@@ -362,7 +365,6 @@ export default function Profile() {
         weight: pet.weight,
         weightUnit: pet.weightUnit,
          photoUrl: pet.photoUrl?.startsWith('preset:') ? '' : pet.photoUrl || '',
-        notes: pet.notes || '',
         allergies: pet.allergies || '',
         vetName: pet.vetName || '',
         vetClinic: pet.vetClinic || '',
@@ -377,7 +379,7 @@ export default function Profile() {
     if (isNew) {
       form.reset({
         name: '', species: 'dog', breed: '', color: '', microchipId: '', sex: 'unknown', spayNeuterStatus: 'unknown', birthDate: '', gotchaDate: '',
-        weight: null, weightUnit: 'lb', photoUrl: '', notes: '', allergies: '',
+        weight: null, weightUnit: 'lb', photoUrl: '', allergies: '',
         vetName: '', vetClinic: '', vetPhone: '', vetAddress: '',
       });
     }
@@ -493,7 +495,6 @@ export default function Profile() {
       breed: data.breed || null,
       color: data.color || null,
       microchipId: data.microchipId || null,
-      notes: data.notes || null,
       allergies: data.allergies || null,
       vetName: data.vetName || null,
       vetClinic: data.vetClinic || null,
@@ -541,6 +542,25 @@ export default function Profile() {
     });
   };
 
+  // Same pattern as onSubmitBrief above — PetInput/PetUpdate requires these
+  // 5 fields on every write, carried along unchanged.
+  const onSubmitNotes = (data: NotesFormValues) => {
+    if (!activePetId || !pet) return;
+    updatePet.mutate({
+      petId: activePetId,
+      data: {
+        name: pet.name,
+        species: pet.species,
+        sex: pet.sex,
+        spayNeuterStatus: pet.spayNeuterStatus,
+        weightUnit: pet.weightUnit,
+        notes: data.notes || null,
+      },
+    }, {
+      onSuccess: () => setEditNotesOpen(false),
+    });
+  };
+
   if (isLoading && !isNew) return <div className="p-10 animate-pulse text-center text-muted-foreground">Loading profile...</div>;
 
   if (mode === 'passport' && pet) {
@@ -580,13 +600,12 @@ export default function Profile() {
         <div className="mt-6">
           <PetPassportCard
             pet={pet}
-            activeMedications={activeMedications}
             hasWeightTrend={hasWeightTrend}
             weightDelta={weightDelta}
-            lastWeighedAt={lastWeighedAt}
             vaccines={vaccines}
             onEditAll={() => setMode('edit')}
             onEditBrief={() => setEditBriefOpen(true)}
+            onEditNotes={() => setEditNotesOpen(true)}
             onChangePhoto={() => photoInputRef.current?.click()}
             isUploadingPhoto={uploadPhoto.isPending}
           />
@@ -603,16 +622,48 @@ export default function Profile() {
         <Dialog open={editBriefOpen} onOpenChange={setEditBriefOpen}>
           <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl">
             <DialogHeader>
-              <DialogTitle>Edit {pet.name}&#39;s sitter brief</DialogTitle>
+              <DialogTitle>Edit {pet.name}&#39;s Care Routine</DialogTitle>
             </DialogHeader>
             <Form {...briefForm}>
               <form onSubmit={briefForm.handleSubmit(onSubmitBrief)} className="space-y-5 mt-2">
                 <FormField
                   control={briefForm.control}
+                  name="feedingInstructions"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Feeding schedule &amp; food</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Amounts, schedule, water" className="resize-none min-h-[70px]" {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={briefForm.control}
+                  name="walksAndTriggers"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Exercise &amp; bathroom habits</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Schedule, leash habits, what sets them off and how to handle it" className="resize-none min-h-[80px]" {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <hr className="border-border" />
+
+                <FormField
+                  control={briefForm.control}
                   name="criticalInfoSummary"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Critical info — short summary</FormLabel>
+                      <FormLabel>
+                        Critical info — short summary{' '}
+                        <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
+                      </FormLabel>
                       <FormControl>
                         <Input placeholder="No chicken · door-dasher · never off-leash near the road" {...field} value={field.value || ''} />
                       </FormControl>
@@ -625,22 +676,12 @@ export default function Profile() {
                   name="criticalInfoDetails"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Critical info — details</FormLabel>
+                      <FormLabel>
+                        Critical info — details{' '}
+                        <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
+                      </FormLabel>
                       <FormControl>
                         <Textarea placeholder="Explain the summary above — what happens, and what to do about it." className="resize-none min-h-[80px]" {...field} value={field.value || ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={briefForm.control}
-                  name="feedingInstructions"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Feeding</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Amounts, schedule, water" className="resize-none min-h-[70px]" {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -651,22 +692,11 @@ export default function Profile() {
                   name="whereThingsAre"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Where things are</FormLabel>
+                      <FormLabel>
+                        Where things are <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
+                      </FormLabel>
                       <FormControl>
                         <Textarea placeholder="Food, leash, treats, crate, clean-up supplies — wherever you keep them" className="resize-none min-h-[90px]" {...field} value={field.value || ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={briefForm.control}
-                  name="walksAndTriggers"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Walks &amp; triggers</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Schedule, leash habits, what sets them off and how to handle it" className="resize-none min-h-[80px]" {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -677,7 +707,9 @@ export default function Profile() {
                   name="handlingNotes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Handling</FormLabel>
+                      <FormLabel>
+                        Handling <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
+                      </FormLabel>
                       <FormControl>
                         <Textarea placeholder="What's fine, what to avoid" className="resize-none min-h-[70px]" {...field} value={field.value || ''} />
                       </FormControl>
@@ -690,7 +722,10 @@ export default function Profile() {
                   name="whatNormalLooksLike"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>What normal looks like</FormLabel>
+                      <FormLabel>
+                        What normal looks like{' '}
+                        <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
+                      </FormLabel>
                       <FormControl>
                         <Textarea placeholder="Baseline behavior, and when to call the owner" className="resize-none min-h-[70px]" {...field} value={field.value || ''} />
                       </FormControl>
@@ -703,7 +738,10 @@ export default function Profile() {
                   name="caretakingPreference"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Caretaking preference</FormLabel>
+                      <FormLabel>
+                        Caretaking preference{' '}
+                        <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
+                      </FormLabel>
                       <FormControl>
                         <Input placeholder="e.g. A photo and a quick note each evening" {...field} value={field.value || ''} />
                       </FormControl>
@@ -717,7 +755,9 @@ export default function Profile() {
                     name="emergencyVetName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Emergency vet</FormLabel>
+                        <FormLabel>
+                          Emergency vet <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
+                        </FormLabel>
                         <FormControl>
                           <Input placeholder="Eastside Animal Emergency" {...field} value={field.value || ''} />
                         </FormControl>
@@ -730,7 +770,10 @@ export default function Profile() {
                     name="emergencyVetPhone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Emergency vet phone</FormLabel>
+                        <FormLabel>
+                          Emergency vet phone{' '}
+                          <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
+                        </FormLabel>
                         <FormControl>
                           <Input type="tel" placeholder="(555) 911-0000" {...field} value={field.value || ''} />
                         </FormControl>
@@ -744,7 +787,10 @@ export default function Profile() {
                   name="emergencyVetHours"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Emergency vet hours / distance</FormLabel>
+                      <FormLabel>
+                        Emergency vet hours / distance{' '}
+                        <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
+                      </FormLabel>
                       <FormControl>
                         <Input placeholder="Open 24h · 12 min away" {...field} value={field.value || ''} />
                       </FormControl>
@@ -766,6 +812,55 @@ export default function Profile() {
                     className="h-11 px-6 rounded-full bg-primary text-primary-foreground font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
                   >
                     {updatePet.isPending ? 'Saving…' : 'Save brief'}
+                  </button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={editNotesOpen} onOpenChange={setEditNotesOpen}>
+          <DialogContent className="sm:max-w-xl rounded-3xl">
+            <DialogHeader>
+              <DialogTitle>Edit {pet.name}&#39;s notes</DialogTitle>
+            </DialogHeader>
+            <Form {...notesForm}>
+              <form onSubmit={notesForm.handleSubmit(onSubmitNotes)} className="space-y-5 mt-2">
+                <FormField
+                  control={notesForm.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Notes</FormLabel>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Behavioral or other notes — also shown on your shared sitter report.
+                      </p>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Allergies, favorite hiding spots, fears..."
+                          className="resize-none min-h-[130px]"
+                          {...field}
+                          value={field.value || ''}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex items-center justify-end gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setEditNotesOpen(false)}
+                    className="h-11 px-5 rounded-full text-muted-foreground font-bold hover:bg-accent transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updatePet.isPending}
+                    className="h-11 px-6 rounded-full bg-primary text-primary-foreground font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {updatePet.isPending ? 'Saving…' : 'Save notes'}
                   </button>
                 </div>
               </form>
@@ -1110,27 +1205,6 @@ export default function Profile() {
                   )}
                 />
               </div>
-
-              <div className="mt-3 space-y-1">
-                <Label>Medication</Label>
-                {activeMedicationNames.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {activeMedicationNames.map((name) => (
-                      <span
-                        key={name}
-                        className="rounded-full bg-accent/60 px-2.5 py-1 text-xs font-medium text-foreground"
-                      >
-                        {name}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">None on file.</p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Read from the Medicines page — manage medications there.
-                </p>
-              </div>
             </div>
 
             <div className="bg-card border border-border rounded-3xl p-6">
@@ -1223,28 +1297,6 @@ export default function Profile() {
                 )}
               />
             </div>
-          </div>
-
-          <div className="bg-card border border-border rounded-3xl p-6">
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-serif text-lg font-extrabold">Things worth remembering</FormLabel>
-                  <p className="text-sm text-muted-foreground mb-1">Allergies, what frightens them, where they hide.</p>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Allergies, favorite hiding spots, fears..."
-                      className="resize-none rounded-2xl bg-accent/40 min-h-[130px]"
-                      {...field}
-                      value={field.value || ''}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
           </div>
 
           <div className="flex items-center justify-between gap-4 pt-1">

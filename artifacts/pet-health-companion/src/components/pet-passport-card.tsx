@@ -1,9 +1,9 @@
-import { HeartPulse, Phone, ShieldCheck, AlertTriangle, IdCard, Pill, ImagePlus, NotebookPen } from 'lucide-react';
+import { HeartPulse, Phone, ShieldCheck, ShieldAlert, AlertTriangle, IdCard, ImagePlus, NotebookPen, PawPrint, Utensils, Footprints, Mars, Venus } from 'lucide-react';
 import { Link } from 'wouter';
 import { format, differenceInCalendarDays, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
-import type { Pet, Medication, VaccineStatus } from '@workspace/api-client-react';
+import type { Pet, VaccineStatus } from '@workspace/api-client-react';
 
 // Mirrors profile.tsx's computeAgeYearsFromBirthDate, but the passport's
 // About card wants "4 yr 2 mo" precision rather than just whole years.
@@ -47,24 +47,22 @@ function AboutRow({ label, value }: { label: string; value: React.ReactNode }) {
 
 export function PetPassportCard({
   pet,
-  activeMedications,
   hasWeightTrend,
   weightDelta,
-  lastWeighedAt,
   vaccines,
   onEditAll,
   onEditBrief,
+  onEditNotes,
   onChangePhoto,
   isUploadingPhoto,
 }: {
   pet: Pet;
-  activeMedications: Medication[];
   hasWeightTrend: boolean;
   weightDelta: number;
-  lastWeighedAt: Date | null;
   vaccines: VaccineStatus[];
   onEditAll: () => void;
   onEditBrief: () => void;
+  onEditNotes: () => void;
   onChangePhoto: () => void;
   isUploadingPhoto: boolean;
 }) {
@@ -74,6 +72,7 @@ export function PetPassportCard({
   const hasAnyVaccineRecord = vaccines.some((v) => v.status !== 'never_recorded');
 
   const sexLabel = pet.sex !== 'unknown' ? pet.sex.charAt(0).toUpperCase() + pet.sex.slice(1) : 'Unknown sex';
+  const SexIcon = pet.sex === 'male' ? Mars : pet.sex === 'female' ? Venus : null;
   const spayNeuterLabel = pet.spayNeuterStatus !== 'unknown' ? SPAY_NEUTER_STATUS_LABELS[pet.spayNeuterStatus] : null;
 
   return (
@@ -115,9 +114,12 @@ export function PetPassportCard({
               )}
             </div>
 
-            <div className="mt-3.5 font-serif text-4xl font-extrabold tracking-tight break-words">{pet.name}</div>
+            <div className="mt-3.5 flex items-center justify-center gap-2">
+              <div className="font-serif text-4xl font-extrabold tracking-tight break-words">{pet.name}</div>
+              {SexIcon && <SexIcon size={22} className="shrink-0 text-background/70" />}
+            </div>
             <div className="mt-1 text-sm text-background/75 break-words">
-              {[pet.breed, sexLabel, spayNeuterLabel].filter(Boolean).join(' · ') || 'No details yet'}
+              {pet.breed || pet.color ? [pet.breed, pet.color].filter(Boolean).join(' · ') : 'No details yet'}
             </div>
 
             {(hasAnyVaccineRecord || pet.allergies) && (
@@ -134,8 +136,8 @@ export function PetPassportCard({
                   </span>
                 )}
                 {pet.allergies && (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-bold bg-destructive/25 text-destructive">
-                    <AlertTriangle size={13} /> {pet.allergies}
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-bold bg-amber-500/25 text-amber-400">
+                    <ShieldAlert size={13} /> {pet.allergies}
                   </span>
                 )}
               </div>
@@ -196,13 +198,14 @@ export function PetPassportCard({
           </div>
           <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-9">
             <AboutRow label="Species" value={<span className="capitalize">{pet.species}</span>} />
+            <AboutRow label="Sex" value={sexLabel} />
+            <AboutRow label="Breed" value={pet.breed || '—'} />
+            <AboutRow label="Color" value={pet.color || '—'} />
             <AboutRow
               label="Birthday"
               value={pet.birthDate ? format(new Date(`${pet.birthDate}T00:00:00`), 'd MMM yyyy') : '—'}
             />
-            <AboutRow label="Breed" value={pet.breed || '—'} />
             <AboutRow label="Age" value={pet.birthDate ? formatAgeYearsMonths(pet.birthDate) : '—'} />
-            <AboutRow label="Sex" value={[sexLabel, spayNeuterLabel].filter(Boolean).join(' · ')} />
             <AboutRow
               label="Weight"
               value={
@@ -217,8 +220,12 @@ export function PetPassportCard({
                 </>
               }
             />
+            <AboutRow label="Spay/Neuter Status" value={spayNeuterLabel || '—'} />
+            <AboutRow
+              label="Gotcha day"
+              value={pet.gotchaDate ? format(new Date(`${pet.gotchaDate}T00:00:00`), 'd MMM yyyy') : '—'}
+            />
             <AboutRow label="Microchip" value={pet.microchipId || '—'} />
-            <AboutRow label="Last weighed" value={lastWeighedAt ? format(lastWeighedAt, 'MMM d') : '—'} />
           </div>
         </div>
 
@@ -228,7 +235,7 @@ export function PetPassportCard({
               <div className="w-[26px] h-[26px] rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                 <ShieldCheck size={15} />
               </div>
-              <div className="font-serif text-base font-extrabold">Vaccines</div>
+              <div className="font-serif text-base font-extrabold">Vaccination Status</div>
             </div>
             <Link href="/records?new=true" className="text-[13px] font-bold text-primary hover:underline shrink-0">
               Add record
@@ -237,91 +244,36 @@ export function PetPassportCard({
           {vaccines.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">No vaccine records yet.</p>
           ) : (
-            <>
-              <div className="mt-3.5 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {vaccines.map((v) => {
-                  const daysUntilDue = v.dueDate
-                    ? differenceInCalendarDays(new Date(`${v.dueDate}T00:00:00`), new Date())
-                    : null;
-                  const dueSoon = v.status === 'current' && daysUntilDue !== null && daysUntilDue <= DUE_SOON_WINDOW_DAYS;
-                  const urgent = v.status === 'overdue' || dueSoon;
-                  const label = v.status === 'overdue' ? 'Overdue' : dueSoon ? 'Due soon' : v.status === 'current' ? 'Current' : 'Not on file';
-                  return (
-                    <div
-                      key={v.key}
-                      className={cn(
-                        'rounded-2xl border p-3.5',
-                        urgent ? 'border-destructive/30 bg-destructive/5' : 'border-border/70 bg-accent/40',
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[15px] font-bold">{v.label}</span>
-                        <span
-                          className={cn(
-                            'h-[22px] px-2.5 rounded-full text-[11.5px] font-extrabold flex items-center whitespace-nowrap',
-                            urgent ? 'bg-destructive/15 text-destructive' : v.status === 'current' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
-                          )}
-                        >
-                          {label.toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="mt-1.5 text-[13.5px] text-muted-foreground">
+            <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-5">
+              {vaccines.map((v) => {
+                const daysUntilDue = v.dueDate
+                  ? differenceInCalendarDays(new Date(`${v.dueDate}T00:00:00`), new Date())
+                  : null;
+                const dueSoon = v.status === 'current' && daysUntilDue !== null && daysUntilDue <= DUE_SOON_WINDOW_DAYS;
+                const urgent = v.status === 'overdue' || dueSoon;
+                const label = v.status === 'overdue' ? 'Overdue' : dueSoon ? 'Due soon' : v.status === 'current' ? 'Current' : 'Not on file';
+                return (
+                  <div
+                    key={v.key}
+                    className="flex items-center justify-between gap-2.5 py-1.5 border-t border-border/70"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-[13.5px] font-bold truncate">{v.label}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
                         {v.lastGivenDate
                           ? `Given ${format(new Date(`${v.lastGivenDate}T00:00:00`), 'MMM d, yyyy')}`
                           : 'No record yet'}
                         {v.dueDate ? ` · due ${format(new Date(`${v.dueDate}T00:00:00`), 'MMM yyyy')}` : ''}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-              <p className="mt-3 text-xs text-muted-foreground">General guideline — confirm with your vet.</p>
-            </>
-          )}
-        </div>
-
-        <div className="bg-card border border-border rounded-3xl p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-[26px] h-[26px] rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <Pill size={15} />
-              </div>
-              <div className="font-serif text-base font-extrabold">Medication</div>
-            </div>
-            <Link href="/medications?new=true" className="text-[13px] font-bold text-primary hover:underline shrink-0">
-              Add medicine
-            </Link>
-          </div>
-          {activeMedications.length === 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">None on file.</p>
-          ) : (
-            <div className="mt-1 flex flex-col">
-              {activeMedications.map((m, i) => {
-                const isOngoing = m.doseIntervalValue != null && m.doseIntervalUnit != null;
-                return (
-                  <div
-                    key={m.id}
-                    className={cn('flex items-center gap-3.5 py-3', i > 0 && 'border-t border-border/70')}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[15.5px] font-bold truncate">{m.name}</div>
-                      <div className="text-[13.5px] text-muted-foreground truncate">
-                        {[m.dose, m.frequency].filter(Boolean).join(' · ')}
-                      </div>
-                    </div>
                     <span
                       className={cn(
-                        'h-[26px] px-2.5 rounded-full text-[12px] font-extrabold flex items-center shrink-0 whitespace-nowrap',
-                        isOngoing ? 'bg-primary/15 text-primary' : 'bg-accent border border-border text-muted-foreground',
+                        'h-[19px] px-2 rounded-full text-[10.5px] font-extrabold flex items-center shrink-0 whitespace-nowrap',
+                        urgent ? 'bg-destructive/15 text-destructive' : v.status === 'current' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
                       )}
                     >
-                      {isOngoing ? 'ONGOING' : 'AS NEEDED'}
+                      {label.toUpperCase()}
                     </span>
-                    {isOngoing && m.nextDoseAt && (
-                      <span className="text-[13.5px] text-muted-foreground shrink-0 text-right whitespace-nowrap">
-                        Next {format(parseISO(m.nextDoseAt), 'MMM d')}
-                      </span>
-                    )}
                   </div>
                 );
               })}
@@ -333,15 +285,49 @@ export function PetPassportCard({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="w-[26px] h-[26px] rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <NotebookPen size={15} />
+                <PawPrint size={15} />
               </div>
-              <div className="font-serif text-base font-extrabold">Things worth remembering</div>
+              <div className="font-serif text-base font-extrabold">Care Routine</div>
             </div>
             <button type="button" onClick={onEditBrief} className="text-[13px] font-bold text-primary hover:underline shrink-0">
               Edit
             </button>
           </div>
-          <p className="mt-1 text-[13.5px] text-muted-foreground">Shows on the back of the badge when you share it.</p>
+          <div className="mt-3 space-y-3.5">
+            <div className="flex gap-2.5">
+              <Utensils size={15} className="text-muted-foreground shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <div className="text-[13px] font-bold">Feeding schedule &amp; food</div>
+                <p className="mt-0.5 text-[14.5px] whitespace-pre-wrap leading-relaxed">
+                  {pet.feedingInstructions || <span className="text-muted-foreground">Nothing on file yet.</span>}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2.5 pt-3.5 border-t border-border/70">
+              <Footprints size={15} className="text-muted-foreground shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <div className="text-[13px] font-bold">Exercise &amp; bathroom habits</div>
+                <p className="mt-0.5 text-[14.5px] whitespace-pre-wrap leading-relaxed">
+                  {pet.walksAndTriggers || <span className="text-muted-foreground">Nothing on file yet.</span>}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card border border-border rounded-3xl p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-[26px] h-[26px] rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <NotebookPen size={15} />
+              </div>
+              <div className="font-serif text-base font-extrabold">Notes</div>
+            </div>
+            <button type="button" onClick={onEditNotes} className="text-[13px] font-bold text-primary hover:underline shrink-0">
+              Edit
+            </button>
+          </div>
+          <p className="mt-1 text-[13.5px] text-muted-foreground">Also shown on your shared sitter report.</p>
           <p className="mt-2.5 text-[15px] whitespace-pre-wrap leading-relaxed">
             {pet.notes || <span className="text-muted-foreground">Nothing on file yet.</span>}
           </p>
