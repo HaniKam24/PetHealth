@@ -641,6 +641,62 @@ export const GetDocumentImportResponse = zod.object({
 
 
 /**
+ * @summary Rename a document import
+ */
+
+
+
+
+export const UpdateDocumentImportParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "importId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const UpdateDocumentImportBody = zod.object({
+  "documentName": zod.string().min(1)
+})
+
+export const UpdateDocumentImportResponse = zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "documentName": zod.string(),
+  "lane": zod.enum(['onboarding', 'ongoing']),
+  "status": zod.enum(['pending_review', 'reviewed']),
+  "analyzedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "importId": zod.number().int(),
+  "itemType": zod.enum(['health_record', 'medication', 'reminder', 'vet_info']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial profile-update object with any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex (only the fields the source document actually stated and that differ from the pet\'s current profile; weight and weightUnit are always present together).'),
+  "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
+  "duplicateOfId": zod.number().int().nullable(),
+  "status": zod.enum(['pending', 'accepted', 'rejected']),
+  "createdRecordId": zod.number().int().nullable()
+}))
+}).describe('The source document\'s storage path is server-internal (not exposed here) — fetch a viewable link via GET ...\/document-imports\/{importId}\/document-url.')
+
+
+/**
+ * @summary Delete a document import — removes its source file and review history. Does not undo any records already accepted from it.
+ */
+
+
+
+
+export const DeleteDocumentImportParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "importId": zod.coerce.number().int().min(1)
+})
+
+export const DeleteDocumentImportResponse = zod.void()
+
+
+/**
  * @summary Get a fresh short-lived viewable link for a document import's source file
  */
 

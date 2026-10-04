@@ -4,6 +4,8 @@ import {
   useListDocumentImports,
   getListDocumentImportsQueryKey,
   useCreateDocumentImport,
+  useUpdateDocumentImport,
+  useDeleteDocumentImport,
   useAcceptDocumentImportItem,
   useRejectDocumentImportItem,
   getDocumentImportDocumentUrl,
@@ -23,6 +25,7 @@ import { format } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -40,6 +43,7 @@ import {
   Check,
   X,
   Pencil,
+  Trash2,
   Paperclip,
   AlertTriangle,
   ChevronDown,
@@ -493,6 +497,9 @@ export default function SmartUpload() {
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [busyItemId, setBusyItemId] = useState<number | null>(null);
   const [openingDocId, setOpeningDocId] = useState<number | null>(null);
+  const [renamingImportId, setRenamingImportId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [deletingImport, setDeletingImport] = useState<DocumentImport | null>(null);
   // Set only for the pet-name-mismatch upload failure, which gets a centered
   // dialog instead of a toast — it's the one failure that means "you likely
   // grabbed the wrong file for this pet," worth more than a corner notification
@@ -543,6 +550,27 @@ export default function SmartUpload() {
     },
   });
 
+  const renameMutation = useUpdateDocumentImport({
+    mutation: {
+      onSuccess: () => {
+        invalidate();
+        setRenamingImportId(null);
+      },
+      onError: (error) => toast({ title: "Couldn't rename file", description: error.message, variant: 'destructive' }),
+    },
+  });
+
+  const deleteMutation = useDeleteDocumentImport({
+    mutation: {
+      onSuccess: () => {
+        invalidate();
+        setDeletingImport(null);
+        toast({ title: 'Upload deleted' });
+      },
+      onError: (error) => toast({ title: "Couldn't delete upload", description: error.message, variant: 'destructive' }),
+    },
+  });
+
   const acceptMutation = useAcceptDocumentImportItem({
     mutation: {
       onSuccess: () => invalidate(),
@@ -575,6 +603,20 @@ export default function SmartUpload() {
       { petId: activePetId, data: { file } },
       { onSettled: () => { if (fileInputRef.current) fileInputRef.current.value = ''; } },
     );
+  };
+
+  const startRename = (imp: DocumentImport) => {
+    setRenamingImportId(imp.id);
+    setRenameValue(imp.documentName);
+  };
+
+  const saveRename = (imp: DocumentImport) => {
+    const trimmed = renameValue.trim();
+    if (!trimmed || trimmed === imp.documentName) {
+      setRenamingImportId(null);
+      return;
+    }
+    renameMutation.mutate({ petId: activePetId, importId: imp.id, data: { documentName: trimmed } });
   };
 
   const handleViewSource = async (imp: DocumentImport) => {
@@ -724,7 +766,43 @@ export default function SmartUpload() {
                     {failed ? <AlertTriangle size={20} /> : imp.status === 'reviewed' ? <Check size={20} /> : <FileText size={20} />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[16.5px] font-bold truncate">{imp.documentName}</div>
+                    {renamingImportId === imp.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          autoFocus
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveRename(imp);
+                            if (e.key === 'Escape') setRenamingImportId(null);
+                          }}
+                          className="h-8 text-[15px] font-bold"
+                        />
+                        <button
+                          onClick={() => saveRename(imp)}
+                          disabled={renameMutation.isPending}
+                          aria-label="Save name"
+                          className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-primary hover:bg-accent disabled:opacity-60 transition-colors"
+                        >
+                          {renameMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={16} />}
+                        </button>
+                        <button
+                          onClick={() => setRenamingImportId(null)}
+                          aria-label="Cancel rename"
+                          className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-muted-foreground hover:bg-accent transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => startRename(imp)}
+                        className="group flex items-center gap-1.5 text-left min-w-0 max-w-full"
+                      >
+                        <span className="text-[16.5px] font-bold truncate">{imp.documentName}</span>
+                        <Pencil size={13} className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    )}
                     <div className="mt-0.5 text-sm text-muted-foreground">
                       {failed ? (
                         "We couldn't read this one — it may be a photo of a page rather than a text PDF. This didn't use up one of your reads."
@@ -739,6 +817,13 @@ export default function SmartUpload() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => setDeletingImport(imp)}
+                      aria-label="Delete upload"
+                      className="w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                     {!failed && (
                       <button
                         onClick={() => handleViewSource(imp)}
@@ -767,10 +852,11 @@ export default function SmartUpload() {
                     {failed ? (
                       <button className="h-9 px-4 text-sm font-bold rounded-full border border-border hover:bg-accent transition-colors">Try again</button>
                     ) : (
-                      pendingItems.length > 0 && (
+                      (pendingItems.length > 0 || decidedItems.length > 0) && (
                         <button
                           onClick={() => setCollapsedOverrides((o) => ({ ...o, [imp.id]: !collapsed }))}
                           aria-label={collapsed ? 'Expand' : 'Collapse'}
+                          title={pendingItems.length === 0 ? 'View history' : undefined}
                           className="w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:bg-accent transition-colors"
                         >
                           {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
@@ -879,20 +965,28 @@ export default function SmartUpload() {
 
                     {decidedItems.length > 0 && (
                       <div className="pt-1 space-y-2">
+                        {pendingItems.length === 0 && (
+                          <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground px-1">History</div>
+                        )}
                         {decidedItems.map((item) => {
                           const Icon = ITEM_TYPE_META[item.itemType].icon;
                           return (
-                            <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-accent/40 text-sm text-muted-foreground">
-                              <Icon size={14} className="shrink-0" />
-                              <span className="flex-1 truncate">{ITEM_TYPE_META[item.itemType].label}</span>
-                              <span
-                                className={cn(
-                                  'text-xs font-bold px-2.5 py-0.5 rounded-full shrink-0',
-                                  item.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground',
-                                )}
-                              >
-                                {item.status === 'accepted' ? 'Accepted' : 'Rejected'}
-                              </span>
+                            <div key={item.id} className="border border-border rounded-2xl p-4">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Icon size={14} className="shrink-0 text-muted-foreground" />
+                                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground flex-1 truncate">
+                                  {ITEM_TYPE_META[item.itemType].label}
+                                </span>
+                                <span
+                                  className={cn(
+                                    'text-xs font-bold px-2.5 py-0.5 rounded-full shrink-0',
+                                    item.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground',
+                                  )}
+                                >
+                                  {item.status === 'accepted' ? 'Accepted' : 'Rejected'}
+                                </span>
+                              </div>
+                              <ItemSummary item={item} />
                             </div>
                           );
                         })}
@@ -918,6 +1012,29 @@ export default function SmartUpload() {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogAction className="rounded-full" onClick={() => setNameMismatchMessage(null)}>Got it</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={!!deletingImport} onOpenChange={(open) => !open && setDeletingImport(null)}>
+      <AlertDialogContent className="rounded-3xl">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete "{deletingImport?.documentName}"?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This removes the uploaded file and its review history. Anything already saved to the pet's file from it (health records, medications, reminders, profile updates) stays — this can't be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="rounded-full" disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            disabled={deleteMutation.isPending}
+            onClick={() => {
+              if (deletingImport) deleteMutation.mutate({ petId: activePetId, importId: deletingImport.id });
+            }}
+          >
+            {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

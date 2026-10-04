@@ -7,10 +7,13 @@ import {
   CreateHealthRecordBody,
   CreateMedicationBody,
   CreateReminderBody,
+  DeleteDocumentImportParams,
   GetDocumentImportDocumentUrlParams,
   GetDocumentImportParams,
   ListDocumentImportsParams,
   RejectDocumentImportItemParams,
+  UpdateDocumentImportBody,
+  UpdateDocumentImportParams,
 } from "@workspace/api-zod";
 import { db, documentImportItems, documentImports, petOwners, pets } from "@workspace/db";
 import { ALLOWED_DOCUMENT_MIME_TYPES, handleSingleFileUpload } from "../lib/upload-middleware";
@@ -276,6 +279,62 @@ router.get("/pets/:petId/document-imports/:importId", async (req, res, next) => 
     const items = await db.select().from(documentImportItems).where(eq(documentImportItems.importId, importId));
     const quota = await getDocumentImportQuota(userId, pet);
     res.json({ import: serializeImport(imp, items), quota });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/pets/:petId/document-imports/:importId", async (req, res, next) => {
+  try {
+    const userId = requireUserId(req);
+    const { petId, importId } = UpdateDocumentImportParams.parse(req.params);
+    if (!(await isPetOwnedByUser(userId, petId))) {
+      res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+    const [imp] = await db
+      .select()
+      .from(documentImports)
+      .where(and(eq(documentImports.id, importId), eq(documentImports.petId, petId)));
+    if (!imp) {
+      res.status(404).json({ error: "Import not found" });
+      return;
+    }
+    const { documentName } = UpdateDocumentImportBody.parse(req.body);
+    const [updatedImport] = await db
+      .update(documentImports)
+      .set({ documentName })
+      .where(eq(documentImports.id, importId))
+      .returning();
+    const items = await db.select().from(documentImportItems).where(eq(documentImportItems.importId, importId));
+    res.json(serializeImport(updatedImport!, items));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/pets/:petId/document-imports/:importId", async (req, res, next) => {
+  try {
+    const userId = requireUserId(req);
+    const { petId, importId } = DeleteDocumentImportParams.parse(req.params);
+    if (!(await isPetOwnedByUser(userId, petId))) {
+      res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+    const [imp] = await db
+      .select()
+      .from(documentImports)
+      .where(and(eq(documentImports.id, importId), eq(documentImports.petId, petId)));
+    if (!imp) {
+      res.status(404).json({ error: "Import not found" });
+      return;
+    }
+    // Items cascade-delete with the import (FK onDelete: cascade) — nothing
+    // this created on the pet (health records/medications/reminders/profile
+    // fields from accepted items) is touched, only the upload record itself.
+    await db.delete(documentImports).where(eq(documentImports.id, importId));
+    await deleteDocumentBestEffort(imp.sourceDocumentPath);
+    res.status(204).end();
   } catch (error) {
     next(error);
   }

@@ -560,6 +560,11 @@ export interface AcceptDocumentImportItemBody {
   proposedData?: AcceptDocumentImportItemBodyProposedData;
 }
 
+export interface UpdateDocumentImportBody {
+  /** @minLength 1 */
+  documentName: string;
+}
+
 /**
  * @nullable
  */

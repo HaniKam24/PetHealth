@@ -100,6 +100,7 @@ export * from './symptomEntryInputStoolQuality';
 export * from './symptomEntryStoolQuality';
 export * from './symptomLog';
 export * from './symptomLogInput';
+export * from './updateDocumentImportBody';
 export * from './uploadHealthRecordDocumentBody';
 export * from './uploadPetPhotoBody';
 export * from './vaccineStatus';
