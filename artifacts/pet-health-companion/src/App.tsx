@@ -80,6 +80,7 @@ function AuthedApp() {
           <Route path="/records" component={Records} />
           <Route path="/medications" component={Medications} />
           <Route path="/reminders" component={Reminders} />
+          <Route path="/insights/:conversationId" component={Insights} />
           <Route path="/insights" component={Insights} />
           <Route path="/smart-upload" component={SmartUpload} />
           <Route path="/profile" component={Profile} />

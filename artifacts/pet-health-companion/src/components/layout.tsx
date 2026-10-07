@@ -140,9 +140,9 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-1 min-w-0 overflow-y-auto relative">
+      <main className="flex-1 min-w-0 overflow-y-auto relative flex flex-col">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent pointer-events-none" />
-        <div className="relative z-0">{children}</div>
+        <div className="relative z-0 flex-1 flex flex-col min-h-0">{children}</div>
       </main>
     </div>
   );
