@@ -5,10 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { ChatQuota } from './chatQuota';
 import type { Insight } from './insight';
 
-export interface InsightListResponse {
+/**
+ * One conversation's full turn history, unbounded (no pagination in this version — see the Pawlie conversations change notes).
+ */
+export interface ConversationInsightsResponse {
   insights: Insight[];
-  quota: ChatQuota;
 }

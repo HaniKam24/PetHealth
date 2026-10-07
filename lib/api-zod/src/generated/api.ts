@@ -1341,6 +1341,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "recentInsights": zod.array(zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
+  "conversationId": zod.number().int().describe('Which conversation thread this turn belongs to — see Conversation. Every insight belongs to exactly one.'),
   "title": zod.string(),
   "content": zod.string(),
   "question": zod.string().describe('The owner\'s original question.'),
@@ -1374,6 +1375,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "activeEmergency": zod.union([zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
+  "conversationId": zod.number().int().describe('Which conversation thread this turn belongs to — see Conversation. Every insight belongs to exactly one.'),
   "title": zod.string(),
   "content": zod.string(),
   "question": zod.string().describe('The owner\'s original question.'),
@@ -1427,6 +1429,7 @@ export const DismissInsightParams = zod.object({
 export const DismissInsightResponse = zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
+  "conversationId": zod.number().int().describe('Which conversation thread this turn belongs to — see Conversation. Every insight belongs to exactly one.'),
   "title": zod.string(),
   "content": zod.string(),
   "question": zod.string().describe('The owner\'s original question.'),
@@ -1460,19 +1463,48 @@ export const DismissInsightResponse = zod.object({
 
 
 /**
- * @summary List recent AI insights
+ * @summary List a pet's Pawlie conversations, most-recently-active first
  */
 
 
 
-export const ListInsightsQueryParams = zod.object({
-  "petId": zod.coerce.number().int().min(1).optional()
+export const ListConversationsParams = zod.object({
+  "petId": zod.coerce.number().int().min(1)
 })
 
-export const ListInsightsResponse = zod.object({
+export const ListConversationsResponse = zod.object({
+  "conversations": zod.array(zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "title": zod.string().describe('Auto-derived from the first message in the thread. Not renameable in this version.'),
+  "createdAt": zod.coerce.date(),
+  "lastMessageAt": zod.coerce.date().describe('Used to sort the sidebar list, most-recent first.')
+}).describe('A Pawlie chat thread. Each pet can have many; Pawlie\'s memory recall is scoped to one thread, never shared across conversations — see askInsight.')),
+  "quota": zod.object({
+  "used": zod.number().int(),
+  "limit": zod.number().int(),
+  "remaining": zod.number().int()
+}).describe('A single account-wide monthly allowance for symptom-chat AI questions (50\/month), separate from the document-import lanes in DocumentImportQuota. A red-flag escalation never draws on this.')
+}).describe('A pet\'s conversations, most-recently-active first, for the Pawlie sidebar.')
+
+
+/**
+ * @summary Get one conversation's full turn history
+ */
+
+
+
+
+export const ListConversationInsightsParams = zod.object({
+  "petId": zod.coerce.number().int().min(1),
+  "conversationId": zod.coerce.number().int().min(1)
+})
+
+export const ListConversationInsightsResponse = zod.object({
   "insights": zod.array(zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
+  "conversationId": zod.number().int().describe('Which conversation thread this turn belongs to — see Conversation. Every insight belongs to exactly one.'),
   "title": zod.string(),
   "content": zod.string(),
   "question": zod.string().describe('The owner\'s original question.'),
@@ -1502,13 +1534,8 @@ export const ListInsightsResponse = zod.object({
   "appliedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
 }).describe('A conversational edit Pawlie proposed — deliberately parallel to DocumentImportItem\'s review-gated shape. Nothing is written until the owner confirms.'),zod.null()]).describe('Set when Pawlie proposed a conversational action alongside this reply (e.g. \"add a reminder for...\"). Null for a plain answer with nothing to confirm.')
-})),
-  "quota": zod.object({
-  "used": zod.number().int(),
-  "limit": zod.number().int(),
-  "remaining": zod.number().int()
-}).describe('A single account-wide monthly allowance for symptom-chat AI questions (50\/month), separate from the document-import lanes in DocumentImportQuota. A red-flag escalation never draws on this.')
-})
+}))
+}).describe('One conversation\'s full turn history, unbounded (no pagination in this version — see the Pawlie conversations change notes).')
 
 
 /**
@@ -1519,13 +1546,15 @@ export const ListInsightsResponse = zod.object({
 
 export const AskInsightBody = zod.object({
   "petId": zod.number().int(),
-  "question": zod.string().min(1)
+  "question": zod.string().min(1),
+  "conversationId": zod.number().int().nullish().describe('Which conversation to append to. Omit or send null to lazily start a new conversation — no separate create-conversation call exists, so an abandoned \"New chat\" never orphans a row.')
 })
 
 export const AskInsightResponse = zod.object({
   "insight": zod.object({
   "id": zod.number().int(),
   "petId": zod.number().int(),
+  "conversationId": zod.number().int().describe('Which conversation thread this turn belongs to — see Conversation. Every insight belongs to exactly one.'),
   "title": zod.string(),
   "content": zod.string(),
   "question": zod.string().describe('The owner\'s original question.'),
@@ -1560,7 +1589,14 @@ export const AskInsightResponse = zod.object({
   "used": zod.number().int(),
   "limit": zod.number().int(),
   "remaining": zod.number().int()
-}).describe('A single account-wide monthly allowance for symptom-chat AI questions (50\/month), separate from the document-import lanes in DocumentImportQuota. A red-flag escalation never draws on this.')
+}).describe('A single account-wide monthly allowance for symptom-chat AI questions (50\/month), separate from the document-import lanes in DocumentImportQuota. A red-flag escalation never draws on this.'),
+  "conversation": zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "title": zod.string().describe('Auto-derived from the first message in the thread. Not renameable in this version.'),
+  "createdAt": zod.coerce.date(),
+  "lastMessageAt": zod.coerce.date().describe('Used to sort the sidebar list, most-recent first.')
+}).describe('The conversation this turn was written to — a newly created one if conversationId was omitted from the request, or the existing one otherwise. Lets the client update its sidebar (insert or bump-to-top) without a second round-trip.')
 })
 
 

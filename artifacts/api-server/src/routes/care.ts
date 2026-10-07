@@ -24,8 +24,9 @@ import {
   GetPetParams,
   GetPetTrendsParams,
   GetPetVaccinesParams,
+  ListConversationInsightsParams,
+  ListConversationsParams,
   ListHealthRecordsParams,
-  ListInsightsQueryParams,
   ListMedicationsParams,
   ListRemindersParams,
   ListSymptomLogsParams,
@@ -42,6 +43,7 @@ import {
 } from "@workspace/api-zod";
 import {
   aiActions,
+  conversations,
   db,
   documentImports,
   healthRecords,
@@ -112,6 +114,7 @@ Making changes — conversational actions:
 - If a request is ambiguous (which reminder, which pet, unclear value), ask a clarifying question in plain text instead of guessing with a tool call.
 
 Rules:
+- recentConversation is only this specific conversation thread's own recent turns, not the owner's full chat history with you — if something might have come up in a different conversation, say you don't have that context here rather than assuming.
 - Ground every answer only in the supplied data — never invent a record, date, or value that isn't there.
 - Never claim certainty about anything requiring an in-person exam, bloodwork, or imaging.
 - Keep answers concise and skimmable — under 170 words unless the question genuinely needs more.`;
@@ -174,6 +177,31 @@ const asInsight = (
   createdAt: insight.createdAt.toISOString(),
   action: action ? asAiAction(action) : null,
 });
+
+const asConversation = (conversation: typeof conversations.$inferSelect) => ({
+  ...conversation,
+  createdAt: conversation.createdAt.toISOString(),
+  lastMessageAt: conversation.lastMessageAt.toISOString(),
+});
+
+// First ~8 words (or 60 chars, whichever is shorter) of the opening
+// question — same "auto-title from the first message" convention as every
+// ChatGPT/Claude-style sidebar. No AI call just to name a thread.
+function deriveConversationTitle(question: string): string {
+  const words = question.trim().split(/\s+/).slice(0, 8).join(" ");
+  return words.length > 60 ? `${words.slice(0, 60).trimEnd()}…` : words;
+}
+
+// Denormalized onto conversations so the sidebar list query is a plain
+// orderBy — kept in sync here, the only place new insights get written.
+async function bumpConversationLastMessageAt(conversationId: number, lastMessageAt: Date) {
+  const [updated] = await db
+    .update(conversations)
+    .set({ lastMessageAt })
+    .where(eq(conversations.id, conversationId))
+    .returning();
+  return updated!;
+}
 
 const asSymptomLog = (log: typeof symptomLogs.$inferSelect) => ({
   ...log,
@@ -896,27 +924,52 @@ router.post("/pets/:petId/symptom-logs", async (req, res, next) => {
   }
 });
 
-router.get("/insights", async (req, res, next) => {
+router.get("/pets/:petId/conversations", async (req, res, next) => {
   try {
     const userId = requireUserId(req);
-    const { petId } = ListInsightsQueryParams.parse(req.query);
-    const ownedIds = await getOwnedPetIds(userId);
-    const quota = await getChatQuota(userId);
-    if (ownedIds.length === 0) {
-      res.json({ insights: [], quota });
-      return;
-    }
-    if (petId && !ownedIds.includes(petId)) {
+    const { petId } = ListConversationsParams.parse(req.params);
+    if (!(await isPetOwnedByUser(userId, petId))) {
       res.status(404).json({ error: "Pet not found" });
       return;
     }
-    const condition = petId ? eq(insights.petId, petId) : inArray(insights.petId, ownedIds);
+    const rows = await db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.petId, petId))
+      .orderBy(desc(conversations.lastMessageAt));
+    res.json({
+      conversations: rows.map(asConversation),
+      quota: await getChatQuota(userId),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/pets/:petId/conversations/:conversationId/insights", async (req, res, next) => {
+  try {
+    const userId = requireUserId(req);
+    const { petId, conversationId } = ListConversationInsightsParams.parse(req.params);
+    if (!(await isPetOwnedByUser(userId, petId))) {
+      res.status(404).json({ error: "Pet not found" });
+      return;
+    }
+    const [conversation] = await db
+      .select()
+      .from(conversations)
+      .where(and(eq(conversations.id, conversationId), eq(conversations.petId, petId)));
+    if (!conversation) {
+      res.status(404).json({ error: "Conversation not found" });
+      return;
+    }
+    // Oldest first — this endpoint only ever renders a thread top-to-bottom,
+    // unlike the old flat list (which also fed other call sites and so
+    // stayed newest-first, reversed client-side).
     const rows = await db
       .select()
       .from(insights)
-      .where(condition)
-      .orderBy(desc(insights.createdAt))
-      .limit(12);
+      .where(eq(insights.conversationId, conversationId))
+      .orderBy(asc(insights.createdAt));
     const insightIds = rows.map((row) => row.id);
     const actionRows =
       insightIds.length > 0
@@ -925,7 +978,6 @@ router.get("/insights", async (req, res, next) => {
     const actionByInsightId = new Map(actionRows.map((action) => [action.insightId, action]));
     res.json({
       insights: rows.map((row) => asInsight(row, actionByInsightId.get(row.id) ?? null)),
-      quota,
     });
   } catch (error) {
     next(error);
@@ -935,7 +987,7 @@ router.get("/insights", async (req, res, next) => {
 router.post("/insights", async (req, res, next) => {
   try {
     const userId = requireUserId(req);
-    const { petId, question } = AskInsightBody.parse(req.body);
+    const { petId, question, conversationId } = AskInsightBody.parse(req.body);
     if (!(await isPetOwnedByUser(userId, petId))) {
       res.status(404).json({ error: "Pet not found" });
       return;
@@ -947,15 +999,43 @@ router.post("/insights", async (req, res, next) => {
       return;
     }
 
+    // Resolve the conversation this question belongs to before anything
+    // else below — the escalation-continuation check right after this needs
+    // it scoped correctly, and every insert further down writes to it.
+    // Omitting conversationId lazily starts a new thread (titled from this
+    // question) rather than requiring a separate create-conversation call,
+    // so an abandoned "New chat" click never orphans a row.
+    let activeConversation: typeof conversations.$inferSelect;
+    if (conversationId != null) {
+      const [existing] = await db
+        .select()
+        .from(conversations)
+        .where(and(eq(conversations.id, conversationId), eq(conversations.petId, petId)));
+      if (!existing) {
+        res.status(404).json({ error: "Conversation not found" });
+        return;
+      }
+      activeConversation = existing;
+    } else {
+      const [createdConversation] = await db
+        .insert(conversations)
+        .values({ petId, title: deriveConversationTitle(question) })
+        .returning();
+      activeConversation = createdConversation!;
+    }
+
     // A zipcode-shaped reply right after an escalation is treated as an
     // answer to "what's your zipcode?" (see symptom-escalation.ts), not a
-    // fresh question — no other code path would ever ask for one. Same
-    // quota exemption as the escalation itself: a maxed-out quota must
-    // never block finding real emergency care.
+    // fresh question — no other code path would ever ask for one. Scoped to
+    // this conversation (per the memory-isolation design, same reasoning as
+    // pastChatTurns below) — switching threads means a zip code is just a
+    // normal new question, not a continuation. Same quota exemption as the
+    // escalation itself: a maxed-out quota must never block finding real
+    // emergency care.
     const [mostRecentInsight] = await db
       .select()
       .from(insights)
-      .where(eq(insights.petId, petId))
+      .where(and(eq(insights.petId, petId), eq(insights.conversationId, activeConversation.id)))
       .orderBy(desc(insights.createdAt))
       .limit(1);
     const zipCode = extractZipCode(question);
@@ -1000,6 +1080,7 @@ router.post("/insights", async (req, res, next) => {
         .insert(insights)
         .values({
           petId,
+          conversationId: activeConversation.id,
           title: result ? "Nearby emergency vets" : "Couldn't find nearby emergency vets",
           content: result
             ? "Here's what I found — call ahead to confirm they're open before heading over."
@@ -1012,7 +1093,8 @@ router.post("/insights", async (req, res, next) => {
           metadata: result,
         })
         .returning();
-      res.json({ insight: asInsight(created!), quota: await getChatQuota(userId) });
+      const updatedConversation = await bumpConversationLastMessageAt(activeConversation.id, created!.createdAt);
+      res.json({ insight: asInsight(created!), quota: await getChatQuota(userId), conversation: asConversation(updatedConversation) });
       return;
     }
 
@@ -1025,6 +1107,7 @@ router.post("/insights", async (req, res, next) => {
         .insert(insights)
         .values({
           petId,
+          conversationId: activeConversation.id,
           title: "Please seek urgent veterinary care",
           content: buildEscalationMessage(pet),
           question,
@@ -1034,7 +1117,8 @@ router.post("/insights", async (req, res, next) => {
           disclaimer: DISCLAIMER,
         })
         .returning();
-      res.json({ insight: asInsight(created!), quota: await getChatQuota(userId) });
+      const updatedConversation = await bumpConversationLastMessageAt(activeConversation.id, created!.createdAt);
+      res.json({ insight: asInsight(created!), quota: await getChatQuota(userId), conversation: asConversation(updatedConversation) });
       return;
     }
 
@@ -1091,10 +1175,15 @@ router.post("/insights", async (req, res, next) => {
       .select()
       .from(documentImports)
       .where(and(eq(documentImports.petId, petId), eq(documentImports.status, "pending_review")));
+    // Scoped to this conversation only — Pawlie's memory is isolated per
+    // thread (see Conversation's description in the OpenAPI spec). Anything
+    // that should persist across every conversation goes through the
+    // separate confirmed-memory channel (update_pet_profile writing to
+    // pets.notes), not this recall.
     const pastChatTurns = await db
       .select()
       .from(insights)
-      .where(and(eq(insights.petId, petId), eq(insights.kind, "chat")))
+      .where(and(eq(insights.petId, petId), eq(insights.kind, "chat"), eq(insights.conversationId, activeConversation.id)))
       .orderBy(desc(insights.createdAt))
       .limit(5);
 
@@ -1161,6 +1250,7 @@ router.post("/insights", async (req, res, next) => {
       .insert(insights)
       .values({
         petId,
+        conversationId: activeConversation.id,
         title: "Guidance for your question",
         content,
         question,
@@ -1187,7 +1277,12 @@ router.post("/insights", async (req, res, next) => {
     }
 
     await recordChatUsage(userId);
-    res.json({ insight: asInsight(created!, createdAction), quota: await getChatQuota(userId) });
+    const updatedConversation = await bumpConversationLastMessageAt(activeConversation.id, created!.createdAt);
+    res.json({
+      insight: asInsight(created!, createdAction),
+      quota: await getChatQuota(userId),
+      conversation: asConversation(updatedConversation),
+    });
   } catch (error) {
     next(error);
   }

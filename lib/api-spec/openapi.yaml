@@ -777,20 +777,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Insight"
-  /insights:
+  /pets/{petId}/conversations:
     get:
-      operationId: listInsights
+      operationId: listConversations
       tags: [insights]
-      summary: List recent AI insights
+      summary: List a pet's Pawlie conversations, most-recently-active first
       parameters:
-        - $ref: "#/components/parameters/PetIdQuery"
+        - $ref: "#/components/parameters/PetId"
       responses:
         "200":
-          description: Recent insights and the account's current monthly chat quota
+          description: Conversations and the account's current monthly chat quota
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/InsightListResponse"
+                $ref: "#/components/schemas/ConversationListResponse"
+  /pets/{petId}/conversations/{conversationId}/insights:
+    get:
+      operationId: listConversationInsights
+      tags: [insights]
+      summary: Get one conversation's full turn history
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+        - $ref: "#/components/parameters/ConversationId"
+      responses:
+        "200":
+          description: The conversation's turns, oldest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationInsightsResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /insights:
     post:
       operationId: askInsight
       tags: [insights]
@@ -949,6 +967,13 @@ components:
       name: petId
       in: query
       required: false
+      schema:
+        type: integer
+        minimum: 1
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
       schema:
         type: integer
         minimum: 1
@@ -1417,6 +1442,7 @@ components:
       properties:
         id: { type: integer }
         petId: { type: integer }
+        conversationId: { type: integer, description: "Which conversation thread this turn belongs to — see Conversation. Every insight belongs to exactly one." }
         title: { type: string }
         content: { type: string }
         question: { type: string, description: "The owner's original question." }
@@ -1436,7 +1462,17 @@ components:
           oneOf:
             - $ref: "#/components/schemas/AiAction"
             - type: "null"
-      required: [id, petId, title, content, question, tone, source, createdAt, disclaimer, kind, metadata, dismissedAt, action]
+      required: [id, petId, conversationId, title, content, question, tone, source, createdAt, disclaimer, kind, metadata, dismissedAt, action]
+    Conversation:
+      type: object
+      description: A Pawlie chat thread. Each pet can have many; Pawlie's memory recall is scoped to one thread, never shared across conversations — see askInsight.
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        title: { type: string, description: "Auto-derived from the first message in the thread. Not renameable in this version." }
+        createdAt: { type: string, format: date-time }
+        lastMessageAt: { type: string, format: date-time, description: "Used to sort the sidebar list, most-recent first." }
+      required: [id, petId, title, createdAt, lastMessageAt]
     EmergencyVetMetadata:
       type: object
       description: Nearby emergency vet clinics found via web search, plus an AI-generated call script grounded in the pet's described symptoms. Never asserts a clinic is currently open — always call-ahead framed.
@@ -1475,25 +1511,40 @@ components:
         limit: { type: integer }
         remaining: { type: integer }
       required: [used, limit, remaining]
-    InsightListResponse:
+    ConversationListResponse:
       type: object
+      description: A pet's conversations, most-recently-active first, for the Pawlie sidebar.
+      properties:
+        conversations:
+          type: array
+          items: { $ref: "#/components/schemas/Conversation" }
+        quota: { $ref: "#/components/schemas/ChatQuota" }
+      required: [conversations, quota]
+    ConversationInsightsResponse:
+      type: object
+      description: One conversation's full turn history, unbounded (no pagination in this version — see the Pawlie conversations change notes).
       properties:
         insights:
           type: array
           items: { $ref: "#/components/schemas/Insight" }
-        quota: { $ref: "#/components/schemas/ChatQuota" }
-      required: [insights, quota]
+      required: [insights]
     InsightResponse:
       type: object
       properties:
         insight: { $ref: "#/components/schemas/Insight" }
         quota: { $ref: "#/components/schemas/ChatQuota" }
-      required: [insight, quota]
+        conversation:
+          description: The conversation this turn was written to — a newly created one if conversationId was omitted from the request, or the existing one otherwise. Lets the client update its sidebar (insert or bump-to-top) without a second round-trip.
+          $ref: "#/components/schemas/Conversation"
+      required: [insight, quota, conversation]
     InsightQuestion:
       type: object
       properties:
         petId: { type: integer }
         question: { type: string, minLength: 1 }
+        conversationId:
+          type: ["integer", "null"]
+          description: Which conversation to append to. Omit or send null to lazily start a new conversation — no separate create-conversation call exists, so an abandoned "New chat" never orphans a row.
       required: [petId, question]
     SymptomLog:
       type: object
