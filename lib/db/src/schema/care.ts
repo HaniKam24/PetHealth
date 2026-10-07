@@ -105,9 +105,27 @@ export const reminders = pgTable("reminders", {
   ruleId: text("rule_id"),
 });
 
+// A Pawlie chat thread — a pet can have many, each independently addressable
+// and (per the isolation design) its own memory boundary: grounding only
+// ever recalls turns from one conversation, never across them. Kept here
+// rather than its own file (unlike ai-actions.ts/symptom-entries.ts) because
+// `insights` below needs a same-file FK to it, same reasoning `pets` stays
+// alongside the other core tables that reference it.
+export const conversations = pgTable("conversations", {
+  id: serial("id").primaryKey(),
+  petId: integer("pet_id").notNull().references(() => pets.id, { onDelete: "cascade" }),
+  // Auto-derived from the first message in the thread — no rename in v1.
+  title: text("title").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  // Denormalized so the sidebar's "most recent first" list is a plain
+  // orderBy, no join/aggregate against insights.
+  lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const insights = pgTable("insights", {
   id: serial("id").primaryKey(),
   petId: integer("pet_id").notNull().references(() => pets.id, { onDelete: "cascade" }),
+  conversationId: integer("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   content: text("content").notNull(),
   // The owner's original question — kept separate from title (which is
