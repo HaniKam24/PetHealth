@@ -11,6 +11,7 @@ import { PetProvider } from '@/context/pet-context';
 import { Layout } from '@/components/layout';
 import { useSession } from '@/lib/auth-client';
 
+import Home from '@/pages/home';
 import Dashboard from '@/pages/dashboard';
 import Records from '@/pages/records';
 import Medications from '@/pages/medications';
@@ -99,15 +100,19 @@ function Router() {
   // never will — this path must never bounce through the login redirect
   // below, regardless of session state.
   const isSharePage = location.startsWith(SHARE_PATH_PREFIX);
+  // "/" is the public marketing homepage for a logged-out visitor, but
+  // becomes the dashboard (AuthedApp's own "/" route) once signed in — so,
+  // like the share page, it must never trigger the login redirect below.
+  const isHomePage = location === '/';
 
   useEffect(() => {
-    if (isPending || isSharePage) return;
+    if (isPending || isSharePage || isHomePage) return;
     if (!session && !isAuthPage) {
       setLocation('/login');
     } else if (session && isAuthPage) {
       setLocation('/');
     }
-  }, [session, isPending, isAuthPage, isSharePage, setLocation]);
+  }, [session, isPending, isAuthPage, isSharePage, isHomePage, setLocation]);
 
   if (isSharePage) {
     return <ShareView />;
@@ -120,6 +125,7 @@ function Router() {
   if (!session) {
     return (
       <Switch>
+        <Route path="/" component={Home} />
         <Route path="/signup" component={Signup} />
         <Route path="/login" component={Login} />
         <Route>
