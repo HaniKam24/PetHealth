@@ -162,8 +162,9 @@ export default function ShareView() {
             </div>
 
             {hasEmergencyVet && (
-              <div className="bg-destructive/10 border border-destructive/30 rounded-3xl p-6">
-                <h2 className="font-serif text-lg font-extrabold text-destructive mb-1">Emergency vet</h2>
+              <div>
+                <h2 className="font-serif text-lg font-extrabold text-destructive mb-2 px-1">Emergency vet</h2>
+                <div className="bg-destructive/10 border border-destructive/30 rounded-3xl p-6">
                 {report.emergencyVetName && <p className="text-sm font-bold text-destructive">{report.emergencyVetName}</p>}
                 {report.emergencyVetHours && <p className="text-xs text-destructive/80">{report.emergencyVetHours}</p>}
                 {report.emergencyVetPhone && (
@@ -174,6 +175,7 @@ export default function ShareView() {
                     <Phone size={14} /> {report.emergencyVetPhone}
                   </a>
                 )}
+                </div>
               </div>
             )}
           </div>
