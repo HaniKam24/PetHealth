@@ -66,7 +66,7 @@ const iconMap = {
 
 const TYPE_LABELS: Record<RecordFormValues['type'], string> = {
   visit: 'Visit',
-  vaccine: 'Jab',
+  vaccine: 'Vaccine',
   lab: 'Test',
   procedure: 'Procedure',
   note: 'My note',
