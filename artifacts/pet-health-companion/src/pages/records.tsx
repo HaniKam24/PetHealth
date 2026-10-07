@@ -324,7 +324,7 @@ export default function Records() {
         <div>
           <h1 className="font-serif text-[34px] font-extrabold tracking-tight">{activePet ? `${activePet.name}'s file` : 'Health records'}</h1>
           <p className="mt-1 text-[16.5px] text-muted-foreground">
-            Every visit, jab, test and note you've saved{records ? ` — ${records.length} in total` : ''}.
+            Every visit, vaccine, test and note you've saved{records ? ` — ${records.length} in total` : ''}.
           </p>
         </div>
         <button
@@ -508,7 +508,7 @@ export default function Records() {
           <DialogHeader>
             <DialogTitle className="font-serif text-2xl font-extrabold">{editingRecord ? 'Edit this record' : `Add to ${activePet?.name ?? "their"} file`}</DialogTitle>
             <DialogDescription>
-              {editingRecord ? 'Update the details of this record.' : 'A visit, a jab, a test result, or just something you noticed.'}
+              {editingRecord ? 'Update the details of this record.' : 'A visit, a vaccine, a test result, or just something you noticed.'}
             </DialogDescription>
           </DialogHeader>
 

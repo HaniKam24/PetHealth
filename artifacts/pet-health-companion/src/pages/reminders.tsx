@@ -105,7 +105,7 @@ export default function Reminders() {
       <div className="flex items-end justify-between gap-6 mb-6">
         <div>
           <h1 className="font-serif text-[34px] font-extrabold tracking-tight">Reminders</h1>
-          <p className="mt-1 text-[16.5px] text-muted-foreground">Appointments, jabs and everyday care. Tick things off as you go.</p>
+          <p className="mt-1 text-[16.5px] text-muted-foreground">Appointments, vaccines and everyday care. Tick things off as you go.</p>
         </div>
         <button
           onClick={() => setIsNewOpen(true)}
