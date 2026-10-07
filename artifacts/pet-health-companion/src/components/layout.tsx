@@ -6,6 +6,7 @@ import { useListPets } from '@workspace/api-client-react';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
 import { signOut, useSession } from '@/lib/auth-client';
+import { PawlieWidget } from '@/components/pawlie-widget';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -15,12 +16,14 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 
+// Pawlie used to live here as its own tab — it's now reachable from every
+// page via the floating button in the bottom-right corner (see
+// PawlieWidget below) instead, so it's no longer a nav destination.
 const NAV_ITEMS = [
   { href: '/', label: 'Today' },
   { href: '/records', label: 'Records' },
   { href: '/medications', label: 'Medicines' },
   { href: '/reminders', label: 'Reminders' },
-  { href: '/insights', label: 'Pawlie' },
   { href: '/smart-upload', label: 'Uploads' },
   { href: '/profile', label: 'Profile' },
 ];
@@ -144,6 +147,10 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent pointer-events-none" />
         <div className="relative z-0 flex-1 flex flex-col min-h-0">{children}</div>
       </main>
+
+      {/* Hidden on the full Pawlie chat page itself — showing the launcher
+          there would just float a shortcut to the page already open. */}
+      {!location.startsWith('/insights') && <PawlieWidget />}
     </div>
   );
 }
