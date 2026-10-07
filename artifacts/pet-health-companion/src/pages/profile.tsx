@@ -78,16 +78,30 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-// Sitter Brief — a separate, smaller form from the main profile edit form
-// above. Edited as its own group from the Care Routine card rather than
-// folded into "Edit all", since it's caretaking info for whoever's
-// watching the pet, not core profile identity.
-const briefSchema = z.object({
+// Two separate, smaller forms from the main profile edit form above —
+// edited as their own groups rather than folded into "Edit all", since
+// neither is core profile identity. Split into two (rather than the one
+// combined "brief" form this used to be) because the Care Routine card
+// only ever displayed feeding/walks, while everything else here is purely
+// sitter-report content with no card of its own to show it — editing it
+// from "Edit Care Routine" was misleading. See onEditSitterInfo below.
+const careRoutineSchema = z.object({
+  feedingInstructions: z.string().optional().nullable(),
+  walksAndTriggers: z.string().optional().nullable(),
+});
+type CareRoutineFormValues = z.infer<typeof careRoutineSchema>;
+const EMPTY_CARE_ROUTINE: CareRoutineFormValues = {
+  feedingInstructions: '',
+  walksAndTriggers: '',
+};
+
+// Everything shown on the shared sitter report except notes (which keeps
+// its own card/form below) and feeding/walks (which live in Care Routine
+// above, since they're also shown on the Care Routine card itself).
+const sitterInfoSchema = z.object({
   criticalInfoSummary: z.string().optional().nullable(),
   criticalInfoDetails: z.string().optional().nullable(),
-  feedingInstructions: z.string().optional().nullable(),
   whereThingsAre: z.string().optional().nullable(),
-  walksAndTriggers: z.string().optional().nullable(),
   handlingNotes: z.string().optional().nullable(),
   whatNormalLooksLike: z.string().optional().nullable(),
   caretakingPreference: z.string().optional().nullable(),
@@ -95,13 +109,11 @@ const briefSchema = z.object({
   emergencyVetPhone: z.string().optional().nullable(),
   emergencyVetHours: z.string().optional().nullable(),
 });
-type BriefFormValues = z.infer<typeof briefSchema>;
-const EMPTY_BRIEF: BriefFormValues = {
+type SitterInfoFormValues = z.infer<typeof sitterInfoSchema>;
+const EMPTY_SITTER_INFO: SitterInfoFormValues = {
   criticalInfoSummary: '',
   criticalInfoDetails: '',
-  feedingInstructions: '',
   whereThingsAre: '',
-  walksAndTriggers: '',
   handlingNotes: '',
   whatNormalLooksLike: '',
   caretakingPreference: '',
@@ -280,25 +292,38 @@ export default function Profile() {
   // yet, so it always starts in edit mode.
   const [mode, setMode] = useState<'passport' | 'edit'>(isNew ? 'edit' : 'passport');
   const [shareOpen, setShareOpen] = useState(false);
-  const [editBriefOpen, setEditBriefOpen] = useState(false);
+  const [editCareRoutineOpen, setEditCareRoutineOpen] = useState(false);
+  const [editSitterInfoOpen, setEditSitterInfoOpen] = useState(false);
   const [editNotesOpen, setEditNotesOpen] = useState(false);
 
-  const briefForm = useForm<BriefFormValues>({
-    resolver: zodResolver(briefSchema),
-    defaultValues: EMPTY_BRIEF,
+  const careRoutineForm = useForm<CareRoutineFormValues>({
+    resolver: zodResolver(careRoutineSchema),
+    defaultValues: EMPTY_CARE_ROUTINE,
   });
 
   // Re-sync from the latest pet data each time the dialog opens, rather than
   // on every pet refetch — this is a short-lived popup, not a page that
   // needs to react to background updates while open.
   useEffect(() => {
-    if (editBriefOpen && pet) {
-      briefForm.reset({
+    if (editCareRoutineOpen && pet) {
+      careRoutineForm.reset({
+        feedingInstructions: pet.feedingInstructions || '',
+        walksAndTriggers: pet.walksAndTriggers || '',
+      });
+    }
+  }, [editCareRoutineOpen, pet, careRoutineForm]);
+
+  const sitterInfoForm = useForm<SitterInfoFormValues>({
+    resolver: zodResolver(sitterInfoSchema),
+    defaultValues: EMPTY_SITTER_INFO,
+  });
+
+  useEffect(() => {
+    if (editSitterInfoOpen && pet) {
+      sitterInfoForm.reset({
         criticalInfoSummary: pet.criticalInfoSummary || '',
         criticalInfoDetails: pet.criticalInfoDetails || '',
-        feedingInstructions: pet.feedingInstructions || '',
         whereThingsAre: pet.whereThingsAre || '',
-        walksAndTriggers: pet.walksAndTriggers || '',
         handlingNotes: pet.handlingNotes || '',
         whatNormalLooksLike: pet.whatNormalLooksLike || '',
         caretakingPreference: pet.caretakingPreference || '',
@@ -307,7 +332,7 @@ export default function Profile() {
         emergencyVetHours: pet.emergencyVetHours || '',
       });
     }
-  }, [editBriefOpen, pet, briefForm]);
+  }, [editSitterInfoOpen, pet, sitterInfoForm]);
 
   const notesForm = useForm<NotesFormValues>({
     resolver: zodResolver(notesSchema),
@@ -512,10 +537,29 @@ export default function Profile() {
   // A separate, smaller update than onSubmit above — but PetInput/PetUpdate
   // requires name/species/sex/spayNeuterStatus/weightUnit on every write, so
   // this still has to carry those 5 current values along even though only
-  // the brief fields actually change. Omitting every other optional field
-  // (breed, notes, vet contact, etc.) is safe — the API only touches keys
-  // actually present in the request body.
-  const onSubmitBrief = (data: BriefFormValues) => {
+  // the care-routine fields actually change. Omitting every other optional
+  // field (breed, notes, vet contact, etc.) is safe — the API only touches
+  // keys actually present in the request body.
+  const onSubmitCareRoutine = (data: CareRoutineFormValues) => {
+    if (!activePetId || !pet) return;
+    updatePet.mutate({
+      petId: activePetId,
+      data: {
+        name: pet.name,
+        species: pet.species,
+        sex: pet.sex,
+        spayNeuterStatus: pet.spayNeuterStatus,
+        weightUnit: pet.weightUnit,
+        feedingInstructions: data.feedingInstructions || null,
+        walksAndTriggers: data.walksAndTriggers || null,
+      },
+    }, {
+      onSuccess: () => setEditCareRoutineOpen(false),
+    });
+  };
+
+  // Same pattern as onSubmitCareRoutine above.
+  const onSubmitSitterInfo = (data: SitterInfoFormValues) => {
     if (!activePetId || !pet) return;
     updatePet.mutate({
       petId: activePetId,
@@ -527,9 +571,7 @@ export default function Profile() {
         weightUnit: pet.weightUnit,
         criticalInfoSummary: data.criticalInfoSummary || null,
         criticalInfoDetails: data.criticalInfoDetails || null,
-        feedingInstructions: data.feedingInstructions || null,
         whereThingsAre: data.whereThingsAre || null,
-        walksAndTriggers: data.walksAndTriggers || null,
         handlingNotes: data.handlingNotes || null,
         whatNormalLooksLike: data.whatNormalLooksLike || null,
         caretakingPreference: data.caretakingPreference || null,
@@ -538,12 +580,12 @@ export default function Profile() {
         emergencyVetHours: data.emergencyVetHours || null,
       },
     }, {
-      onSuccess: () => setEditBriefOpen(false),
+      onSuccess: () => setEditSitterInfoOpen(false),
     });
   };
 
-  // Same pattern as onSubmitBrief above — PetInput/PetUpdate requires these
-  // 5 fields on every write, carried along unchanged.
+  // Same pattern as onSubmitCareRoutine/onSubmitSitterInfo above — PetInput/
+  // PetUpdate requires these 5 fields on every write, carried along unchanged.
   const onSubmitNotes = (data: NotesFormValues) => {
     if (!activePetId || !pet) return;
     updatePet.mutate({
@@ -604,8 +646,9 @@ export default function Profile() {
             weightDelta={weightDelta}
             vaccines={vaccines}
             onEditAll={() => setMode('edit')}
-            onEditBrief={() => setEditBriefOpen(true)}
+            onEditCareRoutine={() => setEditCareRoutineOpen(true)}
             onEditNotes={() => setEditNotesOpen(true)}
+            onEditSitterInfo={() => setEditSitterInfoOpen(true)}
             onChangePhoto={() => photoInputRef.current?.click()}
             isUploadingPhoto={uploadPhoto.isPending}
           />
@@ -619,15 +662,15 @@ export default function Profile() {
           className="hidden"
         />
 
-        <Dialog open={editBriefOpen} onOpenChange={setEditBriefOpen}>
+        <Dialog open={editCareRoutineOpen} onOpenChange={setEditCareRoutineOpen}>
           <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl">
             <DialogHeader>
               <DialogTitle>Edit {pet.name}&#39;s Care Routine</DialogTitle>
             </DialogHeader>
-            <Form {...briefForm}>
-              <form onSubmit={briefForm.handleSubmit(onSubmitBrief)} className="space-y-5 mt-2">
+            <Form {...careRoutineForm}>
+              <form onSubmit={careRoutineForm.handleSubmit(onSubmitCareRoutine)} className="space-y-5 mt-2">
                 <FormField
-                  control={briefForm.control}
+                  control={careRoutineForm.control}
                   name="feedingInstructions"
                   render={({ field }) => (
                     <FormItem>
@@ -640,7 +683,7 @@ export default function Profile() {
                   )}
                 />
                 <FormField
-                  control={briefForm.control}
+                  control={careRoutineForm.control}
                   name="walksAndTriggers"
                   render={({ field }) => (
                     <FormItem>
@@ -652,18 +695,40 @@ export default function Profile() {
                     </FormItem>
                   )}
                 />
+                <div className="flex items-center justify-end gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setEditCareRoutineOpen(false)}
+                    className="h-11 px-5 rounded-full text-muted-foreground font-bold hover:bg-accent transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updatePet.isPending}
+                    className="h-11 px-6 rounded-full bg-primary text-primary-foreground font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {updatePet.isPending ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
 
-                <hr className="border-border" />
-
+        <Dialog open={editSitterInfoOpen} onOpenChange={setEditSitterInfoOpen}>
+          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl">
+            <DialogHeader>
+              <DialogTitle>Edit additional info for {pet.name}&#39;s Sitter Report</DialogTitle>
+            </DialogHeader>
+            <Form {...sitterInfoForm}>
+              <form onSubmit={sitterInfoForm.handleSubmit(onSubmitSitterInfo)} className="space-y-5 mt-2">
                 <FormField
-                  control={briefForm.control}
+                  control={sitterInfoForm.control}
                   name="criticalInfoSummary"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>
-                        Critical info — short summary{' '}
-                        <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
-                      </FormLabel>
+                      <FormLabel>Critical info — short summary</FormLabel>
                       <FormControl>
                         <Input placeholder="No chicken · door-dasher · never off-leash near the road" {...field} value={field.value || ''} />
                       </FormControl>
@@ -672,14 +737,11 @@ export default function Profile() {
                   )}
                 />
                 <FormField
-                  control={briefForm.control}
+                  control={sitterInfoForm.control}
                   name="criticalInfoDetails"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>
-                        Critical info — details{' '}
-                        <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
-                      </FormLabel>
+                      <FormLabel>Critical info — details</FormLabel>
                       <FormControl>
                         <Textarea placeholder="Explain the summary above — what happens, and what to do about it." className="resize-none min-h-[80px]" {...field} value={field.value || ''} />
                       </FormControl>
@@ -688,13 +750,11 @@ export default function Profile() {
                   )}
                 />
                 <FormField
-                  control={briefForm.control}
+                  control={sitterInfoForm.control}
                   name="whereThingsAre"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>
-                        Where things are <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
-                      </FormLabel>
+                      <FormLabel>Where things are</FormLabel>
                       <FormControl>
                         <Textarea placeholder="Food, leash, treats, crate, clean-up supplies — wherever you keep them" className="resize-none min-h-[90px]" {...field} value={field.value || ''} />
                       </FormControl>
@@ -703,13 +763,11 @@ export default function Profile() {
                   )}
                 />
                 <FormField
-                  control={briefForm.control}
+                  control={sitterInfoForm.control}
                   name="handlingNotes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>
-                        Handling <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
-                      </FormLabel>
+                      <FormLabel>Handling</FormLabel>
                       <FormControl>
                         <Textarea placeholder="What's fine, what to avoid" className="resize-none min-h-[70px]" {...field} value={field.value || ''} />
                       </FormControl>
@@ -718,14 +776,11 @@ export default function Profile() {
                   )}
                 />
                 <FormField
-                  control={briefForm.control}
+                  control={sitterInfoForm.control}
                   name="whatNormalLooksLike"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>
-                        What normal looks like{' '}
-                        <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
-                      </FormLabel>
+                      <FormLabel>What normal looks like</FormLabel>
                       <FormControl>
                         <Textarea placeholder="Baseline behavior, and when to call the owner" className="resize-none min-h-[70px]" {...field} value={field.value || ''} />
                       </FormControl>
@@ -734,14 +789,11 @@ export default function Profile() {
                   )}
                 />
                 <FormField
-                  control={briefForm.control}
+                  control={sitterInfoForm.control}
                   name="caretakingPreference"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>
-                        Caretaking preference{' '}
-                        <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
-                      </FormLabel>
+                      <FormLabel>Caretaking preference</FormLabel>
                       <FormControl>
                         <Input placeholder="e.g. A photo and a quick note each evening" {...field} value={field.value || ''} />
                       </FormControl>
@@ -751,13 +803,11 @@ export default function Profile() {
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
-                    control={briefForm.control}
+                    control={sitterInfoForm.control}
                     name="emergencyVetName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>
-                          Emergency vet <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
-                        </FormLabel>
+                        <FormLabel>Emergency vet</FormLabel>
                         <FormControl>
                           <Input placeholder="Eastside Animal Emergency" {...field} value={field.value || ''} />
                         </FormControl>
@@ -766,14 +816,11 @@ export default function Profile() {
                     )}
                   />
                   <FormField
-                    control={briefForm.control}
+                    control={sitterInfoForm.control}
                     name="emergencyVetPhone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>
-                          Emergency vet phone{' '}
-                          <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
-                        </FormLabel>
+                        <FormLabel>Emergency vet phone</FormLabel>
                         <FormControl>
                           <Input type="tel" placeholder="(555) 911-0000" {...field} value={field.value || ''} />
                         </FormControl>
@@ -783,14 +830,11 @@ export default function Profile() {
                   />
                 </div>
                 <FormField
-                  control={briefForm.control}
+                  control={sitterInfoForm.control}
                   name="emergencyVetHours"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>
-                        Emergency vet hours / distance{' '}
-                        <span className="text-muted-foreground font-normal">(shown on sitter report)</span>
-                      </FormLabel>
+                      <FormLabel>Emergency vet hours / distance</FormLabel>
                       <FormControl>
                         <Input placeholder="Open 24h · 12 min away" {...field} value={field.value || ''} />
                       </FormControl>
@@ -801,7 +845,7 @@ export default function Profile() {
                 <div className="flex items-center justify-end gap-3 pt-1">
                   <button
                     type="button"
-                    onClick={() => setEditBriefOpen(false)}
+                    onClick={() => setEditSitterInfoOpen(false)}
                     className="h-11 px-5 rounded-full text-muted-foreground font-bold hover:bg-accent transition-colors"
                   >
                     Cancel
@@ -811,7 +855,7 @@ export default function Profile() {
                     disabled={updatePet.isPending}
                     className="h-11 px-6 rounded-full bg-primary text-primary-foreground font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
                   >
-                    {updatePet.isPending ? 'Saving…' : 'Save brief'}
+                    {updatePet.isPending ? 'Saving…' : 'Save'}
                   </button>
                 </div>
               </form>

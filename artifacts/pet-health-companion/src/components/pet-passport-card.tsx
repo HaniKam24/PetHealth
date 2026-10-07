@@ -1,4 +1,4 @@
-import { HeartPulse, Phone, ShieldCheck, ShieldAlert, AlertTriangle, IdCard, ImagePlus, NotebookPen, PawPrint, Utensils, Footprints, Mars, Venus } from 'lucide-react';
+import { HeartPulse, Phone, ShieldCheck, ShieldAlert, AlertTriangle, IdCard, ImagePlus, NotebookPen, PawPrint, Utensils, Footprints, Mars, Venus, ClipboardList } from 'lucide-react';
 import { Link } from 'wouter';
 import { format, differenceInCalendarDays, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -51,8 +51,9 @@ export function PetPassportCard({
   weightDelta,
   vaccines,
   onEditAll,
-  onEditBrief,
+  onEditCareRoutine,
   onEditNotes,
+  onEditSitterInfo,
   onChangePhoto,
   isUploadingPhoto,
 }: {
@@ -61,8 +62,9 @@ export function PetPassportCard({
   weightDelta: number;
   vaccines: VaccineStatus[];
   onEditAll: () => void;
-  onEditBrief: () => void;
+  onEditCareRoutine: () => void;
   onEditNotes: () => void;
+  onEditSitterInfo: () => void;
   onChangePhoto: () => void;
   isUploadingPhoto: boolean;
 }) {
@@ -289,7 +291,7 @@ export function PetPassportCard({
               </div>
               <div className="font-serif text-base font-extrabold">Care Routine</div>
             </div>
-            <button type="button" onClick={onEditBrief} className="text-[13px] font-bold text-primary hover:underline shrink-0">
+            <button type="button" onClick={onEditCareRoutine} className="text-[13px] font-bold text-primary hover:underline shrink-0">
               Edit
             </button>
           </div>
@@ -332,6 +334,20 @@ export function PetPassportCard({
             {pet.notes || <span className="text-muted-foreground">Nothing on file yet.</span>}
           </p>
         </div>
+
+        {/* Not a card of its own — this edits content that has no read-only
+            display anywhere on this page (critical info, emergency vet,
+            handling notes, etc.), so there's nothing to show here besides
+            the entry point itself. Styled like "Change badge photo" above
+            rather than another card, for the same reason: it's a plain
+            action link, not something with content of its own to frame. */}
+        <button
+          type="button"
+          onClick={onEditSitterInfo}
+          className="self-center text-[13px] font-bold text-primary flex items-center gap-1.5 hover:underline"
+        >
+          <ClipboardList size={15} /> Edit additional info for Sitter Report
+        </button>
       </div>
     </div>
   );
