@@ -30,6 +30,14 @@ Tell the user which branch you created before starting the actual work.
 - Only touch files relevant to the current task. If a change would require editing something outside that scope, stop and ask the user first — unrelated edits are the main cause of overlap with the other person's work.
 - When asked to make a change, briefly explain what you changed and why once it's done. Both team members are beginners — favor clear, plain-English explanations over jargon.
 
+## Changing the database
+
+The database schema only ever changes by editing the Drizzle schema files in `lib/db/src/schema` and running `pnpm --filter db run push`. Never change the database structure by hand — no editing tables/columns/constraints directly in the Supabase dashboard, no one-off SQL run outside of a schema file + push.
+
+Why this matters: `push` works by comparing the schema files to the live database and generating whatever changes are needed to match — including auto-generated names for things like unique constraints. If the database is ever changed by hand instead, it silently drifts out of sync with what the schema files say, and the next `push` can surface confusing prompts (or worse, suggest something destructive like truncating a table) for a change nobody actually intended to make. Keeping the schema files as the single source of truth is what prevents that.
+
+If `push` ever reports a constraint that already exists under a different name than expected, that's this kind of drift, not a real conflict — rename the existing database constraint to match what Drizzle expects (`ALTER TABLE ... RENAME CONSTRAINT old_name TO new_name`) rather than letting Drizzle add a redundant second one, and don't accept any "truncate this table" offer without first confirming directly against the data (e.g. checking for actual duplicate values) that it's really necessary — in practice it usually isn't.
+
 ## Committing progress
 
 - Commit in small, frequent chunks — after each meaningful piece of work, not just once at the end.

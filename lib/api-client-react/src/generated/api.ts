@@ -23,6 +23,8 @@ import type {
   AcceptDocumentImportItemBody,
   AiAction,
   Alert,
+  ConversationInsightsResponse,
+  ConversationListResponse,
   CreateDocumentImportBody,
   CreateShareLinkBody,
   DashboardSummary,
@@ -40,10 +42,8 @@ import type {
   HealthRecordUpdate,
   HealthStatus,
   Insight,
-  InsightListResponse,
   InsightQuestion,
   InsightResponse,
-  ListInsightsParams,
   Medication,
   MedicationInput,
   MedicationUpdate,
@@ -3171,27 +3171,20 @@ export const useDismissInsight = <TError = ErrorType<unknown>,
       return useMutation(getDismissInsightMutationOptions(options));
     }
 
-export const getListInsightsUrl = (params?: ListInsightsParams,) => {
-  const normalizedParams = new URLSearchParams();
+export const getListConversationsUrl = (petId: number,) => {
 
-  Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
 
-  const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/insights?${stringifiedParams}` : `/api/insights`
+  return `/api/pets/${petId}/conversations`
 }
 
 /**
- * @summary List recent AI insights
+ * @summary List a pet's Pawlie conversations, most-recently-active first
  */
-export const listInsights = async (params?: ListInsightsParams, options?: Parameters<typeof customFetch>[1]): Promise<InsightListResponse> => {
+export const listConversations = async (petId: number, options?: Parameters<typeof customFetch>[1]): Promise<ConversationListResponse> => {
 
-  return customFetch<InsightListResponse>(getListInsightsUrl(params),
+  return customFetch<ConversationListResponse>(getListConversationsUrl(petId),
   {
     ...options,
     method: 'GET'
@@ -3204,45 +3197,127 @@ export const listInsights = async (params?: ListInsightsParams, options?: Parame
 
 
 
-export const getListInsightsQueryKey = (params?: ListInsightsParams,) => {
+export const getListConversationsQueryKey = (petId: number,) => {
     return [
-    `/api/insights`, ...(params ? [params] : [])
+    `/api/pets/${petId}/conversations`
     ] as const;
     }
 
 
-export const getListInsightsQueryOptions = <TData = Awaited<ReturnType<typeof listInsights>>, TError = ErrorType<unknown>>(params?: ListInsightsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInsights>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListConversationsQueryOptions = <TData = Awaited<ReturnType<typeof listConversations>>, TError = ErrorType<unknown>>(petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListInsightsQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getListConversationsQueryKey(petId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listInsights>>> = ({ signal }) => listInsights(params, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listConversations>>> = ({ signal }) => listConversations(petId, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listInsights>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, enabled: petId !== null && petId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listConversations>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type ListInsightsQueryResult = NonNullable<Awaited<ReturnType<typeof listInsights>>>
-export type ListInsightsQueryError = ErrorType<unknown>
+export type ListConversationsQueryResult = NonNullable<Awaited<ReturnType<typeof listConversations>>>
+export type ListConversationsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List recent AI insights
+ * @summary List a pet's Pawlie conversations, most-recently-active first
  */
 
-export function useListInsights<TData = Awaited<ReturnType<typeof listInsights>>, TError = ErrorType<unknown>>(
- params?: ListInsightsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInsights>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useListConversations<TData = Awaited<ReturnType<typeof listConversations>>, TError = ErrorType<unknown>>(
+ petId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListInsightsQueryOptions(params,options)
+  const queryOptions = getListConversationsQueryOptions(petId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListConversationInsightsUrl = (petId: number,
+    conversationId: number,) => {
+
+
+
+
+  return `/api/pets/${petId}/conversations/${conversationId}/insights`
+}
+
+/**
+ * @summary Get one conversation's full turn history
+ */
+export const listConversationInsights = async (petId: number,
+    conversationId: number, options?: Parameters<typeof customFetch>[1]): Promise<ConversationInsightsResponse> => {
+
+  return customFetch<ConversationInsightsResponse>(getListConversationInsightsUrl(petId,conversationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListConversationInsightsQueryKey = (petId: number,
+    conversationId: number,) => {
+    return [
+    `/api/pets/${petId}/conversations/${conversationId}/insights`
+    ] as const;
+    }
+
+
+export const getListConversationInsightsQueryOptions = <TData = Awaited<ReturnType<typeof listConversationInsights>>, TError = ErrorType<NotFoundResponse>>(petId: number,
+    conversationId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listConversationInsights>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListConversationInsightsQueryKey(petId,conversationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listConversationInsights>>> = ({ signal }) => listConversationInsights(petId,conversationId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: petId !== null && petId !== undefined && conversationId !== null && conversationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listConversationInsights>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListConversationInsightsQueryResult = NonNullable<Awaited<ReturnType<typeof listConversationInsights>>>
+export type ListConversationInsightsQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Get one conversation's full turn history
+ */
+
+export function useListConversationInsights<TData = Awaited<ReturnType<typeof listConversationInsights>>, TError = ErrorType<NotFoundResponse>>(
+ petId: number,
+    conversationId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listConversationInsights>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListConversationInsightsQueryOptions(petId,conversationId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

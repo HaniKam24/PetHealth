@@ -841,6 +841,8 @@ export interface AiAction {
 export interface Insight {
   id: number;
   petId: number;
+  /** Which conversation thread this turn belongs to — see Conversation. Every insight belongs to exactly one. */
+  conversationId: number;
   title: string;
   content: string;
   /** The owner's original question. */
@@ -863,6 +865,19 @@ export interface Insight {
 }
 
 /**
+ * A Pawlie chat thread. Each pet can have many; Pawlie's memory recall is scoped to one thread, never shared across conversations — see askInsight.
+ */
+export interface Conversation {
+  id: number;
+  petId: number;
+  /** Auto-derived from the first message in the thread. Not renameable in this version. */
+  title: string;
+  createdAt: string;
+  /** Used to sort the sidebar list, most-recent first. */
+  lastMessageAt: string;
+}
+
+/**
  * A single account-wide monthly allowance for symptom-chat AI questions (50/month), separate from the document-import lanes in DocumentImportQuota. A red-flag escalation never draws on this.
  */
 export interface ChatQuota {
@@ -871,20 +886,37 @@ export interface ChatQuota {
   remaining: number;
 }
 
-export interface InsightListResponse {
-  insights: Insight[];
+/**
+ * A pet's conversations, most-recently-active first, for the Pawlie sidebar.
+ */
+export interface ConversationListResponse {
+  conversations: Conversation[];
   quota: ChatQuota;
+}
+
+/**
+ * One conversation's full turn history, unbounded (no pagination in this version — see the Pawlie conversations change notes).
+ */
+export interface ConversationInsightsResponse {
+  insights: Insight[];
 }
 
 export interface InsightResponse {
   insight: Insight;
   quota: ChatQuota;
+  /** The conversation this turn was written to — a newly created one if conversationId was omitted from the request, or the existing one otherwise. Lets the client update its sidebar (insert or bump-to-top) without a second round-trip. */
+  conversation: Conversation;
 }
 
 export interface InsightQuestion {
   petId: number;
   /** @minLength 1 */
   question: string;
+  /**
+     * Which conversation to append to. Omit or send null to lazily start a new conversation — no separate create-conversation call exists, so an abandoned "New chat" never orphans a row.
+     * @nullable
+     */
+  conversationId?: number | null;
 }
 
 export interface SymptomLog {
@@ -1104,13 +1136,6 @@ export type CreateDocumentImportBody = {
 };
 
 export type GetDashboardSummaryParams = {
-/**
- * @minimum 1
- */
-petId?: PetIdQueryParameter;
-};
-
-export type ListInsightsParams = {
 /**
  * @minimum 1
  */

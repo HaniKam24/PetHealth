@@ -10,4 +10,9 @@ export interface InsightQuestion {
   petId: number;
   /** @minLength 1 */
   question: string;
+  /**
+     * Which conversation to append to. Omit or send null to lazily start a new conversation — no separate create-conversation call exists, so an abandoned "New chat" never orphans a row.
+     * @nullable
+     */
+  conversationId?: number | null;
 }

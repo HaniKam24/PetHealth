@@ -1,7 +1,9 @@
 import { usePetContext } from '@/context/pet-context';
 import {
-  useListInsights,
-  getListInsightsQueryKey,
+  useListConversations,
+  getListConversationsQueryKey,
+  useListConversationInsights,
+  getListConversationInsightsQueryKey,
   useAskInsight,
   useListSymptomLogs,
   getListSymptomLogsQueryKey,
@@ -20,6 +22,7 @@ import {
   useConfirmAiAction,
   useCancelAiAction,
   type Insight,
+  type Conversation,
   type SymptomEntry,
   type SymptomEntryAppetite,
   type SymptomEntryEnergy,
@@ -28,11 +31,11 @@ import {
   type EmergencyVetMetadata,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearch, useLocation } from 'wouter';
-import { Sparkles, Send, PawPrint, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill, NotebookPen, Trash2, Check, X, Loader2, Bell, Stethoscope, Phone } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearch, useLocation, useParams } from 'wouter';
+import { Sparkles, Send, PawPrint, ShieldAlert, Heart, Activity, ClipboardPlus, CheckCircle2, TrendingUp, Scale, Pill, NotebookPen, Trash2, Check, X, Loader2, Bell, Stethoscope, Phone, Plus, PanelLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, formatDistanceToNowStrict } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
@@ -407,18 +410,87 @@ function JournalTab({ activePetId, petName }: { activePetId: number; petName: st
   );
 }
 
+// The Claude/ChatGPT-style thread list — bespoke rather than the unused
+// ui/sidebar.tsx shadcn primitive (no --sidebar-* theme tokens exist
+// anywhere in this app's CSS, and nothing else uses it), built from the
+// same nav-pill convention layout.tsx already uses for the top tab bar.
+function ConversationSidebar({
+  conversations,
+  isLoading,
+  activeConversationId,
+  onSelect,
+  onNewChat,
+}: {
+  conversations: Conversation[] | undefined;
+  isLoading: boolean;
+  activeConversationId: number | null;
+  onSelect: (id: number) => void;
+  onNewChat: () => void;
+}) {
+  return (
+    <div className="flex flex-col h-full">
+      <button
+        type="button"
+        onClick={onNewChat}
+        className="shrink-0 mb-3 h-10 flex items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors"
+      >
+        <Plus size={16} /> New chat
+      </button>
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-1">
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-14 bg-accent/30 rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        ) : !conversations || conversations.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8 px-2">
+            No conversations yet — start one below.
+          </p>
+        ) : (
+          conversations.map((conversation) => {
+            const isActive = conversation.id === activeConversationId;
+            return (
+              <button
+                key={conversation.id}
+                type="button"
+                onClick={() => onSelect(conversation.id)}
+                className={cn(
+                  'w-full text-left px-3.5 py-3 rounded-2xl transition-colors',
+                  isActive ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-accent',
+                )}
+              >
+                <div className="text-sm font-semibold truncate">{conversation.title}</div>
+                <div className={cn('text-xs mt-0.5', isActive ? 'text-primary/70' : 'text-muted-foreground')}>
+                  {formatDistanceToNowStrict(new Date(conversation.lastMessageAt), { addSuffix: true })}
+                </div>
+              </button>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Insights() {
   const { activePetId } = usePetContext();
   const queryClient = useQueryClient();
   const [question, setQuestion] = useState('');
   const [tab, setTab] = useState<'chat' | 'trends' | 'journal'>('chat');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { toast } = useToast();
   const search = useSearch();
   const [, setLocation] = useLocation();
+  const params = useParams<{ conversationId?: string }>();
+  const activeConversationId = params.conversationId ? Number(params.conversationId) : null;
 
   // A dashboard alert's "Ask Pawlie about this" link arrives as ?ask=... —
   // pre-fill the question once, then strip the param so navigating away
-  // and back (or refreshing) doesn't keep re-filling it.
+  // and back (or refreshing) doesn't keep re-filling it. Landing on the
+  // bare /insights path (no :conversationId) also means this always starts
+  // a fresh conversation, same as hitting "New chat" — an alert is its own
+  // topic, not a continuation of whatever was open before.
   useEffect(() => {
     const ask = new URLSearchParams(search).get('ask');
     if (ask) {
@@ -427,6 +499,20 @@ export default function Insights() {
       setLocation('/insights', { replace: true });
     }
   }, [search, setLocation]);
+
+  // Conversations are pet-scoped, so a conversation id from one pet is
+  // meaningless once the owner switches to another — drop back to the
+  // no-conversation-selected state. Guarded on the *previous* value (not
+  // just "activePetId is set") so this only fires on an actual switch, not
+  // on first mount while activePetId is still resolving.
+  const previousPetIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    const previousPetId = previousPetIdRef.current;
+    previousPetIdRef.current = activePetId;
+    if (previousPetId !== null && activePetId !== null && previousPetId !== activePetId) {
+      setLocation('/insights', { replace: true });
+    }
+  }, [activePetId, setLocation]);
 
   const { data: pets } = useListPets();
   const activePet = pets?.find((p) => p.id === activePetId);
@@ -438,29 +524,41 @@ export default function Insights() {
     },
   });
 
-  const { data, isLoading } = useListInsights(
-    activePetId ? { petId: activePetId } : undefined,
-    { query: { enabled: !!activePetId, queryKey: activePetId ? getListInsightsQueryKey({ petId: activePetId }) : ['no-pet', 'insights'] } }
-  );
-  // The API returns newest-first (so a "recent activity" list elsewhere
-  // could use it as-is) — a chat thread reads top-to-bottom oldest-first,
-  // so flip it for display here rather than changing the API's own order.
-  // Memoized on the underlying array, not recomputed fresh every render —
-  // otherwise this produced a new array reference on every keystroke in
-  // the question box (any state change re-renders the component), which
-  // made the scroll-to-bottom effect below fire on every keystroke too.
-  const rawInsights = data?.insights;
-  const insights = useMemo(() => (rawInsights ? [...rawInsights].reverse() : rawInsights), [rawInsights]);
-  const quota = data?.quota;
+  const { data: conversationsData, isLoading: conversationsLoading } = useListConversations(activePetId!, {
+    query: {
+      enabled: !!activePetId,
+      queryKey: activePetId ? getListConversationsQueryKey(activePetId) : ['no-pet', 'conversations'],
+    },
+  });
+  const conversations = conversationsData?.conversations;
+  const quota = conversationsData?.quota;
   const quotaExhausted = quota !== undefined && quota.remaining <= 0;
+
+  const { data: threadData, isLoading: threadLoading } = useListConversationInsights(activePetId!, activeConversationId!, {
+    query: {
+      enabled: !!activePetId && !!activeConversationId,
+      queryKey:
+        activePetId && activeConversationId
+          ? getListConversationInsightsQueryKey(activePetId, activeConversationId)
+          : ['no-conversation', 'insights'],
+    },
+  });
+  const insights = threadData?.insights;
 
   const askInsight = useAskInsight({
     mutation: {
-      onSuccess: () => {
-        if (activePetId) {
-          queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey({ petId: activePetId }) });
-        }
+      onSuccess: (data) => {
+        // The response's own petId is the source of truth, not activePetId
+        // at the moment the response lands — a fast pet-switch mid-request
+        // must not bump the wrong pet's sidebar or land an answer in
+        // whatever thread happens to be open for a different pet now.
+        if (!activePetId || data.conversation.petId !== activePetId) return;
+        queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey(activePetId) });
+        queryClient.invalidateQueries({ queryKey: getListConversationInsightsQueryKey(activePetId, data.conversation.id) });
         setQuestion('');
+        if (activeConversationId !== data.conversation.id) {
+          setLocation(`/insights/${data.conversation.id}`);
+        }
         // No success toast — the answer lands directly in the chat thread
         // (now auto-scrolled into view), so announcing it separately was
         // redundant. Still toast on error below, since a failure isn't
@@ -500,8 +598,8 @@ export default function Insights() {
   // step is the recurring failure mode here, and these queries are cheap
   // to over-invalidate versus silently stale.
   const invalidateAfterAction = () => {
-    if (!activePetId) return;
-    queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey({ petId: activePetId }) });
+    if (!activePetId || !activeConversationId) return;
+    queryClient.invalidateQueries({ queryKey: getListConversationInsightsQueryKey(activePetId, activeConversationId) });
     queryClient.invalidateQueries({ queryKey: getListRemindersQueryKey(activePetId) });
     queryClient.invalidateQueries({ queryKey: getListSymptomLogsQueryKey(activePetId) });
     queryClient.invalidateQueries({ queryKey: getGetPetQueryKey(activePetId) });
@@ -526,12 +624,23 @@ export default function Insights() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim() || !activePetId || askInsight.isPending || quotaExhausted) return;
-    askInsight.mutate({ data: { petId: activePetId, question } });
+    askInsight.mutate({ data: { petId: activePetId, question, conversationId: activeConversationId } });
   };
 
   const handleAddToSymptomLog = (insight: Insight) => {
     if (!activePetId) return;
     addToSymptomLog.mutate({ petId: activePetId, data: { description: insight.question, insightId: insight.id } });
+  };
+
+  const handleNewChat = () => {
+    setQuestion('');
+    setSidebarOpen(false);
+    setLocation('/insights');
+  };
+
+  const handleSelectConversation = (id: number) => {
+    setSidebarOpen(false);
+    setLocation(`/insights/${id}`);
   };
 
   // Keeps the latest message in view — without this, a new answer (or the
@@ -547,7 +656,7 @@ export default function Insights() {
   if (!activePetId) return <div className="p-10 text-center text-muted-foreground mt-20">Please select or add a pet first.</div>;
 
   return (
-    <div className="p-6 md:p-10 max-w-4xl mx-auto flex flex-col h-full min-h-[calc(100vh-2rem)]">
+    <div className="p-6 md:p-10 flex flex-col flex-1 min-h-0">
       <div className="shrink-0 mb-6">
         <h1 className="font-serif text-[34px] font-extrabold tracking-tight">Pawlie</h1>
         <p className="mt-1 text-[16.5px] text-muted-foreground">
@@ -599,7 +708,9 @@ export default function Insights() {
       </div>
 
       {tab === 'journal' ? (
-        <JournalTab activePetId={activePetId} petName={activePet?.name ?? 'your pet'} />
+        <div className="flex-1 min-h-0 flex flex-col">
+          <JournalTab activePetId={activePetId} petName={activePet?.name ?? 'your pet'} />
+        </div>
       ) : tab === 'trends' ? (
         <div className="flex-1 min-h-0 overflow-y-auto space-y-5">
           <div className="bg-card border border-border rounded-3xl p-6">
@@ -666,16 +777,50 @@ export default function Insights() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="shrink-0 mb-4 flex gap-2.5 items-start bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3.5">
-            <ShieldAlert size={19} className="shrink-0 mt-0.5 text-amber-700" />
-            <p className="text-sm leading-relaxed text-amber-900">
-              <strong>Pawlie isn't a vet.</strong> This is general information, plus context from {activePet?.name ?? 'your pet'}'s records. If they're in distress, ring an emergency vet now — don't wait for an answer here.
-            </p>
-          </div>
+        <div className="flex-1 flex min-h-0 gap-6">
+          <aside className="hidden md:flex md:flex-col w-64 shrink-0 bg-card border border-border rounded-3xl p-4">
+            <ConversationSidebar
+              conversations={conversations}
+              isLoading={conversationsLoading}
+              activeConversationId={activeConversationId}
+              onSelect={handleSelectConversation}
+              onNewChat={handleNewChat}
+            />
+          </aside>
 
-          <div className="flex-1 overflow-y-auto space-y-8 py-1">
-            {isLoading ? (
+          {sidebarOpen && (
+            <div className="md:hidden fixed inset-0 z-20 flex">
+              <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
+              <div className="relative w-72 max-w-[80vw] h-full bg-card border-r border-border p-4 shadow-xl">
+                <ConversationSidebar
+                  conversations={conversations}
+                  isLoading={conversationsLoading}
+                  activeConversationId={activeConversationId}
+                  onSelect={handleSelectConversation}
+                  onNewChat={handleNewChat}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0 flex flex-col min-h-0">
+            <div className="shrink-0 mb-4 flex gap-2.5 items-start bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3.5">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="md:hidden shrink-0 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-100 transition-colors text-amber-700"
+                aria-label="Open conversations"
+              >
+                <PanelLeft size={17} />
+              </button>
+              <ShieldAlert size={19} className="shrink-0 mt-0.5 text-amber-700" />
+              <p className="text-sm leading-relaxed text-amber-900">
+                <strong>Pawlie isn't a vet.</strong> This is general information, plus context from {activePet?.name ?? 'your pet'}'s records. If they're in distress, ring an emergency vet now — don't wait for an answer here.
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-8 py-1">
+            {threadLoading ? (
               <div className="space-y-8">
                 {[1, 2].map(i => (
                   <div key={i} className="animate-pulse">
@@ -812,6 +957,7 @@ export default function Insights() {
                 </button>
               </form>
             )}
+            </div>
           </div>
         </div>
       )}

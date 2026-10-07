@@ -6,9 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ChatQuota } from './chatQuota';
+import type { Conversation } from './conversation';
 import type { Insight } from './insight';
 
 export interface InsightResponse {
   insight: Insight;
   quota: ChatQuota;
+  /** The conversation this turn was written to — a newly created one if conversationId was omitted from the request, or the existing one otherwise. Lets the client update its sidebar (insert or bump-to-top) without a second round-trip. */
+  conversation: Conversation;
 }

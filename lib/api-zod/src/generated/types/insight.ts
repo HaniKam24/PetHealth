@@ -14,6 +14,8 @@ import type { InsightTone } from './insightTone';
 export interface Insight {
   id: number;
   petId: number;
+  /** Which conversation thread this turn belongs to — see Conversation. Every insight belongs to exactly one. */
+  conversationId: number;
   title: string;
   content: string;
   /** The owner's original question. */
