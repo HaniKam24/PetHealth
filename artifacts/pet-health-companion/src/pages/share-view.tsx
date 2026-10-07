@@ -1,8 +1,19 @@
 import { useRoute } from 'wouter';
 import { useGetSitterReport, getGetSitterReportQueryKey } from '@workspace/api-client-react';
-import { HeartPulse, Phone, Printer, AlertTriangle } from 'lucide-react';
+import { HeartPulse, Phone, Printer, AlertTriangle, ShieldAlert, Mars, Venus } from 'lucide-react';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import type { ReactNode } from 'react';
+
+function Card({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
+  return (
+    <section className={cn('bg-card border border-border rounded-3xl p-6', className)}>
+      <h2 className="font-serif text-lg font-extrabold mb-2">{title}</h2>
+      {children}
+    </section>
+  );
+}
 
 // The one page in this app rendered for a signed-out visitor (see
 // SHARE_PATH_PREFIX handling in App.tsx) — deliberately standalone, no
@@ -43,7 +54,7 @@ export default function ShareView() {
   const hasVetInfo = report.vetName || report.vetClinic || report.vetPhone;
   const hasEmergencyVet = report.emergencyVetName || report.emergencyVetPhone || report.emergencyVetHours;
   const hasCriticalInfo = report.criticalInfoSummary || report.criticalInfoDetails;
-  const sexLabel = report.sex !== 'unknown' ? report.sex.charAt(0).toUpperCase() + report.sex.slice(1) : null;
+  const SexIcon = report.sex === 'male' ? Mars : report.sex === 'female' ? Venus : null;
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -64,172 +75,186 @@ export default function ShareView() {
           </button>
         </div>
 
-        {/* Dark hero — same look as the owner's own passport card, minus the
-            emergency vet (that lives in its own card below, not the header,
-            so the header stays compact). */}
-        <div className="relative rounded-3xl overflow-hidden bg-foreground text-background p-7">
-          <div
-            className="pointer-events-none absolute inset-0 opacity-[0.05]"
-            style={{
-              backgroundImage:
-                'repeating-linear-gradient(115deg, currentColor 0, currentColor 2px, transparent 2px, transparent 9px)',
-            }}
-          />
-          <div className="relative flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-background/10 overflow-hidden flex items-center justify-center shrink-0">
-              {avatarSrc ? (
-                <img src={avatarSrc} alt={report.petName} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-2xl font-serif font-extrabold">{report.petName.charAt(0)}</span>
-              )}
-            </div>
-            <div className="min-w-0">
-              <h1 className="font-serif text-[28px] font-extrabold tracking-tight truncate">{report.petName}</h1>
-              <div className="text-sm text-background/70">
-                {[
-                  report.species.charAt(0).toUpperCase() + report.species.slice(1),
-                  sexLabel,
-                  report.weight != null ? `${report.weight} ${report.weightUnit}` : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ') || 'Care info'}
+        {/* Same two-column layout as the owner's own profile page — a pet
+            card on the left (sticky, same "passport" look as there), the
+            rest of the report stacked in a single column on the right. */}
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-6 items-start">
+          <div className="flex flex-col gap-4 lg:sticky lg:top-6">
+            <div className="relative rounded-3xl overflow-hidden bg-foreground text-background shadow-xl shadow-foreground/20">
+              <div
+                className="pointer-events-none absolute inset-0 opacity-[0.05]"
+                style={{
+                  backgroundImage:
+                    'repeating-linear-gradient(115deg, currentColor 0, currentColor 2px, transparent 2px, transparent 9px)',
+                }}
+              />
+
+              <div className="relative pt-4 flex justify-center">
+                <div className="w-[86px] h-3 rounded-full bg-background/20" />
               </div>
-            </div>
-          </div>
 
-          {report.microchipId && (
-            <div className="relative mt-5 pt-4 border-t border-background/15">
-              <div className="text-[10.5px] font-extrabold tracking-[0.12em] text-background/55">MICROCHIP</div>
-              <div className="mt-0.5 font-mono text-sm font-semibold tracking-wider">{report.microchipId}</div>
-            </div>
-          )}
-
-          {hasVetInfo && (
-            <div className="relative mt-5 pt-4 border-t border-background/15">
-              <div className="text-[10.5px] font-extrabold tracking-[0.12em] text-background/55">PRIMARY VET</div>
-              {(report.vetName || report.vetClinic) && (
-                <div className="mt-0.5 text-sm font-bold">
-                  {[report.vetName, report.vetClinic].filter(Boolean).join(' · ')}
-                </div>
-              )}
-              {report.vetPhone && (
-                <a
-                  href={`tel:${report.vetPhone}`}
-                  className="mt-2.5 inline-flex h-10 items-center gap-1.5 rounded-full bg-background text-foreground px-4 text-sm font-extrabold hover:opacity-90 transition-opacity"
-                >
-                  <Phone size={14} /> {report.vetPhone}
-                </a>
-              )}
-              {report.vetAddress && <div className="mt-2 text-xs text-background/60">{report.vetAddress}</div>}
-            </div>
-          )}
-
-          <div className="relative mt-5 pt-3 border-t border-background/15 text-xs text-background/55">
-            Valid through {format(new Date(report.expiresAt), 'MMMM d, yyyy')}
-          </div>
-        </div>
-
-        <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-          {hasCriticalInfo && (
-            <section className="lg:col-span-2 bg-destructive/5 border border-destructive/25 rounded-3xl p-6">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-destructive/15 text-destructive flex items-center justify-center shrink-0">
-                  <AlertTriangle size={17} />
-                </div>
-                <div>
-                  {report.criticalInfoSummary && (
-                    <div className="font-bold text-[15px] text-destructive">{report.criticalInfoSummary}</div>
-                  )}
-                  {report.criticalInfoDetails && (
-                    <p className="mt-1.5 text-sm text-destructive/90 whitespace-pre-wrap leading-relaxed">
-                      {report.criticalInfoDetails}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
-          )}
-
-          {hasEmergencyVet && (
-            <section className="bg-card border border-border rounded-3xl p-6">
-              <h2 className="font-serif text-lg font-extrabold mb-1">After-hours &amp; emergencies</h2>
-              {report.emergencyVetName && <p className="text-sm font-bold">{report.emergencyVetName}</p>}
-              {report.emergencyVetHours && <p className="text-xs text-muted-foreground">{report.emergencyVetHours}</p>}
-              {report.emergencyVetPhone && (
-                <a
-                  href={`tel:${report.emergencyVetPhone}`}
-                  className="mt-3 inline-flex h-10 items-center gap-1.5 rounded-full bg-destructive text-destructive-foreground px-4 text-sm font-bold hover:opacity-90 transition-opacity"
-                >
-                  <Phone size={14} /> {report.emergencyVetPhone}
-                </a>
-              )}
-            </section>
-          )}
-
-          <section className="bg-card border border-border rounded-3xl p-6">
-            <h2 className="font-serif text-lg font-extrabold mb-3">Active medications</h2>
-            {report.medications.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No active medications.</p>
-            ) : (
-              <div className="space-y-3">
-                {report.medications.map((med, i) => (
-                  <div key={i} className="text-sm">
-                    <p className="font-semibold">{med.name} — {med.dose}, {med.frequency}</p>
-                    {med.instructions && <p className="text-muted-foreground">{med.instructions}</p>}
+              <div className="relative px-6 pt-4 pb-6 flex flex-col items-center text-center">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-5 h-5 rounded-md bg-primary flex items-center justify-center text-primary-foreground shrink-0">
+                    <HeartPulse size={12} strokeWidth={2.5} />
                   </div>
-                ))}
+                  <span className="text-[10.5px] font-extrabold tracking-[0.16em] text-background/70">PET CARD</span>
+                </div>
+
+                <div className="w-[150px] h-[150px] rounded-full overflow-hidden flex items-center justify-center">
+                  {avatarSrc ? (
+                    <img src={avatarSrc} alt={report.petName} className="w-full h-full object-cover" />
+                  ) : (
+                    <HeartPulse size={44} className="text-background/60" />
+                  )}
+                </div>
+
+                <div className="mt-3.5 flex items-center justify-center gap-2">
+                  <div className="font-serif text-4xl font-extrabold tracking-tight break-words">{report.petName}</div>
+                  {SexIcon && <SexIcon size={22} className="shrink-0 text-background/70" />}
+                </div>
+                <div className="mt-1 text-sm text-background/75 break-words">
+                  {report.breed || report.color ? [report.breed, report.color].filter(Boolean).join(' · ') : 'No details yet'}
+                </div>
+
+                {report.allergies && (
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-bold bg-amber-500/25 text-amber-400">
+                      <ShieldAlert size={13} /> {report.allergies}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {report.microchipId && (
+                <div className="relative px-6 py-4 border-t border-dashed border-background/20 text-center">
+                  <div className="text-[10px] font-extrabold tracking-[0.14em] text-background/50">MICROCHIP</div>
+                  <div className="mt-1 font-mono text-sm font-semibold tracking-wider">{report.microchipId}</div>
+                </div>
+              )}
+
+              {hasVetInfo && (
+                <div className="relative px-5 py-4 bg-primary/20 border-t border-background/10 text-center">
+                  <div className="text-[10px] font-extrabold tracking-[0.12em] text-background/55">PRIMARY VET</div>
+                  {(report.vetName || report.vetClinic) && (
+                    <div className="mt-0.5">
+                      {report.vetName && <div className="text-sm font-bold">{report.vetName}</div>}
+                      {report.vetClinic && <div className="text-xs text-background/75 mt-0.5">{report.vetClinic}</div>}
+                    </div>
+                  )}
+                  {report.vetPhone && (
+                    <a
+                      href={`tel:${report.vetPhone}`}
+                      className="mt-2.5 inline-flex h-9 items-center gap-1.5 rounded-full bg-background text-foreground px-3.5 text-[13.5px] font-extrabold hover:opacity-90 transition-opacity"
+                    >
+                      <Phone size={14} /> {report.vetPhone}
+                    </a>
+                  )}
+                  {report.vetAddress && <div className="mt-2 text-xs text-background/60">{report.vetAddress}</div>}
+                </div>
+              )}
+
+              <div className="relative px-6 py-3 border-t border-background/15 text-center text-[11px] text-background/55">
+                Valid through {format(new Date(report.expiresAt), 'MMMM d, yyyy')}
+              </div>
+            </div>
+
+            {hasEmergencyVet && (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-3xl p-6">
+                <h2 className="font-serif text-lg font-extrabold text-destructive mb-1">After-hours &amp; emergencies</h2>
+                {report.emergencyVetName && <p className="text-sm font-bold text-destructive">{report.emergencyVetName}</p>}
+                {report.emergencyVetHours && <p className="text-xs text-destructive/80">{report.emergencyVetHours}</p>}
+                {report.emergencyVetPhone && (
+                  <a
+                    href={`tel:${report.emergencyVetPhone}`}
+                    className="mt-3 inline-flex h-10 items-center gap-1.5 rounded-full bg-destructive text-destructive-foreground px-4 text-sm font-bold hover:opacity-90 transition-opacity"
+                  >
+                    <Phone size={14} /> {report.emergencyVetPhone}
+                  </a>
+                )}
               </div>
             )}
-          </section>
+          </div>
 
-          {report.feedingInstructions && (
-            <section className="bg-card border border-border rounded-3xl p-6">
-              <h2 className="font-serif text-lg font-extrabold mb-2">Feeding</h2>
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.feedingInstructions}</p>
-            </section>
-          )}
+          <div className="flex flex-col gap-5 min-w-0">
+            {report.caretakingPreference && (
+              <div className="flex gap-3 items-start p-5 bg-primary/10 rounded-3xl">
+                <HeartPulse size={16} className="text-primary shrink-0 mt-0.5" />
+                <p className="text-sm">{report.caretakingPreference}</p>
+              </div>
+            )}
 
-          {report.whereThingsAre && (
-            <section className="bg-card border border-border rounded-3xl p-6">
-              <h2 className="font-serif text-lg font-extrabold mb-2">Where things are</h2>
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.whereThingsAre}</p>
-            </section>
-          )}
+            {hasCriticalInfo && (
+              <section className="bg-destructive/5 border border-destructive/25 rounded-3xl p-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-destructive/15 text-destructive flex items-center justify-center shrink-0">
+                    <AlertTriangle size={17} />
+                  </div>
+                  <div>
+                    {report.criticalInfoSummary && (
+                      <div className="font-bold text-[15px] text-destructive">{report.criticalInfoSummary}</div>
+                    )}
+                    {report.criticalInfoDetails && (
+                      <p className="mt-1.5 text-sm text-destructive/90 whitespace-pre-wrap leading-relaxed">
+                        {report.criticalInfoDetails}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
 
-          {report.walksAndTriggers && (
-            <section className="bg-card border border-border rounded-3xl p-6">
-              <h2 className="font-serif text-lg font-extrabold mb-2">Walks &amp; triggers</h2>
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.walksAndTriggers}</p>
-            </section>
-          )}
+            <Card title="Active medications">
+              {report.medications.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No active medications.</p>
+              ) : (
+                <div className="space-y-3">
+                  {report.medications.map((med, i) => (
+                    <div key={i} className="text-sm">
+                      <p className="font-semibold">{med.name} — {med.dose}, {med.frequency}</p>
+                      {med.instructions && <p className="text-muted-foreground">{med.instructions}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
 
-          {report.handlingNotes && (
-            <section className="bg-card border border-border rounded-3xl p-6">
-              <h2 className="font-serif text-lg font-extrabold mb-2">Handling</h2>
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.handlingNotes}</p>
-            </section>
-          )}
+            {report.whatNormalLooksLike && (
+              <Card title="What normal looks like">
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.whatNormalLooksLike}</p>
+              </Card>
+            )}
 
-          {report.whatNormalLooksLike && (
-            <section className="bg-card border border-border rounded-3xl p-6">
-              <h2 className="font-serif text-lg font-extrabold mb-2">What normal looks like</h2>
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.whatNormalLooksLike}</p>
-            </section>
-          )}
+            {report.feedingInstructions && (
+              <Card title="Feeding">
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.feedingInstructions}</p>
+              </Card>
+            )}
 
-          {report.caretakingPreference && (
-            <div className="flex gap-3 items-start p-4 bg-primary/10 rounded-2xl">
-              <HeartPulse size={16} className="text-primary shrink-0 mt-0.5" />
-              <p className="text-sm">{report.caretakingPreference}</p>
-            </div>
-          )}
+            {report.handlingNotes && (
+              <Card title="Handling">
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.handlingNotes}</p>
+              </Card>
+            )}
 
-          {report.notes && (
-            <section className="lg:col-span-2 bg-card border border-border rounded-3xl p-6">
-              <h2 className="font-serif text-lg font-extrabold mb-3">Notes</h2>
-              <p className="text-sm whitespace-pre-wrap">{report.notes}</p>
-            </section>
-          )}
+            {report.walksAndTriggers && (
+              <Card title="Walks & triggers">
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.walksAndTriggers}</p>
+              </Card>
+            )}
+
+            {report.whereThingsAre && (
+              <Card title="Where things are">
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.whereThingsAre}</p>
+              </Card>
+            )}
+
+            {report.notes && (
+              <Card title="Notes">
+                <p className="text-sm whitespace-pre-wrap">{report.notes}</p>
+              </Card>
+            )}
+          </div>
         </div>
       </div>
     </div>
