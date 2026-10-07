@@ -338,13 +338,15 @@ export function PetPassportCard({
         {/* Not a card of its own — this edits content that has no read-only
             display anywhere on this page (critical info, emergency vet,
             handling notes, etc.), so there's nothing to show here besides
-            the entry point itself. */}
+            the entry point itself. Styled like "Change badge photo" above
+            rather than another card, for the same reason: it's a plain
+            action link, not something with content of its own to frame. */}
         <button
           type="button"
           onClick={onEditSitterInfo}
-          className="flex items-center justify-center gap-2 bg-card border border-dashed border-border rounded-3xl p-5 text-[14.5px] font-bold text-primary hover:border-primary hover:bg-accent/40 transition-colors"
+          className="self-center text-[13px] font-bold text-primary flex items-center gap-1.5 hover:underline"
         >
-          <ClipboardList size={16} /> Edit additional info for Sitter Report
+          <ClipboardList size={15} /> Edit additional info for Sitter Report
         </button>
       </div>
     </div>
