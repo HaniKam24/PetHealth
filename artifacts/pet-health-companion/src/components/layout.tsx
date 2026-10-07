@@ -35,7 +35,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const otherPet = pets?.find((pet) => pet.id !== activePetId) ?? null;
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-background">
+    <div className="h-[100dvh] flex flex-col bg-background">
       <header className="print:hidden h-[72px] shrink-0 px-6 md:px-10 flex items-center justify-between bg-card border-b border-border">
         <div className="flex items-center gap-4 md:gap-7 min-w-0">
           <Link href="/" className="flex items-center gap-2.5 shrink-0 hover:opacity-80 transition-opacity">
