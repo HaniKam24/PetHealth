@@ -18,6 +18,12 @@ export interface SitterReport {
   species: SitterReportSpecies;
   sex: SitterReportSex;
   /** @nullable */
+  breed: string | null;
+  /** @nullable */
+  color: string | null;
+  /** @nullable */
+  allergies: string | null;
+  /** @nullable */
   weight: number | null;
   weightUnit: SitterReportWeightUnit;
   /** @nullable */
