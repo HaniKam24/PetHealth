@@ -114,7 +114,9 @@ export default function ShareView() {
                   {SexIcon && <SexIcon size={22} className="shrink-0 text-background/70" />}
                 </div>
                 <div className="mt-1 text-sm text-background/75 break-words">
-                  {report.breed || report.color ? [report.breed, report.color].filter(Boolean).join(' · ') : 'No details yet'}
+                  {[report.breed, report.color, report.weight != null ? `${report.weight} ${report.weightUnit}` : null]
+                    .filter(Boolean)
+                    .join(' · ') || 'No details yet'}
                 </div>
 
                 {report.allergies && (
@@ -161,7 +163,7 @@ export default function ShareView() {
 
             {hasEmergencyVet && (
               <div className="bg-destructive/10 border border-destructive/30 rounded-3xl p-6">
-                <h2 className="font-serif text-lg font-extrabold text-destructive mb-1">After-hours &amp; emergencies</h2>
+                <h2 className="font-serif text-lg font-extrabold text-destructive mb-1">Emergency vet</h2>
                 {report.emergencyVetName && <p className="text-sm font-bold text-destructive">{report.emergencyVetName}</p>}
                 {report.emergencyVetHours && <p className="text-xs text-destructive/80">{report.emergencyVetHours}</p>}
                 {report.emergencyVetPhone && (
@@ -178,10 +180,10 @@ export default function ShareView() {
 
           <div className="flex flex-col gap-5 min-w-0">
             {report.caretakingPreference && (
-              <div className="flex gap-3 items-start p-5 bg-primary/10 rounded-3xl">
-                <HeartPulse size={16} className="text-primary shrink-0 mt-0.5" />
-                <p className="text-sm">{report.caretakingPreference}</p>
-              </div>
+              <h1 className="font-serif text-xl md:text-2xl font-extrabold tracking-tight">
+                <span className="text-emerald-600">Report generated for </span>
+                <span className="text-foreground">{report.caretakingPreference}</span>
+              </h1>
             )}
 
             {hasCriticalInfo && (
