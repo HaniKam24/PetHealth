@@ -131,11 +131,12 @@ not a bug, but it belongs in any real privacy policy's sub-processor list.
   GDPR-ready DPAs; for most, accepting one is a checkbox in their own dashboard,
   not a document either of us would draft. Still needs to actually be done per
   vendor — see gap in §5.
-- **International data transfers** — if any sub-processor handles EU data outside
-  the EU (likely, all four are US-based), GDPR requires a valid transfer
-  mechanism (the EU-US Data Privacy Framework, or Standard Contractual Clauses).
-  Most major vendors already offer one by default as part of their DPA — worth
-  confirming per vendor rather than assuming.
+- **International data transfers** — all four sub-processors are US-based, so
+  GDPR requires a valid transfer mechanism for each. Confirmed directly against
+  each vendor's own DPA (see `docs/vendor-data-transfer-mechanisms.md`, gap #11):
+  all four already have one. Render and Sentry hold actual EU-US Data Privacy
+  Framework certification; Supabase and Anthropic rely on Standard Contractual
+  Clauses instead — an equally valid mechanism, just a different one.
 - **EU representative (GDPR Article 27)** — a company with no EU presence that
   offers services to EU residents technically needs to appoint an EU
   representative, unless processing is occasional/low-risk. Easy to overlook for
@@ -197,12 +198,17 @@ Roughly in order of how foundational they are:
    most of the other gaps in this list.
 10. **No Data Processing Agreements signed with any sub-processor** (Supabase,
     Anthropic, Render, Sentry) — required under GDPR once EU users are in the
-    picture. Likely a quick per-vendor checkbox, not a drafting exercise, but
-    hasn't actually been done for any of the four yet.
-11. **International data transfer mechanisms not confirmed per vendor.** All four
-    sub-processors likely already offer a valid mechanism by default (EU-US Data
-    Privacy Framework or Standard Contractual Clauses) — this gap is "hasn't been
-    checked," not "known to be missing."
+    picture. Per `docs/vendor-data-transfer-mechanisms.md`, three of the four
+    describe their DPA as already automatically in effect via the standard
+    terms of service — this is likely "confirm and keep a record," not "sign
+    something new." Still needs Samih/Hani to actually go check each vendor's
+    dashboard — not something to delegate.
+11. ~~International data transfer mechanisms not confirmed per vendor.~~
+    **Researched**, see `docs/vendor-data-transfer-mechanisms.md` — checked
+    directly against each vendor's own published DPA, not assumed. All four
+    already have a valid mechanism: Render and Sentry hold actual EU-US Data
+    Privacy Framework certification, Supabase and Anthropic rely on Standard
+    Contractual Clauses (an equally valid, just different, mechanism).
 
 ## 6. Suggested next steps, if this gets pursued further
 
