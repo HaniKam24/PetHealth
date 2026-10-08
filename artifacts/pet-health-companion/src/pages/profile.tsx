@@ -725,6 +725,19 @@ export default function Profile() {
               <form onSubmit={sitterInfoForm.handleSubmit(onSubmitSitterInfo)} className="space-y-5 mt-2">
                 <FormField
                   control={sitterInfoForm.control}
+                  name="caretakingPreference"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Caretaking preference</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. A photo and a quick note each evening" {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={sitterInfoForm.control}
                   name="criticalInfoSummary"
                   render={({ field }) => (
                     <FormItem>
@@ -783,19 +796,6 @@ export default function Profile() {
                       <FormLabel>What normal looks like</FormLabel>
                       <FormControl>
                         <Textarea placeholder="Baseline behavior, and when to call the owner" className="resize-none min-h-[70px]" {...field} value={field.value || ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={sitterInfoForm.control}
-                  name="caretakingPreference"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Caretaking preference</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. A photo and a quick note each evening" {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -1197,6 +1197,9 @@ components:
         petName: { type: string }
         species: { type: string, enum: [dog, cat, bird, rabbit, other] }
         sex: { type: string, enum: [female, male, unknown] }
+        breed: { type: ["string", "null"] }
+        color: { type: ["string", "null"] }
+        allergies: { type: ["string", "null"] }
         weight: { type: ["number", "null"] }
         weightUnit: { type: string, enum: [lb, kg] }
         microchipId: { type: ["string", "null"] }
@@ -1222,7 +1225,7 @@ components:
         emergencyVetPhone: { type: ["string", "null"] }
         emergencyVetHours: { type: ["string", "null"] }
         expiresAt: { type: string, format: date-time }
-      required: [petName, species, sex, weight, weightUnit, microchipId, photoUrl, vetName, vetClinic, vetPhone, vetAddress, medications, notes, criticalInfoSummary, criticalInfoDetails, feedingInstructions, whereThingsAre, walksAndTriggers, handlingNotes, whatNormalLooksLike, caretakingPreference, emergencyVetName, emergencyVetPhone, emergencyVetHours, expiresAt]
+      required: [petName, species, sex, breed, color, allergies, weight, weightUnit, microchipId, photoUrl, vetName, vetClinic, vetPhone, vetAddress, medications, notes, criticalInfoSummary, criticalInfoDetails, feedingInstructions, whereThingsAre, walksAndTriggers, handlingNotes, whatNormalLooksLike, caretakingPreference, emergencyVetName, emergencyVetPhone, emergencyVetHours, expiresAt]
     HealthRecord:
       type: object
       properties:
