@@ -163,15 +163,16 @@ Roughly in order of how foundational they are:
    erasure and CCPA's right to delete.
 3. **No data export.** No way for an owner to download everything stored about
    their account/pets — relevant to GDPR's right to data portability.
-4. **Sentry's IP-derived geolocation** — flagged in an earlier conversation, not
-   yet resolved. Need to confirm whether this reflects real visitor IPs once
-   requests flow through the live Express app (vs. the standalone test script
-   that surfaced it) and decide whether to configure Sentry's PII handling
-   explicitly rather than leave it on default behavior.
-5. **Google Fonts loaded live from Google's CDN** — sends every visitor's IP to
-   Google on every page load. A 2022 German court ruling specifically flagged this
-   pattern as a GDPR issue independent of cookies. Fix, if pursued: self-host the
-   font files instead of loading from `fonts.googleapis.com`.
+4. ~~Sentry's IP-derived geolocation.~~ **Fixed** (PR #79) — confirmed, by reading
+   the SDK's own source, that this is real default behavior on every live request
+   (`dataCollection.userInfo` defaults to `true`), not just a test-script
+   artifact. `Sentry.init()` now explicitly opts out.
+5. ~~Google Fonts loaded live from Google's CDN.~~ **Fixed** (PR #83) — sent every
+   visitor's IP to Google on every page load; a 2022 German court ruling
+   specifically flagged this pattern as a GDPR issue independent of cookies.
+   Fonts are now self-hosted via `@fontsource-variable`, verified zero requests
+   to `fonts.googleapis.com`/`fonts.gstatic.com` in both dev and a production
+   build.
 6. **No documented data retention policy.** Pawlie conversations, symptom logs,
    etc. are currently kept indefinitely with no defined retention/deletion
    schedule — not necessarily wrong, but undocumented.
@@ -182,10 +183,15 @@ Roughly in order of how foundational they are:
    none is currently needed.** The only cookie in use is the strictly-necessary
    session cookie, exempt under GDPR/ePrivacy and CCPA-style frameworks. Documented
    here so the reasoning isn't lost, not because it's unresolved.
-9. **No breach notification plan.** Every US state legally requires notifying
-   affected users within a set window if personal data is breached — this one
-   applies regardless of company size, unlike the threshold-gated state privacy
-   laws. Right now there's no documented "what do we actually do" process.
+9. ~~No breach notification plan.~~ **Draft exists**, see
+   `docs/breach-notification-plan.md` — a working "what do we actually do"
+   process (detection, containment, who/what/when to notify). Still needs real
+   legal review before being treated as final, especially the notification
+   timing, which genuinely varies by state. Every US state legally requires
+   notifying affected users within a set window if personal data is breached —
+   this one applies regardless of company size, unlike the threshold-gated
+   state privacy laws, so having a draft in place is worth more here than for
+   most of the other gaps in this list.
 10. **No Data Processing Agreements signed with any sub-processor** (Supabase,
     Anthropic, Render, Sentry) — required under GDPR once EU users are in the
     picture. Likely a quick per-vendor checkbox, not a drafting exercise, but
@@ -204,12 +210,13 @@ None of this is committed to yet — these are options to discuss, not a plan:
 - Decide whether full-account deletion and data export are worth building before
   or after the first real external users, given the PRD's own billing/plan work
   is similarly still "if pursued at all."
-- Decide whether to self-host fonts (small, contained fix) independent of the
-  broader privacy-policy question.
+- ~~Decide whether to self-host fonts~~ — done, see gap #5.
 - Check each sub-processor's dashboard for a DPA to accept (Supabase, Anthropic,
-  Render, Sentry) — likely low-effort, hasn't been done yet.
-- Write down an actual breach-notification process, even a short one — this is
-  the one item here that's a legal requirement regardless of how small the app
-  still is.
+  Render, Sentry) — likely low-effort, hasn't been done yet. This one needs
+  Samih/Hani directly — accepting a vendor's legal agreement isn't something to
+  delegate.
+- ~~Write down an actual breach-notification process~~ — draft done, see
+  `docs/breach-notification-plan.md`. Still needs real legal review before being
+  treated as final.
 - Revisit this file whenever a new third-party service gets added (another
   sub-processor) or a new jurisdiction's users become relevant.
