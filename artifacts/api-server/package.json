@@ -12,6 +12,7 @@
   "dependencies": {
     "@napi-rs/canvas": "^1.0.8",
     "@opentelemetry/semantic-conventions": "^1.43.0",
+    "@sentry/node": "^11.4.0",
     "@supabase/supabase-js": "^2.115.0",
     "@workspace/api-zod": "workspace:*",
     "@workspace/auth": "workspace:*",

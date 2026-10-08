@@ -50,6 +50,11 @@ services:
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Optional — the app runs fine without it, errors just won't be
+      # reported anywhere. sentry.io -> Settings -> Projects -> api-server
+      # -> Client Keys (DSN).
+      - key: SENTRY_DSN
+        sync: false
       # Filled in with the frontend's Render URL once it's known, so the
       # API accepts direct cross-origin requests from it too (the static
       # site's rewrite rule below is the primary path, this is a fallback).
