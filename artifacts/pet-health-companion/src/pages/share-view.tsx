@@ -8,10 +8,10 @@ import type { ReactNode } from 'react';
 
 function Card({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
   return (
-    <section className={cn('bg-card border border-border rounded-3xl p-6', className)}>
-      <h2 className="font-serif text-lg font-extrabold mb-2">{title}</h2>
-      {children}
-    </section>
+    <div>
+      <h2 className="font-serif text-lg font-extrabold mb-2 px-1">{title}</h2>
+      <section className={cn('bg-card border border-border rounded-3xl p-6', className)}>{children}</section>
+    </div>
   );
 }
 
@@ -162,19 +162,19 @@ export default function ShareView() {
             </div>
 
             {hasEmergencyVet && (
-              <div>
-                <h2 className="font-serif text-lg font-extrabold text-destructive mb-2 px-1">Emergency vet</h2>
-                <div className="bg-destructive/10 border border-destructive/30 rounded-3xl p-6">
-                {report.emergencyVetName && <p className="text-sm font-bold text-destructive">{report.emergencyVetName}</p>}
-                {report.emergencyVetHours && <p className="text-xs text-destructive/80">{report.emergencyVetHours}</p>}
-                {report.emergencyVetPhone && (
-                  <a
-                    href={`tel:${report.emergencyVetPhone}`}
-                    className="mt-3 inline-flex h-10 items-center gap-1.5 rounded-full bg-destructive text-destructive-foreground px-4 text-sm font-bold hover:opacity-90 transition-opacity"
-                  >
-                    <Phone size={14} /> {report.emergencyVetPhone}
-                  </a>
-                )}
+              <div className="text-center">
+                <h2 className="font-serif text-lg font-extrabold text-destructive mb-2">Emergency Vet</h2>
+                <div className="flex flex-col items-center bg-destructive/10 border border-destructive/30 rounded-3xl p-6">
+                  {report.emergencyVetName && <p className="text-sm font-bold text-destructive">{report.emergencyVetName}</p>}
+                  {report.emergencyVetHours && <p className="text-xs text-destructive/80">{report.emergencyVetHours}</p>}
+                  {report.emergencyVetPhone && (
+                    <a
+                      href={`tel:${report.emergencyVetPhone}`}
+                      className="mt-3 inline-flex h-10 items-center gap-1.5 rounded-full bg-destructive text-destructive-foreground px-4 text-sm font-bold hover:opacity-90 transition-opacity"
+                    >
+                      <Phone size={14} /> {report.emergencyVetPhone}
+                    </a>
+                  )}
                 </div>
               </div>
             )}
@@ -183,7 +183,7 @@ export default function ShareView() {
           <div className="flex flex-col gap-5 min-w-0">
             {report.caretakingPreference && (
               <h1 className="font-serif text-xl md:text-2xl font-extrabold tracking-tight">
-                <span className="text-emerald-600">Report generated for </span>
+                <span className="text-primary">Report generated for </span>
                 <span className="text-foreground">{report.caretakingPreference}</span>
               </h1>
             )}
@@ -208,7 +208,7 @@ export default function ShareView() {
               </section>
             )}
 
-            <Card title="Active medications">
+            <Card title="Active Medications">
               {report.medications.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No active medications.</p>
               ) : (
@@ -224,7 +224,7 @@ export default function ShareView() {
             </Card>
 
             {report.whatNormalLooksLike && (
-              <Card title="What normal looks like">
+              <Card title="What Normal Looks Like">
                 <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.whatNormalLooksLike}</p>
               </Card>
             )}
@@ -242,13 +242,13 @@ export default function ShareView() {
             )}
 
             {report.walksAndTriggers && (
-              <Card title="Walks & triggers">
+              <Card title="Walks & Triggers">
                 <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.walksAndTriggers}</p>
               </Card>
             )}
 
             {report.whereThingsAre && (
-              <Card title="Where things are">
+              <Card title="Where Things Are">
                 <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.whereThingsAre}</p>
               </Card>
             )}
