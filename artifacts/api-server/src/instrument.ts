@@ -17,5 +17,15 @@ if (dsn) {
     // sets NODE_ENV=production explicitly (see render.yaml); anywhere else
     // this reports as "development".
     environment: process.env["NODE_ENV"] === "production" ? "production" : "development",
+    // Sentry defaults to attaching each request's client IP (`userInfo`
+    // defaults to true — see @sentry/core's DataCollection type), which
+    // its backend then resolves into an approximate geographic location.
+    // Explicitly opting out — confirmed via the SDK's own source
+    // (server-subscription.js: `collectClientAddress` reads this flag
+    // directly) that this isn't a test-script artifact but the real
+    // default for every live request. See compliance.md gap #4.
+    dataCollection: {
+      userInfo: false,
+    },
   });
 }
