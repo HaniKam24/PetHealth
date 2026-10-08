@@ -173,9 +173,12 @@ Roughly in order of how foundational they are:
    Fonts are now self-hosted via `@fontsource-variable`, verified zero requests
    to `fonts.googleapis.com`/`fonts.gstatic.com` in both dev and a production
    build.
-6. **No documented data retention policy.** Pawlie conversations, symptom logs,
-   etc. are currently kept indefinitely with no defined retention/deletion
-   schedule — not necessarily wrong, but undocumented.
+6. ~~No documented data retention policy.~~ **Draft exists**, see
+   `docs/data-retention-policy.md`. Core pet/health data being kept indefinitely
+   turns out to be deliberate (it's the whole point of the product), not an
+   oversight — but writing that doc also surfaced a real, separate bug: deleting
+   a pet cleans up its health-record documents from storage but not its photo,
+   which gets orphaned. See that doc's §2 for the fix.
 7. **No formal sub-processor disclosure to users** — §2's table exists here, but
    nothing user-facing tells an owner their pet's health questions are sent to
    Anthropic, or that files live on Supabase's infrastructure.
