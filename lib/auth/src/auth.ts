@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { dash } from "@better-auth/infra";
 import { db, users, sessions, accounts, verifications } from "@workspace/db";
 
 function requireEnv(name: string): string {
@@ -35,4 +36,9 @@ export const auth = betterAuth({
       generateId: "serial",
     },
   },
+  plugins: [
+    dash({
+      apiKey: requireEnv("BETTER_AUTH_API_KEY"),
+    }),
+  ],
 });

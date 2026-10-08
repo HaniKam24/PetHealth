@@ -44,6 +44,11 @@ services:
       # this same service's Render URL, not localhost.
       - key: BETTER_AUTH_URL
         value: https://pethealth-api-68wo.onrender.com
+      # @better-auth/infra dash() plugin key (Better Auth dashboard -> Install
+      # Plugin step). Use a separate key from the one in local .env if the
+      # dashboard supports per-environment keys — don't reuse the dev one.
+      - key: BETTER_AUTH_API_KEY
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
