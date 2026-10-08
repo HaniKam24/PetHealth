@@ -8,5 +8,14 @@ import * as Sentry from "@sentry/node";
 const dsn = process.env["SENTRY_DSN"];
 
 if (dsn) {
-  Sentry.init({ dsn });
+  Sentry.init({
+    dsn,
+    // Sentry's own default is "production" whenever NODE_ENV isn't exactly
+    // "production" — meaning every error from a local dev machine would
+    // otherwise land in Sentry tagged (and alerted on) as real production
+    // traffic, indistinguishable from an actual user hitting it. Render
+    // sets NODE_ENV=production explicitly (see render.yaml); anywhere else
+    // this reports as "development".
+    environment: process.env["NODE_ENV"] === "production" ? "production" : "development",
+  });
 }
