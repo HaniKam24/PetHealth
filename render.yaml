@@ -35,6 +35,12 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 24.18.0
+      # Render's Node runtime sets this by default, but it's made explicit
+      # here rather than relied on implicitly — better-auth's built-in
+      # rate limiting on auth endpoints (e.g. 3 sign-in attempts/10s) is
+      # gated on NODE_ENV === "production".
+      - key: NODE_ENV
+        value: production
       # PORT is provided automatically by Render — the app already reads it.
       - key: DATABASE_URL
         sync: false

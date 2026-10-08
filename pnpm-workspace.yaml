@@ -140,13 +140,30 @@ overrides:
   "@expo/ngrok-bin>@expo/ngrok-bin-win32-x64": "-"
   # drizzle-kit uses esbuild internally on an older version that's vulnerable, this overrides it
   "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"
-  esbuild: "0.27.3"
+  # Bumped from 0.27.3 to clear GHSA-g7r4-m6w7-qqqr (arbitrary file read via
+  # the dev server on Windows) — dev-only, doesn't run in production, but
+  # free to fix since this team develops on Windows.
+  esbuild: "^0.28.1"
   # GHSA-qhr7-859c-m2p7 / GHSA-6j4f-fj2g-mc7p / GHSA-q2hr-2g5m-vwhr (2 high,
   # 1 moderate) — recursion/CPU DoS bugs, three severities of the same root
   # issue. Pulled in by @sentry/node's own build-tooling dependency
   # (@sentry/bundler-plugins, not used at runtime), not something this app
   # calls directly.
   brace-expansion: "^5.0.12"
+  # Security overrides below: each clears a known advisory in a transitive
+  # dependency of express. None change this app's own behavior — verified
+  # via typecheck + build after bumping.
+  # GHSA-jqcg-44mw-7w3h (critical) — IP spoofing via IPv4-mapped IPv6 trust
+  # subnet. Low impact today since `trust proxy` wasn't set, but becomes
+  # load-bearing once rate limiting (which needs real client IPs) is added.
+  "express>proxy-addr": "^2.0.8"
+  # GHSA-x5fp-wj9c-mxmx + GHSA-4mjr-xmp4-gh2g (moderate) — a parsing bypass
+  # and a DoS in Express's query-string parser.
+  "express>qs": "^6.16.0"
+  # GHSA-3pph-fpjx-jg34 (moderate) — DoS via orphaned disk writes on aborted
+  # uploads. Not reachable here (uploads use multer's memoryStorage, never
+  # disk), but free to fix.
+  multer: "^2.4.0"
 
 allowBuilds:
   esbuild: true
