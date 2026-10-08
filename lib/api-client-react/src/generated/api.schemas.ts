@@ -1118,6 +1118,245 @@ export interface DashboardSummary {
 }
 
 /**
+ * The account's own profile fields — deliberately excludes the password hash and any OAuth tokens, which live in a separate internal table never exposed through this API.
+ */
+export interface AccountExportUser {
+  id: number;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  createdAt: string;
+}
+
+/**
+ * One row per calendar month this account has used Pawlie chat or Smart Document Upload.
+ */
+export interface AccountExportAiUsage {
+  /** YYYY-MM */
+  periodMonth: string;
+  chatQuestionsUsed: number;
+  documentUploadsUsed: number;
+}
+
+/**
+ * One row per medication dose logged via POST .../log-dose. No dedicated read endpoint exists for this elsewhere — it's otherwise only ever aggregated into MedicationAdherence.
+ */
+export interface AccountExportDoseLog {
+  id: number;
+  medicationId: number;
+  loggedAt: string;
+}
+
+export type AccountExportHealthRecordType = typeof AccountExportHealthRecordType[keyof typeof AccountExportHealthRecordType];
+
+
+export const AccountExportHealthRecordType = {
+  visit: 'visit',
+  vaccine: 'vaccine',
+  lab: 'lab',
+  procedure: 'procedure',
+  note: 'note',
+} as const;
+
+/**
+ * @nullable
+ */
+export type AccountExportHealthRecordDocumentType = typeof AccountExportHealthRecordDocumentType[keyof typeof AccountExportHealthRecordDocumentType] | null;
+
+
+export const AccountExportHealthRecordDocumentType = {
+  link: 'link',
+  upload: 'upload',
+} as const;
+
+/**
+ * Same shape as HealthRecord, except documentUrl always resolves to a working, freshly-signed link when the record has an uploaded document — the regular HealthRecord response leaves this null for uploads and expects a separate GET .../document-url call instead.
+ */
+export interface AccountExportHealthRecord {
+  id: number;
+  petId: number;
+  type: AccountExportHealthRecordType;
+  title: string;
+  date: string;
+  /** @nullable */
+  clinic: string | null;
+  /** @nullable */
+  summary: string | null;
+  /** @nullable */
+  documentUrl: string | null;
+  /** @nullable */
+  documentType: AccountExportHealthRecordDocumentType;
+  /** @nullable */
+  documentName: string | null;
+}
+
+export type AccountExportDocumentImportLane = typeof AccountExportDocumentImportLane[keyof typeof AccountExportDocumentImportLane];
+
+
+export const AccountExportDocumentImportLane = {
+  onboarding: 'onboarding',
+  ongoing: 'ongoing',
+} as const;
+
+export type AccountExportDocumentImportStatus = typeof AccountExportDocumentImportStatus[keyof typeof AccountExportDocumentImportStatus];
+
+
+export const AccountExportDocumentImportStatus = {
+  pending_review: 'pending_review',
+  reviewed: 'reviewed',
+} as const;
+
+/**
+ * Same shape as DocumentImport, plus documentUrl — a freshly-signed short-lived link to the original uploaded source document, which the regular DocumentImport response never exposes directly (callers normally fetch it via GET .../document-url instead).
+ */
+export interface AccountExportDocumentImport {
+  id: number;
+  petId: number;
+  documentName: string;
+  documentUrl: string;
+  lane: AccountExportDocumentImportLane;
+  status: AccountExportDocumentImportStatus;
+  analyzedAt: string;
+  items: DocumentImportItem[];
+}
+
+/**
+ * Same as Conversation, with its insights nested inline rather than fetched separately.
+ */
+export interface AccountExportConversation {
+  id: number;
+  petId: number;
+  title: string;
+  createdAt: string;
+  lastMessageAt: string;
+  insights: Insight[];
+}
+
+export type AccountExportPetSpecies = typeof AccountExportPetSpecies[keyof typeof AccountExportPetSpecies];
+
+
+export const AccountExportPetSpecies = {
+  dog: 'dog',
+  cat: 'cat',
+  rabbit: 'rabbit',
+  bird: 'bird',
+  fish: 'fish',
+  hamster: 'hamster',
+  pig: 'pig',
+  horse: 'horse',
+  reptile: 'reptile',
+  ferret: 'ferret',
+  other: 'other',
+} as const;
+
+export type AccountExportPetSex = typeof AccountExportPetSex[keyof typeof AccountExportPetSex];
+
+
+export const AccountExportPetSex = {
+  female: 'female',
+  male: 'male',
+  unknown: 'unknown',
+} as const;
+
+export type AccountExportPetSpayNeuterStatus = typeof AccountExportPetSpayNeuterStatus[keyof typeof AccountExportPetSpayNeuterStatus];
+
+
+export const AccountExportPetSpayNeuterStatus = {
+  spayed_neutered: 'spayed_neutered',
+  intact: 'intact',
+  unknown: 'unknown',
+} as const;
+
+export type AccountExportPetWeightUnit = typeof AccountExportPetWeightUnit[keyof typeof AccountExportPetWeightUnit];
+
+
+export const AccountExportPetWeightUnit = {
+  lb: 'lb',
+  kg: 'kg',
+} as const;
+
+/**
+ * A Pet, plus every other table scoped to it, flattened into one object for this export.
+ */
+export interface AccountExportPet {
+  id: number;
+  name: string;
+  species: AccountExportPetSpecies;
+  /** @nullable */
+  breed: string | null;
+  /** @nullable */
+  color: string | null;
+  /** @nullable */
+  microchipId: string | null;
+  sex: AccountExportPetSex;
+  spayNeuterStatus: AccountExportPetSpayNeuterStatus;
+  /** @nullable */
+  birthDate: string | null;
+  /** @nullable */
+  gotchaDate: string | null;
+  /** @nullable */
+  weight: number | null;
+  weightUnit: AccountExportPetWeightUnit;
+  /** @nullable */
+  photoUrl: string | null;
+  /** @nullable */
+  notes: string | null;
+  /** @nullable */
+  allergies: string | null;
+  /** @nullable */
+  vetName: string | null;
+  /** @nullable */
+  vetClinic: string | null;
+  /** @nullable */
+  vetPhone: string | null;
+  /** @nullable */
+  vetAddress: string | null;
+  /** @nullable */
+  criticalInfoSummary: string | null;
+  /** @nullable */
+  criticalInfoDetails: string | null;
+  /** @nullable */
+  feedingInstructions: string | null;
+  /** @nullable */
+  whereThingsAre: string | null;
+  /** @nullable */
+  walksAndTriggers: string | null;
+  /** @nullable */
+  handlingNotes: string | null;
+  /** @nullable */
+  whatNormalLooksLike: string | null;
+  /** @nullable */
+  caretakingPreference: string | null;
+  /** @nullable */
+  emergencyVetName: string | null;
+  /** @nullable */
+  emergencyVetPhone: string | null;
+  /** @nullable */
+  emergencyVetHours: string | null;
+  healthRecords: AccountExportHealthRecord[];
+  medications: Medication[];
+  doseLogs: AccountExportDoseLog[];
+  reminders: Reminder[];
+  conversations: AccountExportConversation[];
+  symptomLogs: SymptomLog[];
+  symptomEntries: SymptomEntry[];
+  weightLogs: WeightLog[];
+  alerts: Alert[];
+  shareLinks: ShareLink[];
+  documentImports: AccountExportDocumentImport[];
+}
+
+/**
+ * Everything stored about this account and its pets, for the "download my data" feature. Session tokens, password hashes, and email-verification tokens are deliberately excluded — this is the owner's own content, not security-internal data.
+ */
+export interface AccountExport {
+  exportedAt: string;
+  account: AccountExportUser;
+  aiUsage: AccountExportAiUsage[];
+  pets: AccountExportPet[];
+}
+
+/**
  * Resource not found
  */
 export type NotFoundResponse = Error;
