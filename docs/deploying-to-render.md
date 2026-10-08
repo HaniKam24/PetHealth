@@ -39,6 +39,8 @@ Two services, both free tier, both auto-deploying from `main`:
    - `SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `ANTHROPIC_API_KEY`
+   - `SENTRY_DSN` — optional, for error tracking. Leave blank if you haven't
+     set up a Sentry project; the app runs fine without it.
    - `WEB_ORIGIN` — leave this blank for now; come back and fill it in after
      step 5 below.
 

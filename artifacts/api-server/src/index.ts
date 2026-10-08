@@ -1,3 +1,7 @@
+// Must be the first import — Sentry.init() needs to run before anything
+// else in the module graph so its auto-instrumentation can patch
+// Express/Node internals before app.ts starts using them.
+import "./instrument";
 import app from "./app";
 import { logger } from "./lib/logger";
 

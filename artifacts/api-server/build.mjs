@@ -62,7 +62,12 @@ async function buildAll() {
       "@swc/*",
       "@aws-sdk/*",
       "@azure/*",
-      "@opentelemetry/*",
+      // NOT @opentelemetry/* — those are pure JS (no native bindings) and
+      // are only a transitive dependency of @sentry/node, not a direct
+      // dependency of this package. Under pnpm's strict node_modules,
+      // marking them external makes the built file try to resolve an
+      // import it has no direct access to (ERR_MODULE_NOT_FOUND at
+      // runtime) — bundling them in avoids that entirely.
       "@google-cloud/*",
       "@google/*",
       "googleapis",
