@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { signUp } from '@/lib/auth-client';
+import SocialSignInButtons from '@/components/social-sign-in-buttons';
 
 const signupSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -116,6 +117,10 @@ export default function Signup() {
                 </Button>
               </form>
             </Form>
+
+            <div className="mt-6">
+              <SocialSignInButtons />
+            </div>
           </CardContent>
         </Card>
 
