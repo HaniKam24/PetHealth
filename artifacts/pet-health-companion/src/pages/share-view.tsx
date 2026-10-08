@@ -62,6 +62,19 @@ export default function ShareView() {
         @media print {
           .no-print { display: none !important; }
           body { background: white; }
+          /* The on-screen two-column layout only kicks in at Tailwind's lg
+             breakpoint (1024px) — but a printed page is physically narrower
+             than that (Letter is ~816px at 96dpi), so without this override
+             the grid silently collapses to one column when printing: the
+             pet card stretches full-width on its own page, then every card
+             below it flows onto further pages instead of sharing the page
+             with the pet card the way the screen view does. Forcing the
+             column split here, regardless of viewport width, is what makes
+             print match the screen layout — pagination across any extra
+             pages the card stack needs is left to the browser's own print
+             engine, same as it already handles any other tall content. */
+          .sitter-report-grid { grid-template-columns: 300px minmax(0, 1fr) !important; }
+          .sitter-report-left { position: static !important; }
         }
       `}</style>
       <div className="max-w-5xl mx-auto p-6 md:p-10 pb-16">
@@ -78,8 +91,8 @@ export default function ShareView() {
         {/* Same two-column layout as the owner's own profile page — a pet
             card on the left (sticky, same "passport" look as there), the
             rest of the report stacked in a single column on the right. */}
-        <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-6 items-start">
-          <div className="flex flex-col gap-4 lg:sticky lg:top-6">
+        <div className="sitter-report-grid grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-6 items-start">
+          <div className="sitter-report-left flex flex-col gap-4 lg:sticky lg:top-6">
             <div className="relative rounded-3xl overflow-hidden bg-foreground text-background shadow-xl shadow-foreground/20">
               <div
                 className="pointer-events-none absolute inset-0 opacity-[0.05]"
