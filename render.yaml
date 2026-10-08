@@ -55,18 +55,12 @@ services:
       # site's rewrite rule below is the primary path, this is a fallback).
       - key: WEB_ORIGIN
         sync: false
-      # "Sign in with Google" / "Sign in with Apple" buttons. Each pair is
-      # optional — leave both blank on a provider to leave that button off.
-      # See .env.example for where these values come from.
+      # "Sign in with Google" button. Optional — leave both blank to leave
+      # the button off. See .env.example for where these values come from.
+      # (Apple sign-in was dropped for now — needs a paid Apple Developer account.)
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
-        sync: false
-      - key: APPLE_CLIENT_ID
-        sync: false
-      - key: APPLE_CLIENT_SECRET
-        sync: false
-      - key: APPLE_APP_BUNDLE_IDENTIFIER
         sync: false
 
   # Vite/React frontend (artifacts/pet-health-companion) — this is the link

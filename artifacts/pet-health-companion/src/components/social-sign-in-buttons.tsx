@@ -1,21 +1,20 @@
 import { useState } from 'react';
 import { FcGoogle } from 'react-icons/fc';
-import { FaApple } from 'react-icons/fa6';
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth-client';
 
 export default function SocialSignInButtons() {
   const [error, setError] = useState<string | null>(null);
 
-  const signInWithProvider = async (provider: 'google' | 'apple') => {
+  const signInWithGoogle = async () => {
     setError(null);
     const { error: signInError } = await authClient.signIn.social({
-      provider,
+      provider: 'google',
       callbackURL: '/',
     });
 
     if (signInError) {
-      setError(signInError.message ?? `Could not sign in with ${provider === 'google' ? 'Google' : 'Apple'}.`);
+      setError(signInError.message ?? 'Could not sign in with Google.');
     }
   };
 
@@ -27,26 +26,15 @@ export default function SocialSignInButtons() {
         <div className="h-px flex-1 bg-border" />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 rounded-full"
-          onClick={() => signInWithProvider('google')}
-        >
-          <FcGoogle size={18} />
-          Google
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 rounded-full"
-          onClick={() => signInWithProvider('apple')}
-        >
-          <FaApple size={18} />
-          Apple
-        </Button>
-      </div>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full h-11 rounded-full"
+        onClick={signInWithGoogle}
+      >
+        <FcGoogle size={18} />
+        Google
+      </Button>
 
       {error && (
         <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>

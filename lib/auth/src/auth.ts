@@ -17,9 +17,6 @@ const webOrigins = (process.env["WEB_ORIGIN"] ?? "")
 
 const googleClientId = process.env["GOOGLE_CLIENT_ID"];
 const googleClientSecret = process.env["GOOGLE_CLIENT_SECRET"];
-const appleClientId = process.env["APPLE_CLIENT_ID"];
-const appleClientSecret = process.env["APPLE_CLIENT_SECRET"];
-const appleAppBundleIdentifier = process.env["APPLE_APP_BUNDLE_IDENTIFIER"];
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -32,24 +29,17 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
-  // Google/Apple "sign in with" buttons. Each provider only turns on once
-  // its real credentials are set — until then these env vars are unset and
-  // the provider is left out entirely, so this is safe to deploy early.
+  // Google "sign in with" button. Only turns on once its real credentials
+  // are set — until then these env vars are unset and the provider is left
+  // out entirely, so this is safe to deploy early.
+  // Apple sign-in was dropped for now (needs a paid $99/year Apple Developer
+  // account) — revisit if that becomes worth it.
   socialProviders: {
     ...(googleClientId && googleClientSecret
       ? {
           google: {
             clientId: googleClientId,
             clientSecret: googleClientSecret,
-          },
-        }
-      : {}),
-    ...(appleClientId && appleClientSecret
-      ? {
-          apple: {
-            clientId: appleClientId,
-            clientSecret: appleClientSecret,
-            appBundleIdentifier: appleAppBundleIdentifier,
           },
         }
       : {}),
