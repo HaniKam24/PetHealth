@@ -81,11 +81,6 @@ not a bug, but it belongs in any real privacy policy's sub-processor list.
 - **HIPAA — does not apply.** HIPAA covers human health information held by
   covered entities (providers, insurers, etc.). Pet/veterinary data isn't in scope.
   Already correctly noted in `docs/PRD.md`.
-- **GDPR (EU)** — would apply the moment any EU resident signs up. Relevant rights:
-  access, erasure ("right to be forgotten"), portability, and a lawful basis for
-  processing. See gaps in §5 — several of these aren't implemented yet.
-- **CCPA/CPRA (California)** — similar rights (access, deletion, opt-out of sale —
-  this app doesn't sell data, so that part's moot) if California residents sign up.
 - **COPPA (children's privacy)** — likely not applicable; this app isn't directed
   at or knowingly collecting from children. Worth a deliberate "13+ only" statement
   in terms of service if one ever gets written, mostly as a formality.
@@ -93,6 +88,67 @@ not a bug, but it belongs in any real privacy policy's sub-processor list.
   consumer record-keeping app, not a licensed veterinary practice or pharmacy, so
   veterinary-practice-specific regulation likely doesn't apply, but this hasn't
   been researched deeply and isn't a legal conclusion.
+
+### 4a. USA specifics
+
+- **No single comprehensive federal privacy law.** The US regulates privacy
+  sector-by-sector (HIPAA for health, COPPA for kids, GLBA for financial) plus one
+  broad catch-all: **the FTC Act's ban on "unfair or deceptive practices."** In
+  practice, this means: once a privacy policy exists and makes promises, the FTC
+  can enforce against the company for not actually following them. Reason to write
+  one carefully, not a reason to avoid writing one.
+- **Every US state now has a data breach notification law** — if personal data is
+  ever breached, there's a legal obligation to notify affected individuals (and
+  sometimes the state AG) within a set window, commonly 30–60 days depending on
+  the state. This applies *regardless of company size* — no revenue or user-count
+  threshold. See gap in §5.
+- **State comprehensive privacy laws (California's CCPA/CPRA, plus a fast-growing
+  list — Virginia, Colorado, Connecticut, and others since 2023)** grant rights
+  like access, deletion, and opt-out of sale. Each has its own applicability
+  thresholds — CCPA/CPRA's are roughly: $25M+ annual revenue, OR personal data on
+  100,000+ consumers, OR 50%+ of revenue from selling/sharing personal data. **At
+  this app's current scale, these almost certainly don't apply yet.** Worth
+  knowing the thresholds so effort isn't spent on something not yet legally
+  required — but also worth building the underlying capability (deletion, export)
+  before crossing them, since retrofitting under pressure is worse than having it
+  ready.
+
+### 4b. EU specifics
+
+- **GDPR** — would apply the moment any EU resident signs up. Relevant rights:
+  access, erasure ("right to be forgotten"), portability, and a lawful basis for
+  processing every category of data collected. See gaps in §5 — several of these
+  aren't implemented yet.
+- **Pet health data is very likely *not* GDPR "special category data."** Article
+  9's strictest protections (effectively requiring explicit consent, not just
+  ordinary justification) apply to health data about *identifiable natural
+  persons*. A dog's vaccine record isn't that — same reasoning as the HIPAA
+  finding above, just under a different law. Good news, not a gap — noted here so
+  it's a deliberate conclusion, not an assumption.
+- **Data Processing Agreements (DPAs) are required with every sub-processor**
+  handling EU personal data — Supabase, Anthropic, Render, Sentry (see §2's
+  table). All four are mainstream SaaS vendors that already publish standard
+  GDPR-ready DPAs; for most, accepting one is a checkbox in their own dashboard,
+  not a document either of us would draft. Still needs to actually be done per
+  vendor — see gap in §5.
+- **International data transfers** — if any sub-processor handles EU data outside
+  the EU (likely, all four are US-based), GDPR requires a valid transfer
+  mechanism (the EU-US Data Privacy Framework, or Standard Contractual Clauses).
+  Most major vendors already offer one by default as part of their DPA — worth
+  confirming per vendor rather than assuming.
+- **EU representative (GDPR Article 27)** — a company with no EU presence that
+  offers services to EU residents technically needs to appoint an EU
+  representative, unless processing is occasional/low-risk. Easy to overlook for
+  a small US team. Only relevant once EU signups are actually being accepted, not
+  before.
+- **The EU AI Act** — a current, real EU regulation specifically for AI systems,
+  directly relevant here because of Pawlie. It sorts AI systems into risk tiers;
+  a pet-advice chatbot that explicitly discloses it's AI and isn't medical advice
+  (which Pawlie's UI already does — the "Written by AI · not medical advice"
+  labeling) almost certainly lands in the lower-risk "transparency obligation"
+  tier, not the high-risk tier (which covers things like actual medical device
+  software). Worth awareness, not urgent, and the app's existing disclaimer
+  design already happens to align with what that tier expects.
 
 ## 5. Open gaps (concrete, not yet built)
 
@@ -126,6 +182,18 @@ Roughly in order of how foundational they are:
    none is currently needed.** The only cookie in use is the strictly-necessary
    session cookie, exempt under GDPR/ePrivacy and CCPA-style frameworks. Documented
    here so the reasoning isn't lost, not because it's unresolved.
+9. **No breach notification plan.** Every US state legally requires notifying
+   affected users within a set window if personal data is breached — this one
+   applies regardless of company size, unlike the threshold-gated state privacy
+   laws. Right now there's no documented "what do we actually do" process.
+10. **No Data Processing Agreements signed with any sub-processor** (Supabase,
+    Anthropic, Render, Sentry) — required under GDPR once EU users are in the
+    picture. Likely a quick per-vendor checkbox, not a drafting exercise, but
+    hasn't actually been done for any of the four yet.
+11. **International data transfer mechanisms not confirmed per vendor.** All four
+    sub-processors likely already offer a valid mechanism by default (EU-US Data
+    Privacy Framework or Standard Contractual Clauses) — this gap is "hasn't been
+    checked," not "known to be missing."
 
 ## 6. Suggested next steps, if this gets pursued further
 
@@ -138,5 +206,10 @@ None of this is committed to yet — these are options to discuss, not a plan:
   is similarly still "if pursued at all."
 - Decide whether to self-host fonts (small, contained fix) independent of the
   broader privacy-policy question.
+- Check each sub-processor's dashboard for a DPA to accept (Supabase, Anthropic,
+  Render, Sentry) — likely low-effort, hasn't been done yet.
+- Write down an actual breach-notification process, even a short one — this is
+  the one item here that's a legal requirement regardless of how small the app
+  still is.
 - Revisit this file whenever a new third-party service gets added (another
   sub-processor) or a new jurisdiction's users become relevant.
