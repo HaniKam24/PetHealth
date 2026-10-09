@@ -46,6 +46,15 @@ services:
         sync: false
       - key: BETTER_AUTH_SECRET
         sync: false
+      # Sends the "verify your email" link on signup — required, sign-in
+      # is blocked until verified. resend.com -> API Keys.
+      - key: RESEND_API_KEY
+        sync: false
+      # Optional — defaults to Resend's sandbox sender if unset, which can
+      # only deliver to the email on the Resend account itself until a
+      # real domain is verified there (resend.com -> Domains).
+      - key: RESEND_FROM_EMAIL
+        sync: false
       # better-auth needs its own public URL for cookies/CSRF — this is
       # this same service's Render URL, not localhost.
       - key: BETTER_AUTH_URL

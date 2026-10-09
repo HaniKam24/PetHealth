@@ -34,7 +34,15 @@ export default function Login() {
     });
 
     if (error) {
-      setFormError(error.message ?? 'Could not sign in with those details.');
+      // A blocked sign-in on an unverified account auto-sends a fresh
+      // verification email server-side (see emailVerification.sendOnSignIn
+      // in lib/auth/src/auth.ts) — no separate resend call needed here,
+      // just tell them to go check their inbox again.
+      setFormError(
+        error.code === 'EMAIL_NOT_VERIFIED'
+          ? "Your email isn't verified yet — we just sent a fresh verification link to that address."
+          : (error.message ?? 'Could not sign in with those details.'),
+      );
       return;
     }
 
