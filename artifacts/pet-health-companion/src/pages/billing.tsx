@@ -10,35 +10,40 @@ function PlanCard({
   name,
   price,
   period,
+  sub,
   features,
   current,
   comingSoon,
 }: {
   name: string;
   price: string;
-  period?: string;
+  period?: string | null;
+  sub?: string;
   features: string[];
   current: boolean;
   comingSoon?: boolean;
 }) {
   return (
-    <Card className={`rounded-3xl relative ${current ? 'border-primary shadow-md' : 'shadow-sm'}`}>
-      {current && (
-        <div className="absolute top-4 right-4 flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 rounded-full px-3 py-1">
-          Current plan
-        </div>
-      )}
-      {!current && comingSoon && (
-        <div className="absolute top-4 right-4 flex items-center gap-1 text-xs font-bold text-muted-foreground bg-muted rounded-full px-3 py-1">
-          <Lock size={12} /> Coming soon
-        </div>
-      )}
+    <Card className={`rounded-3xl ${current ? 'border-primary shadow-md' : 'shadow-sm'}`}>
       <CardHeader className="pb-2">
-        <h2 className="text-xl font-serif font-medium text-foreground">{name}</h2>
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <h2 className="text-xl font-serif font-medium text-foreground">{name}</h2>
+          {current && (
+            <div className="shrink-0 flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 rounded-full px-3 py-1">
+              Current plan
+            </div>
+          )}
+          {!current && comingSoon && (
+            <div className="shrink-0 flex items-center gap-1 text-xs font-bold text-muted-foreground bg-muted rounded-full px-3 py-1">
+              <Lock size={12} /> Coming soon
+            </div>
+          )}
+        </div>
         <p className="mt-1">
           <span className="text-3xl font-serif font-bold text-foreground">{price}</span>
           {period && <span className="text-muted-foreground text-sm"> {period}</span>}
         </p>
+        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
       </CardHeader>
       <CardContent className="pt-2">
         <ul className="space-y-2.5 mb-6">
@@ -78,35 +83,39 @@ export default function Billing() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      {/* Same three tiers, names, prices, and feature copy as the PLANS array
+          on the marketing homepage (home.tsx) — kept in sync by hand since
+          this page needs session/plan logic the static homepage doesn't. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <PlanCard
-          name="Free"
+          name="Pawlie Lite"
           price="$0"
+          sub="Free forever"
           current={plan === 'free'}
-          features={[
-            'Up to 3 pets',
-            'Health records, medications & reminders',
-            'Pawlie AI chat',
-            'Smart Document Upload',
-            'Sitter/boarding share links',
-          ]}
+          features={['Pawlie AI: 7-day trial, then Pawlie Plus and up', 'Smart Upload: 2 uploads', 'Up to 3 pets', 'All core features']}
         />
         <PlanCard
-          name="Plus"
-          price="—"
+          name="Pawlie Plus"
+          price="$4.99"
+          period="/ month"
+          sub="or about $44 / year"
           current={plan === 'plus'}
           comingSoon
-          features={[
-            'Everything in Free',
-            'Unlimited pets',
-            'Higher Pawlie & upload limits',
-            'Priority support',
-          ]}
+          features={['Pawlie AI included, with a monthly cap', 'Smart Upload: 5 per month', 'Up to 5 pets', 'All core features']}
+        />
+        <PlanCard
+          name="Pawlie Unleashed"
+          price="$9.99"
+          period="/ month"
+          sub="or about $89 / year"
+          current={plan === 'unleashed'}
+          comingSoon
+          features={['Pawlie AI, unlimited', 'Smart Upload, unlimited', 'Up to 7 pets', 'All core features']}
         />
       </div>
 
       <p className="text-center text-sm text-muted-foreground">
-        Paid plans aren't available yet — everyone's on Free for now. Nothing to pay or manage until that changes.
+        Paid plans aren't available yet — everyone's on Pawlie Lite for now. Nothing to pay or manage until that changes.
       </p>
     </div>
   );
