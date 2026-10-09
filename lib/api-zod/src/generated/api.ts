@@ -1757,3 +1757,213 @@ export const GetSitterReportResponse = zod.object({
 }).describe('Still narrow — no health records, symptom journal, insights\/chat history, weight logs, other pets, or owner account info. Widened once, deliberately, for the Sitter Brief fields below (criticalInfo\* through emergencyVet\*) plus a few identity facts (microchipId, sex, weight) a sitter\/boarding facility genuinely needs, not anything about the owner\'s account.')
 
 
+/**
+ * Deliberately excludes session tokens, password hashes, and email-verification tokens — this is the owner's own content, not security-internal data. Document links (vet record uploads, Smart Upload source files) are freshly-signed and short-lived, so a saved copy of this export shouldn't be treated as a permanent way to re-download those files later.
+ * @summary Download everything stored about this account and its pets — a "download my data" export, not something a normal UI flow ever calls automatically
+ */
+
+
+
+export const ExportAccountDataResponse = zod.object({
+  "exportedAt": zod.coerce.date(),
+  "account": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "emailVerified": zod.boolean(),
+  "createdAt": zod.coerce.date()
+}).describe('The account\'s own profile fields — deliberately excludes the password hash and any OAuth tokens, which live in a separate internal table never exposed through this API.'),
+  "aiUsage": zod.array(zod.object({
+  "periodMonth": zod.string().describe('YYYY-MM'),
+  "chatQuestionsUsed": zod.number().int(),
+  "documentUploadsUsed": zod.number().int()
+}).describe('One row per calendar month this account has used Pawlie chat or Smart Document Upload.')),
+  "pets": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "species": zod.enum(['dog', 'cat', 'rabbit', 'bird', 'fish', 'hamster', 'pig', 'horse', 'reptile', 'ferret', 'other']),
+  "breed": zod.string().nullable(),
+  "color": zod.string().nullable(),
+  "microchipId": zod.string().nullable(),
+  "sex": zod.enum(['female', 'male', 'unknown']),
+  "spayNeuterStatus": zod.enum(['spayed_neutered', 'intact', 'unknown']),
+  "birthDate": zod.coerce.date().nullable(),
+  "gotchaDate": zod.coerce.date().nullable(),
+  "weight": zod.number().nullable(),
+  "weightUnit": zod.enum(['lb', 'kg']),
+  "photoUrl": zod.string().url().nullable(),
+  "notes": zod.string().nullable(),
+  "allergies": zod.string().nullable(),
+  "vetName": zod.string().nullable(),
+  "vetClinic": zod.string().nullable(),
+  "vetPhone": zod.string().nullable(),
+  "vetAddress": zod.string().nullable(),
+  "criticalInfoSummary": zod.string().nullable(),
+  "criticalInfoDetails": zod.string().nullable(),
+  "feedingInstructions": zod.string().nullable(),
+  "whereThingsAre": zod.string().nullable(),
+  "walksAndTriggers": zod.string().nullable(),
+  "handlingNotes": zod.string().nullable(),
+  "whatNormalLooksLike": zod.string().nullable(),
+  "caretakingPreference": zod.string().nullable(),
+  "emergencyVetName": zod.string().nullable(),
+  "emergencyVetPhone": zod.string().nullable(),
+  "emergencyVetHours": zod.string().nullable(),
+  "healthRecords": zod.array(zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "type": zod.enum(['visit', 'vaccine', 'lab', 'procedure', 'note']),
+  "title": zod.string(),
+  "date": zod.coerce.date(),
+  "clinic": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "documentUrl": zod.string().url().nullable(),
+  "documentType": zod.union([zod.literal('link'),zod.literal('upload'),zod.literal(null)]).nullable(),
+  "documentName": zod.string().nullable()
+}).describe('Same shape as HealthRecord, except documentUrl always resolves to a working, freshly-signed link when the record has an uploaded document — the regular HealthRecord response leaves this null for uploads and expects a separate GET ...\/document-url call instead.')),
+  "medications": zod.array(zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "name": zod.string(),
+  "dose": zod.string(),
+  "frequency": zod.string(),
+  "doseIntervalValue": zod.number().int().min(1).nullable(),
+  "doseIntervalUnit": zod.union([zod.literal('hours'),zod.literal('days'),zod.literal('weeks'),zod.literal('months'),zod.literal(null)]).nullable(),
+  "nextDoseAt": zod.coerce.date().nullable(),
+  "active": zod.boolean(),
+  "instructions": zod.string().nullable()
+})),
+  "doseLogs": zod.array(zod.object({
+  "id": zod.number().int(),
+  "medicationId": zod.number().int(),
+  "loggedAt": zod.coerce.date()
+}).describe('One row per medication dose logged via POST ...\/log-dose. No dedicated read endpoint exists for this elsewhere — it\'s otherwise only ever aggregated into MedicationAdherence.')),
+  "reminders": zod.array(zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "title": zod.string(),
+  "dueDate": zod.coerce.date(),
+  "category": zod.enum(['appointment', 'vaccine', 'medication', 'wellness', 'other']),
+  "completed": zod.boolean(),
+  "note": zod.string().nullable(),
+  "source": zod.enum(['owner', 'system']),
+  "ruleId": zod.string().nullable()
+})),
+  "conversations": zod.array(zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "title": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "lastMessageAt": zod.coerce.date(),
+  "insights": zod.array(zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "conversationId": zod.number().int().describe('Which conversation thread this turn belongs to — see Conversation. Every insight belongs to exactly one.'),
+  "title": zod.string(),
+  "content": zod.string(),
+  "question": zod.string().describe('The owner\'s original question.'),
+  "tone": zod.enum(['helpful', 'watch', 'urgent']),
+  "source": zod.enum(['ai', 'record', 'reminder']),
+  "createdAt": zod.coerce.date(),
+  "disclaimer": zod.string(),
+  "kind": zod.enum(['chat', 'escalation', 'emergency_vet_result']).describe('Whether a red flag short-circuited this to an escalation response, or (after a zipcode reply to one) a looked-up list of nearby emergency vets.'),
+  "metadata": zod.union([zod.object({
+  "vets": zod.array(zod.object({
+  "name": zod.string(),
+  "phone": zod.string(),
+  "address": zod.string().nullable()
+})),
+  "script": zod.string()
+}).describe('Nearby emergency vet clinics found via web search, plus an AI-generated call script grounded in the pet\'s described symptoms. Never asserts a clinic is currently open — always call-ahead framed.'),zod.null()]).describe('Structured payload for kinds that need more than plain text. Currently only set for emergency_vet_result; null otherwise.'),
+  "dismissedAt": zod.coerce.date().nullable().describe('Set once the owner dismisses this insight\'s active-emergency dashboard banner. Null for every plain chat turn, which has no such banner.'),
+  "action": zod.union([zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "insightId": zod.number().int().nullable(),
+  "actionType": zod.enum(['create_reminder', 'complete_reminder', 'update_pet_profile', 'log_symptom']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on actionType — a ReminderInput-shaped object for create_reminder, {reminderId} for complete_reminder, a partial profile-update object (same shape as Smart Upload\'s vet_info item — any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex) for update_pet_profile, or {description} for log_symptom.'),
+  "status": zod.enum(['pending', 'confirmed', 'cancelled']),
+  "appliedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('A conversational edit Pawlie proposed — deliberately parallel to DocumentImportItem\'s review-gated shape. Nothing is written until the owner confirms.'),zod.null()]).describe('Set when Pawlie proposed a conversational action alongside this reply (e.g. \"add a reminder for...\"). Null for a plain answer with nothing to confirm.')
+}))
+}).describe('Same as Conversation, with its insights nested inline rather than fetched separately.')),
+  "symptomLogs": zod.array(zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "description": zod.string(),
+  "loggedAt": zod.coerce.date(),
+  "insightId": zod.number().int().nullable()
+})),
+  "symptomEntries": zod.array(zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "loggedAt": zod.coerce.date(),
+  "appetite": zod.union([zod.literal('low'),zod.literal('normal'),zod.literal('high'),zod.literal(null)]).nullable(),
+  "energy": zod.union([zod.literal('low'),zod.literal('normal'),zod.literal('high'),zod.literal(null)]).nullable(),
+  "stoolQuality": zod.union([zod.literal('normal'),zod.literal('soft'),zod.literal('diarrhea'),zod.literal('constipated'),zod.literal(null)]).nullable(),
+  "vomiting": zod.boolean().nullable(),
+  "limping": zod.boolean().nullable(),
+  "behaviorNote": zod.string().nullable(),
+  "note": zod.string().nullable()
+}).describe('A Symptom Journal entry — deliberately separate from SymptomLog (a free-text note saved from a Pawlie chat answer). Every observation field is nullable since an owner logs whatever they actually noticed, not a mandatory checklist.')),
+  "weightLogs": zod.array(zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "weight": zod.number(),
+  "weightUnit": zod.enum(['lb', 'kg']),
+  "recordedAt": zod.coerce.date()
+}).describe('Auto-recorded whenever a pet\'s weight is set or changed via the pet create\/update routes — no separate logging action.')),
+  "alerts": zod.array(zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "triggeredByEntryId": zod.number().int().nullable(),
+  "severity": zod.enum(['yellow', 'red']),
+  "confidence": zod.enum(['low', 'medium', 'high']),
+  "reasoning": zod.array(zod.object({
+  "signal": zod.string(),
+  "value": zod.string(),
+  "historicalDataPoint": zod.string().nullable(),
+  "weight": zod.number()
+}).describe('One contributing signal, rendered through a fixed template — never freeform AI text. historicalDataPoint is always null today; kept in the shape for a real historical-fact source later.')),
+  "status": zod.enum(['active', 'dismissed', 'resolved']),
+  "outcomeNote": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullable()
+}).describe('A pure rule-based flag from Predictive Health Monitoring — one row represents a pet\'s current assessment; re-evaluation after each new Symptom Journal entry updates it in place rather than piling up duplicates. Never contains a symptom-to-medication or symptom-to-diagnosis guess — see docs\/PRD.md §7e for why that line is firm.')),
+  "shareLinks": zod.array(zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "url": zod.string().url(),
+  "startsAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "lastViewedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('An owner-facing view of a sitter\/boarding share link — includes the full shareable URL, never the raw token alone (the URL is what gets copied\/sent).')),
+  "documentImports": zod.array(zod.object({
+  "id": zod.number().int(),
+  "petId": zod.number().int(),
+  "documentName": zod.string(),
+  "documentUrl": zod.string().url(),
+  "lane": zod.enum(['onboarding', 'ongoing']),
+  "status": zod.enum(['pending_review', 'reviewed']),
+  "analyzedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "importId": zod.number().int(),
+  "itemType": zod.enum(['health_record', 'medication', 'reminder', 'vet_info']),
+  "proposedData": zod.object({
+
+}).passthrough().describe('Shape depends on itemType — a HealthRecordInput, MedicationInput, or ReminderInput-shaped object, or for \"vet_info\" a partial profile-update object with any of vetName\/vetClinic\/vetPhone\/vetAddress\/breed\/weight\/weightUnit\/sex (only the fields the source document actually stated and that differ from the pet\'s current profile; weight and weightUnit are always present together).'),
+  "duplicateOfType": zod.union([zod.literal('health_record'),zod.literal('medication'),zod.literal('reminder'),zod.literal(null)]).nullable(),
+  "duplicateOfId": zod.number().int().nullable(),
+  "status": zod.enum(['pending', 'accepted', 'rejected']),
+  "createdRecordId": zod.number().int().nullable()
+}))
+}).describe('Same shape as DocumentImport, plus documentUrl — a freshly-signed short-lived link to the original uploaded source document, which the regular DocumentImport response never exposes directly (callers normally fetch it via GET ...\/document-url instead).'))
+}).describe('A Pet, plus every other table scoped to it, flattened into one object for this export.'))
+}).describe('Everything stored about this account and its pets, for the \"download my data\" feature. Session tokens, password hashes, and email-verification tokens are deliberately excluded — this is the owner\'s own content, not security-internal data.')
+
+

@@ -58,7 +58,7 @@ import {
   weightLogs,
 } from "@workspace/db";
 import { anthropic } from "@workspace/integrations-anthropic-ai-server";
-import { createSignedDocumentUrl, deleteDocument, uploadHealthRecordDocument, uploadPetPhoto } from "../lib/storage";
+import { createSignedDocumentUrl, deleteDocument, deletePetPhoto, uploadHealthRecordDocument, uploadPetPhoto } from "../lib/storage";
 import { computeVaccineStatuses, runCareRecommendationsEngine, suppressRedundantSystemReminder } from "../lib/care-recommendations";
 import { buildEscalationMessage, isRedFlagQuestion, extractZipCode } from "../lib/symptom-escalation";
 import { lookupEmergencyVets } from "../lib/emergency-vet-lookup";
@@ -218,6 +218,14 @@ async function deleteDocumentBestEffort(path: string) {
   }
 }
 
+async function deletePetPhotoBestEffort(photoUrl: string) {
+  try {
+    await deletePetPhoto(photoUrl);
+  } catch (error) {
+    logger.error({ err: error, photoUrl }, "Failed to delete pet photo from storage");
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Ownership helpers — every pet-scoped read/write goes through one of these.
 // ---------------------------------------------------------------------------
@@ -357,14 +365,22 @@ router.delete("/pets/:petId", async (req, res, next) => {
       res.status(404).json({ error: "Pet not found" });
       return;
     }
-    // Read the attached-document paths before the cascade delete removes the
-    // rows that reference them — otherwise there's nothing left to clean up.
+    // Read the attached-document paths and photo URL before the cascade
+    // delete removes the rows that reference them — otherwise there's
+    // nothing left to clean up.
     const docs = await db
       .select({ path: healthRecords.documentStoragePath })
       .from(healthRecords)
       .where(and(eq(healthRecords.petId, petId), eq(healthRecords.documentType, "upload")));
+    const [petRow] = await db
+      .select({ photoUrl: pets.photoUrl })
+      .from(pets)
+      .where(eq(pets.id, petId));
     await db.delete(pets).where(eq(pets.id, petId));
     await Promise.all(docs.map((doc) => (doc.path ? deleteDocumentBestEffort(doc.path) : undefined)));
+    if (petRow?.photoUrl) {
+      await deletePetPhotoBestEffort(petRow.photoUrl);
+    }
     res.status(204).end();
   } catch (error) {
     next(error);
@@ -551,6 +567,10 @@ router.post(
         res.status(400).json({ error: "Only JPEG, PNG, WEBP, or HEIC images are supported." });
         return;
       }
+      const [existing] = await db
+        .select({ photoUrl: pets.photoUrl })
+        .from(pets)
+        .where(eq(pets.id, petId));
       const { url } = await uploadPetPhoto(petId, req.file);
       const [updated] = await db
         .update(pets)
@@ -560,6 +580,9 @@ router.post(
       if (!updated) {
         res.status(404).json({ error: "Pet not found" });
         return;
+      }
+      if (existing?.photoUrl) {
+        await deletePetPhotoBestEffort(existing.photoUrl);
       }
       res.status(201).json(asPet(updated));
     } catch (error) {
@@ -576,6 +599,10 @@ router.delete("/pets/:petId/photo", async (req, res, next) => {
       res.status(404).json({ error: "Pet not found" });
       return;
     }
+    const [existing] = await db
+      .select({ photoUrl: pets.photoUrl })
+      .from(pets)
+      .where(eq(pets.id, petId));
     const [updated] = await db
       .update(pets)
       .set({ photoUrl: null })
@@ -584,6 +611,9 @@ router.delete("/pets/:petId/photo", async (req, res, next) => {
     if (!updated) {
       res.status(404).json({ error: "Pet not found" });
       return;
+    }
+    if (existing?.photoUrl) {
+      await deletePetPhotoBestEffort(existing.photoUrl);
     }
     res.json(asPet(updated));
   } catch (error) {

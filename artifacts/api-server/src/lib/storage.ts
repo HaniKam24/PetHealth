@@ -140,3 +140,20 @@ export async function uploadPetPhoto(
   const { data } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path);
   return { url: data.publicUrl };
 }
+
+// pets.photoUrl stores the full public URL returned by getPublicUrl above, not
+// a bare storage path — recover the path (everything after the bucket name in
+// the URL) so it can be passed to the storage API's remove().
+export async function deletePetPhoto(photoUrl: string): Promise<void> {
+  const marker = `/object/public/${PHOTO_BUCKET}/`;
+  const index = photoUrl.indexOf(marker);
+  if (index === -1) {
+    throw new Error(`Could not recover a storage path from pet photo URL: ${photoUrl}`);
+  }
+  const path = photoUrl.slice(index + marker.length);
+
+  const { error } = await supabase.storage.from(PHOTO_BUCKET).remove([path]);
+  if (error) {
+    throw error;
+  }
+}

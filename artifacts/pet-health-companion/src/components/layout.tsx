@@ -1,12 +1,13 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { HeartPulse, ChevronDown, Plus, LogOut } from 'lucide-react';
+import { HeartPulse, ChevronDown, Plus, LogOut, Download } from 'lucide-react';
 import { usePetContext } from '@/context/pet-context';
-import { useListPets } from '@workspace/api-client-react';
+import { useListPets, exportAccountData } from '@workspace/api-client-react';
 import { cn } from '@/lib/utils';
 import { resolvePetAvatar } from '@/lib/pet-avatar';
 import { signOut, useSession } from '@/lib/auth-client';
 import { PawlieWidget } from '@/components/pawlie-widget';
+import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -33,6 +34,37 @@ export function Layout({ children }: { children: ReactNode }) {
   const { activePetId, setActivePetId } = usePetContext();
   const { data: pets } = useListPets();
   const { data: session } = useSession();
+  const { toast } = useToast();
+  const [isExporting, setIsExporting] = useState(false);
+
+  // exportAccountData() is called directly (not through the generated
+  // react-query hook) since this is a one-shot download action, not data to
+  // cache/subscribe to — same reasoning records.tsx uses for document view
+  // links. A client-built Blob (rather than a raw navigation to the API URL)
+  // is used so this works reliably regardless of how the browser would
+  // otherwise handle a fetch()'s Content-Disposition header.
+  const handleExportData = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const data = await exportAccountData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `pethealth-export-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({
+        title: "Couldn't export your data",
+        description: error instanceof Error ? error.message : undefined,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const activePet = pets?.find((pet) => pet.id === activePetId) ?? null;
   const otherPet = pets?.find((pet) => pet.id !== activePetId) ?? null;
@@ -116,6 +148,18 @@ export function Layout({ children }: { children: ReactNode }) {
                   Add another pet
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  void handleExportData();
+                }}
+                disabled={isExporting}
+                className="gap-2.5 text-muted-foreground"
+              >
+                <Download size={16} />
+                <span className="truncate">{isExporting ? 'Preparing your download…' : 'Download my data'}</span>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onSelect={() => {
