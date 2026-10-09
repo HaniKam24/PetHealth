@@ -3923,3 +3923,75 @@ export function useExportAccountData<TData = Awaited<ReturnType<typeof exportAcc
 
 
 
+export const getDeleteAccountUrl = () => {
+
+
+
+
+  return `/api/account`
+}
+
+/**
+ * A pet owned only by this account is deleted along with all of its records (same cascade as DELETE /pets/{petId}). A pet shared with another owner is untouched — this account is just removed as one of its owners, and it stays intact for the remaining owner(s).
+ * @summary Permanently delete this account
+ */
+export const deleteAccount = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteAccountUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAccountMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAccount>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAccount>>, TError,void, TContext> => {
+
+const mutationKey = ['deleteAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAccount>>, void> = () => {
+
+
+          return  deleteAccount(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAccountMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAccount>>>
+
+    export type DeleteAccountMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Permanently delete this account
+ */
+export const useDeleteAccount = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAccount>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAccount>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDeleteAccountMutationOptions(options));
+    }
+

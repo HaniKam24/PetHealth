@@ -19,6 +19,7 @@ import Reminders from '@/pages/reminders';
 import Insights from '@/pages/insights';
 import SmartUpload from '@/pages/smart-upload';
 import Profile from '@/pages/profile';
+import Settings from '@/pages/settings';
 import Onboarding from '@/pages/onboarding';
 import Login from '@/pages/login';
 import Signup from '@/pages/signup';
@@ -85,6 +86,7 @@ function AuthedApp() {
           <Route path="/insights" component={Insights} />
           <Route path="/smart-upload" component={SmartUpload} />
           <Route path="/profile" component={Profile} />
+          <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>
       </Layout>
