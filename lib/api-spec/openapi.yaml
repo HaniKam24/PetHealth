@@ -20,6 +20,8 @@ tags:
     description: Smart Document Upload — AI-extracted, owner-reviewed record proposals
   - name: share
     description: Public, unauthenticated sitter/boarding care-report links
+  - name: account
+    description: Account-level operations, not scoped to a single pet
 paths:
   /healthz:
     get:
@@ -954,6 +956,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /account/export:
+    get:
+      operationId: exportAccountData
+      tags: [account]
+      summary: Download everything stored about this account and its pets — a "download my data" export, not something a normal UI flow ever calls automatically
+      description: Deliberately excludes session tokens, password hashes, and email-verification tokens — this is the owner's own content, not security-internal data. Document links (vet record uploads, Smart Upload source files) are freshly-signed and short-lived, so a saved copy of this export shouldn't be treated as a permanent way to re-download those files later.
+      responses:
+        "200":
+          description: The full export, as a downloadable JSON file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountExport"
 components:
   parameters:
     PetId:
@@ -1645,4 +1660,155 @@ components:
             upcomingReminderCount: { type: integer }
           required: [recordCount, activeMedicationCount, upcomingReminderCount]
       required: [pet, upcomingReminders, activeMedications, recentRecords, recentInsights, activeEmergency, stats]
+    AccountExportUser:
+      type: object
+      description: The account's own profile fields — deliberately excludes the password hash and any OAuth tokens, which live in a separate internal table never exposed through this API.
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        emailVerified: { type: boolean }
+        createdAt: { type: string, format: date-time }
+      required: [id, name, email, emailVerified, createdAt]
+    AccountExportAiUsage:
+      type: object
+      description: One row per calendar month this account has used Pawlie chat or Smart Document Upload.
+      properties:
+        periodMonth: { type: string, description: "YYYY-MM" }
+        chatQuestionsUsed: { type: integer }
+        documentUploadsUsed: { type: integer }
+      required: [periodMonth, chatQuestionsUsed, documentUploadsUsed]
+    AccountExportDoseLog:
+      type: object
+      description: One row per medication dose logged via POST .../log-dose. No dedicated read endpoint exists for this elsewhere — it's otherwise only ever aggregated into MedicationAdherence.
+      properties:
+        id: { type: integer }
+        medicationId: { type: integer }
+        loggedAt: { type: string, format: date-time }
+      required: [id, medicationId, loggedAt]
+    AccountExportHealthRecord:
+      type: object
+      description: Same shape as HealthRecord, except documentUrl always resolves to a working, freshly-signed link when the record has an uploaded document — the regular HealthRecord response leaves this null for uploads and expects a separate GET .../document-url call instead.
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        type: { type: string, enum: [visit, vaccine, lab, procedure, note] }
+        title: { type: string }
+        date: { type: string, format: date }
+        clinic: { type: ["string", "null"] }
+        summary: { type: ["string", "null"] }
+        documentUrl: { type: ["string", "null"], format: uri }
+        documentType: { type: ["string", "null"], enum: [link, upload, null] }
+        documentName: { type: ["string", "null"] }
+      required: [id, petId, type, title, date, clinic, summary, documentUrl, documentType, documentName]
+    AccountExportDocumentImport:
+      type: object
+      description: Same shape as DocumentImport, plus documentUrl — a freshly-signed short-lived link to the original uploaded source document, which the regular DocumentImport response never exposes directly (callers normally fetch it via GET .../document-url instead).
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        documentName: { type: string }
+        documentUrl: { type: string, format: uri }
+        lane: { type: string, enum: [onboarding, ongoing] }
+        status: { type: string, enum: [pending_review, reviewed] }
+        analyzedAt: { type: string, format: date-time }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/DocumentImportItem" }
+      required: [id, petId, documentName, documentUrl, lane, status, analyzedAt, items]
+    AccountExportConversation:
+      type: object
+      description: Same as Conversation, with its insights nested inline rather than fetched separately.
+      properties:
+        id: { type: integer }
+        petId: { type: integer }
+        title: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastMessageAt: { type: string, format: date-time }
+        insights:
+          type: array
+          items: { $ref: "#/components/schemas/Insight" }
+      required: [id, petId, title, createdAt, lastMessageAt, insights]
+    AccountExportPet:
+      type: object
+      description: A Pet, plus every other table scoped to it, flattened into one object for this export.
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        species: { type: string, enum: [dog, cat, rabbit, bird, fish, hamster, pig, horse, reptile, ferret, other] }
+        breed: { type: ["string", "null"] }
+        color: { type: ["string", "null"] }
+        microchipId: { type: ["string", "null"] }
+        sex: { type: string, enum: [female, male, unknown] }
+        spayNeuterStatus: { type: string, enum: [spayed_neutered, intact, unknown] }
+        birthDate: { type: ["string", "null"], format: date }
+        gotchaDate: { type: ["string", "null"], format: date }
+        weight: { type: ["number", "null"] }
+        weightUnit: { type: string, enum: [lb, kg] }
+        photoUrl: { type: ["string", "null"], format: uri }
+        notes: { type: ["string", "null"] }
+        allergies: { type: ["string", "null"] }
+        vetName: { type: ["string", "null"] }
+        vetClinic: { type: ["string", "null"] }
+        vetPhone: { type: ["string", "null"] }
+        vetAddress: { type: ["string", "null"] }
+        criticalInfoSummary: { type: ["string", "null"] }
+        criticalInfoDetails: { type: ["string", "null"] }
+        feedingInstructions: { type: ["string", "null"] }
+        whereThingsAre: { type: ["string", "null"] }
+        walksAndTriggers: { type: ["string", "null"] }
+        handlingNotes: { type: ["string", "null"] }
+        whatNormalLooksLike: { type: ["string", "null"] }
+        caretakingPreference: { type: ["string", "null"] }
+        emergencyVetName: { type: ["string", "null"] }
+        emergencyVetPhone: { type: ["string", "null"] }
+        emergencyVetHours: { type: ["string", "null"] }
+        healthRecords:
+          type: array
+          items: { $ref: "#/components/schemas/AccountExportHealthRecord" }
+        medications:
+          type: array
+          items: { $ref: "#/components/schemas/Medication" }
+        doseLogs:
+          type: array
+          items: { $ref: "#/components/schemas/AccountExportDoseLog" }
+        reminders:
+          type: array
+          items: { $ref: "#/components/schemas/Reminder" }
+        conversations:
+          type: array
+          items: { $ref: "#/components/schemas/AccountExportConversation" }
+        symptomLogs:
+          type: array
+          items: { $ref: "#/components/schemas/SymptomLog" }
+        symptomEntries:
+          type: array
+          items: { $ref: "#/components/schemas/SymptomEntry" }
+        weightLogs:
+          type: array
+          items: { $ref: "#/components/schemas/WeightLog" }
+        alerts:
+          type: array
+          items: { $ref: "#/components/schemas/Alert" }
+        shareLinks:
+          type: array
+          items: { $ref: "#/components/schemas/ShareLink" }
+        documentImports:
+          type: array
+          items: { $ref: "#/components/schemas/AccountExportDocumentImport" }
+      required: [id, name, species, breed, color, microchipId, sex, spayNeuterStatus, birthDate, gotchaDate, weight, weightUnit, photoUrl, notes, allergies, vetName, vetClinic, vetPhone, vetAddress, criticalInfoSummary, criticalInfoDetails, feedingInstructions, whereThingsAre, walksAndTriggers, handlingNotes, whatNormalLooksLike, caretakingPreference, emergencyVetName, emergencyVetPhone, emergencyVetHours, healthRecords, medications, doseLogs, reminders, conversations, symptomLogs, symptomEntries, weightLogs, alerts, shareLinks, documentImports]
+    AccountExport:
+      type: object
+      description: Everything stored about this account and its pets, for the "download my data" feature. Session tokens, password hashes, and email-verification tokens are deliberately excluded — this is the owner's own content, not security-internal data.
+      properties:
+        exportedAt: { type: string, format: date-time }
+        account:
+          $ref: "#/components/schemas/AccountExportUser"
+        aiUsage:
+          type: array
+          items: { $ref: "#/components/schemas/AccountExportAiUsage" }
+        pets:
+          type: array
+          items: { $ref: "#/components/schemas/AccountExportPet" }
+      required: [exportedAt, account, aiUsage, pets]
 

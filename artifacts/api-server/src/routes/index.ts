@@ -6,6 +6,7 @@ import documentImportsRouter from "./document-imports";
 import symptomEntriesRouter from "./symptom-entries";
 import alertsRouter from "./alerts";
 import shareLinksRouter from "./share-links";
+import accountRouter from "./account";
 
 const router: IRouter = Router();
 
@@ -16,6 +17,6 @@ router.use(healthRouter);
 router.use(shareLinksRouter);
 // Every pet-scoped route requires a signed-in session. Per-owner data
 // scoping (does this session's user actually own this pet) lands in Bolt 2.
-router.use(requireAuth, careRouter, documentImportsRouter, symptomEntriesRouter, alertsRouter);
+router.use(requireAuth, careRouter, documentImportsRouter, symptomEntriesRouter, alertsRouter, accountRouter);
 
 export default router;
