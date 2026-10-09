@@ -969,6 +969,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AccountExport"
+  /account:
+    delete:
+      operationId: deleteAccount
+      tags: [account]
+      summary: Permanently delete this account
+      description: A pet owned only by this account is deleted along with all of its records (same cascade as DELETE /pets/{petId}). A pet shared with another owner is untouched — this account is just removed as one of its owners, and it stays intact for the remaining owner(s).
+      responses:
+        "204":
+          description: Account deleted
 components:
   parameters:
     PetId:

@@ -1967,3 +1967,10 @@ export const ExportAccountDataResponse = zod.object({
 }).describe('Everything stored about this account and its pets, for the \"download my data\" feature. Session tokens, password hashes, and email-verification tokens are deliberately excluded — this is the owner\'s own content, not security-internal data.')
 
 
+/**
+ * A pet owned only by this account is deleted along with all of its records (same cascade as DELETE /pets/{petId}). A pet shared with another owner is untouched — this account is just removed as one of its owners, and it stays intact for the remaining owner(s).
+ * @summary Permanently delete this account
+ */
+export const DeleteAccountResponse = zod.void()
+
+

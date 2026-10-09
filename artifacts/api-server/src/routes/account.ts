@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import {
   db,
   users,
@@ -21,7 +21,7 @@ import {
   documentImports,
   documentImportItems,
 } from "@workspace/db";
-import { createSignedDocumentUrl } from "../lib/storage";
+import { createSignedDocumentUrl, deleteDocument, deletePetPhoto } from "../lib/storage";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -289,6 +289,80 @@ router.get("/account/export", async (req, res, next) => {
       aiUsage: usageRows.map(asAiUsage),
       pets: pets_,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+async function deleteDocumentBestEffort(path: string) {
+  try {
+    await deleteDocument(path);
+  } catch (error) {
+    logger.error({ err: error, path }, "Failed to delete health record document from storage");
+  }
+}
+
+async function deletePetPhotoBestEffort(photoUrl: string) {
+  try {
+    await deletePetPhoto(photoUrl);
+  } catch (error) {
+    logger.error({ err: error, photoUrl }, "Failed to delete pet photo from storage");
+  }
+}
+
+router.delete("/account", async (req, res, next) => {
+  try {
+    const userId = requireUserId(req);
+
+    const ownedRows = await db
+      .select({ petId: petOwners.petId })
+      .from(petOwners)
+      .where(eq(petOwners.userId, userId));
+    const ownedPetIds = ownedRows.map((row) => row.petId);
+
+    // A pet with another owner stays intact — this user is just removed as
+    // one of its owners, which happens automatically below when the user
+    // row cascades. Only a pet with no *other* owner gets fully deleted,
+    // same cascade DELETE /pets/:petId already uses.
+    let soleOwnedPetIds: number[] = [];
+    if (ownedPetIds.length > 0) {
+      const otherOwnerRows = await db
+        .select({ petId: petOwners.petId })
+        .from(petOwners)
+        .where(and(inArray(petOwners.petId, ownedPetIds), ne(petOwners.userId, userId)));
+      const petIdsWithOtherOwners = new Set(otherOwnerRows.map((row) => row.petId));
+      soleOwnedPetIds = ownedPetIds.filter((id) => !petIdsWithOtherOwners.has(id));
+    }
+
+    // Read the attached-document paths and photo URLs before the cascade
+    // deletes below remove the rows that reference them — otherwise
+    // there's nothing left to clean up, same ordering DELETE /pets/:petId
+    // already uses.
+    const docs =
+      soleOwnedPetIds.length > 0
+        ? await db
+            .select({ path: healthRecords.documentStoragePath })
+            .from(healthRecords)
+            .where(and(inArray(healthRecords.petId, soleOwnedPetIds), eq(healthRecords.documentType, "upload")))
+        : [];
+    const petPhotoRows =
+      soleOwnedPetIds.length > 0
+        ? await db.select({ photoUrl: pets.photoUrl }).from(pets).where(inArray(pets.id, soleOwnedPetIds))
+        : [];
+
+    if (soleOwnedPetIds.length > 0) {
+      await db.delete(pets).where(inArray(pets.id, soleOwnedPetIds));
+    }
+    // Cascades sessions, accounts (better-auth), aiUsageMonthly, and any
+    // remaining petOwners rows (the shared pets this user didn't solely own).
+    await db.delete(users).where(eq(users.id, userId));
+
+    await Promise.all(docs.map((doc) => (doc.path ? deleteDocumentBestEffort(doc.path) : undefined)));
+    await Promise.all(
+      petPhotoRows.map((row) => (row.photoUrl ? deletePetPhotoBestEffort(row.photoUrl) : undefined)),
+    );
+
+    res.status(204).end();
   } catch (error) {
     next(error);
   }
