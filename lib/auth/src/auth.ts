@@ -45,7 +45,24 @@ export const auth = betterAuth({
         }
       : {}),
   },
-  user: { modelName: "users" },
+  user: {
+    modelName: "users",
+    additionalFields: {
+      // Which plan this account is on. Only "free" is ever actually set
+      // today — there's no payment integration yet, so nothing writes
+      // anything else here. `input: false` is deliberate: it stops
+      // better-auth's own update-user endpoint from letting someone set
+      // this on themselves client-side. Once billing is wired up, only
+      // the backend (e.g. a payment-provider webhook) should ever change
+      // this field.
+      plan: {
+        type: "string",
+        required: true,
+        defaultValue: "free",
+        input: false,
+      },
+    },
+  },
   session: { modelName: "sessions" },
   account: {
     modelName: "accounts",
