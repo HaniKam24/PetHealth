@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { signIn } from '@/lib/auth-client';
+import SocialSignInButtons from '@/components/social-sign-in-buttons';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
@@ -101,6 +102,10 @@ export default function Login() {
                 </Button>
               </form>
             </Form>
+
+            <div className="mt-6">
+              <SocialSignInButtons />
+            </div>
           </CardContent>
         </Card>
 
