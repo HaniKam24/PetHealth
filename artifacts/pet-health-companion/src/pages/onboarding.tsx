@@ -133,6 +133,15 @@ export default function Onboarding() {
           vetClinic: data.vetClinic || null,
           vetPhone: data.vetPhone || null,
           vetAddress: data.vetAddress || null,
+          // form.getValues() returns the raw, un-coerced input state — Zod's
+          // z.coerce.number() on the weight field only ever runs inside
+          // form.handleSubmit's own callback, which this function
+          // deliberately doesn't use (it validates a subset of fields via
+          // form.trigger instead, to support the multi-step wizard). Without
+          // this, a typed weight reaches the API as the string straight out
+          // of the input element, and the API rejects it: "Invalid request:
+          // weight Expected number, received string".
+          weight: data.weight === null || data.weight === undefined || (data.weight as unknown) === '' ? null : Number(data.weight),
         },
       },
       { onSuccess: () => setLocation('/') },
