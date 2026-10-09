@@ -30,6 +30,7 @@ export const users = pgTable("users", {
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
+  plan: text("plan").default("free").notNull(),
 });
 
 export const sessions = pgTable(
