@@ -8,9 +8,16 @@ export default function SocialSignInButtons() {
 
   const signInWithGoogle = async () => {
     setError(null);
+    // Must be absolute, not a bare "/" — the OAuth round-trip leaves the
+    // page entirely (redirects to Google and back), so this redirect is
+    // issued server-side after the callback completes. A relative path
+    // resolves against the *api-server's* own origin there, not the
+    // frontend's, landing on a 404 (confirmed: the server has no route
+    // for a bare GET /). window.location.origin gives the frontend's
+    // real origin in every environment without hardcoding it.
     const { error: signInError } = await authClient.signIn.social({
       provider: 'google',
-      callbackURL: '/',
+      callbackURL: `${window.location.origin}/`,
     });
 
     if (signInError) {
