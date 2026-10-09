@@ -20,11 +20,14 @@ import Insights from '@/pages/insights';
 import SmartUpload from '@/pages/smart-upload';
 import Profile from '@/pages/profile';
 import Onboarding from '@/pages/onboarding';
+import PickAPlan from '@/pages/pick-a-plan';
 import Login from '@/pages/login';
 import Signup from '@/pages/signup';
 import ShareView from '@/pages/share-view';
+import { hasSelectedPlan } from '@/lib/plan-selection-flag';
 
 const ONBOARDING_PATH = '/onboarding';
+const PLAN_PATH = '/pick-a-plan';
 const SHARE_PATH_PREFIX = '/share/';
 
 const queryClient = new QueryClient();
@@ -49,20 +52,35 @@ function FullPageLoader() {
 // out from under their own review step. Someone already onboarded who
 // navigates to /onboarding directly just sees the wizard again, equivalent
 // to "Add another pet" — a harmless edge case, not worth the conflict.
+//
+// The plan picker gates entry into onboarding the same zero-pets-only way —
+// deliberately checked on top of (not instead of) hasPets rather than its
+// own standalone "new account" signal, so an existing account (which
+// obviously already has pets, having been using the app since before this
+// screen existed) is never retroactively interrupted by it. Only an account
+// that's also about to be sent to onboarding sees it first.
 function AuthedApp() {
   const { data: pets, isLoading: petsLoading } = useListPets();
   const [location, setLocation] = useLocation();
   const hasPets = (pets?.length ?? 0) > 0;
 
   useEffect(() => {
-    if (petsLoading) return;
-    if (!hasPets && location !== ONBOARDING_PATH) {
+    if (petsLoading || hasPets) return;
+    if (!hasSelectedPlan()) {
+      if (location !== PLAN_PATH) setLocation(PLAN_PATH);
+      return;
+    }
+    if (location !== ONBOARDING_PATH) {
       setLocation(ONBOARDING_PATH);
     }
   }, [petsLoading, hasPets, location, setLocation]);
 
   if (petsLoading) {
     return <FullPageLoader />;
+  }
+
+  if (location === PLAN_PATH) {
+    return <PickAPlan />;
   }
 
   if (location === ONBOARDING_PATH) {
