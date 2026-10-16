@@ -15,6 +15,7 @@ Before writing or changing a single line of code:
 1. Run `git checkout main`
 2. Run `git pull origin main`
 3. Create a new branch off the latest main: `git checkout -b <type>/<short-description>`
+4. Check for file overlap with other open PRs: run `gh pr list` and `gh pr diff <number> --name-only` for each one, and compare against the files this task is about to touch. If another open PR already touches the same file(s), tell the user which PR(s) and files overlap before starting work — not to block the branch, just so a merge conflict later is expected instead of a surprise.
 
 Branch naming — pick the right prefix:
 - `feature/...` — new functionality (e.g. `feature/vaccine-reminders`)
