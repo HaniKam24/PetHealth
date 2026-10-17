@@ -323,7 +323,7 @@ export default function Dashboard() {
     return (
       <>
         {tutorial}
-        <div className="p-8 max-w-6xl mx-auto animate-pulse space-y-6">
+        <div className="w-full p-8 max-w-6xl mx-auto animate-pulse space-y-6">
           <div className="h-10 bg-muted rounded-lg w-1/3" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <div className="lg:col-span-2 h-96 bg-muted rounded-3xl" />
@@ -338,7 +338,7 @@ export default function Dashboard() {
     return (
       <>
         {tutorial}
-        <div className="p-8 max-w-6xl mx-auto">
+        <div className="w-full p-8 max-w-6xl mx-auto">
           <div className="text-destructive bg-destructive/10 rounded-2xl border border-destructive/20 text-center py-12">
             Failed to load dashboard. Please try again.
           </div>
@@ -464,7 +464,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-6 md:p-10 max-w-6xl mx-auto pb-16">
+    <div className="w-full p-6 md:p-10 max-w-6xl mx-auto pb-16">
       {tutorial}
       <div className="flex flex-wrap items-end justify-between gap-5 mb-7">
         <div>

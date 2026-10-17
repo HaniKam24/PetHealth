@@ -304,7 +304,7 @@ export default function Medications() {
     : null;
 
   return (
-    <div className="p-6 md:p-10 max-w-5xl mx-auto pb-16">
+    <div className="w-full p-6 md:p-10 max-w-5xl mx-auto pb-16">
       <div className="flex items-end justify-between gap-6 mb-7">
         <div>
           <h1 className="font-serif text-[34px] font-extrabold tracking-tight">{activePet ? `${activePet.name}'s medicines` : 'Medicines'}</h1>

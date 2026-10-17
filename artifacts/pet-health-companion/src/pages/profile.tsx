@@ -607,7 +607,7 @@ export default function Profile() {
 
   if (mode === 'passport' && pet) {
     return (
-      <div className="p-6 md:p-10 max-w-6xl mx-auto pb-16">
+      <div className="w-full p-6 md:p-10 max-w-6xl mx-auto pb-16">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="font-serif text-[34px] font-extrabold tracking-tight">{pet.name}&#39;s passport</h1>
@@ -931,7 +931,7 @@ export default function Profile() {
   const fieldClass = 'h-12 rounded-2xl bg-accent/40';
 
   return (
-    <div className="p-6 md:p-10 max-w-3xl mx-auto pb-16">
+    <div className="w-full p-6 md:p-10 max-w-3xl mx-auto pb-16">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-serif text-[34px] font-extrabold tracking-tight">

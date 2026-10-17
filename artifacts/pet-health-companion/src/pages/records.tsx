@@ -319,7 +319,7 @@ export default function Records() {
   };
 
   return (
-    <div className="p-6 md:p-10 max-w-4xl mx-auto pb-16">
+    <div className="w-full p-6 md:p-10 max-w-4xl mx-auto pb-16">
       <div className="flex items-end justify-between gap-6 mb-6">
         <div>
           <h1 className="font-serif text-[34px] font-extrabold tracking-tight">{activePet ? `${activePet.name}'s file` : 'Health records'}</h1>
