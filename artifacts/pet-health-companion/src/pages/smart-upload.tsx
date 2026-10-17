@@ -683,7 +683,14 @@ export default function SmartUpload() {
 
   return (
     <>
-    <div className="p-6 md:p-10 max-w-4xl mx-auto pb-16">
+    {/* w-full matters here, not just max-w-4xl mx-auto: this div is a flex
+        item of Layout's column-direction wrapper, and auto cross-axis
+        margins (mx-auto) opt it out of the default stretch sizing — without
+        an explicit width, it shrinks to fit its own content instead of
+        staying a fixed max-w-4xl, so the whole page visibly resized
+        whenever content below (e.g. an expanded upload's history) changed
+        width. */}
+    <div className="w-full p-6 md:p-10 max-w-4xl mx-auto pb-16">
       <div className="mb-6">
         <h1 className="font-serif text-[34px] font-extrabold tracking-tight">Vet reports you've sent us</h1>
         <p className="mt-1 text-[16.5px] text-muted-foreground">
